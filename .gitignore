@@ -1,3 +1,6 @@
 .idea/
 
 data/
+
+config/config.yaml
+config/serial_number.txt
