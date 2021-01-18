@@ -34,10 +34,9 @@ func main() {
 
 
 	host := fmt.Sprintf(":%s", port)
-
 	router := mux.NewRouter()
 	setupRoutes(router)
-	
+
 	notify := make(chan os.Signal)
 	signal.Notify(notify, os.Interrupt)
 
@@ -64,7 +63,7 @@ func main() {
 		}
 	}()
 
-	fmt.Println("Server listening on", host)
+	log.Println("Server listening on", host)
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Printf("server error: %v\n", err.Error())
 	}
