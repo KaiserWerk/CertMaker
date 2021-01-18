@@ -2,11 +2,10 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"flag"
 	"fmt"
 	"github.com/gorilla/mux"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,25 +14,30 @@ import (
 
 var (
 	port string
-
+	globalConfig *sysConf
 )
 
 func main() {
-	caDir := "ca"
-	certFilename := "ca-cert.pem"
-	keyFilename := "ca-priv.pem"
+	flag.StringVar(&port,"port", "8880", "The port to run at")
+	flag.Parse()
 
-	err := setupCA(caDir, certFilename, keyFilename)
+	var err error
+	globalConfig, err = getConfig()
 	if err != nil {
-		panic("could not setup app: " + err.Error())
+		log.Fatal(err.Error())
 	}
 
-	flag.StringVar(&port,"port", "8880", "The port to run at")
+	err = setupCA()
+	if err != nil {
+		log.Fatalf("could not set up CA: %s", err.Error())
+	}
+
+
 	host := fmt.Sprintf(":%s", port)
 
 	router := mux.NewRouter()
-
-	// catch ctrl+c for graceful shutdown
+	setupRoutes(router)
+	
 	notify := make(chan os.Signal)
 	signal.Notify(notify, os.Interrupt)
 
@@ -48,7 +52,7 @@ func main() {
 
 	go func() {
 		<-notify
-		fmt.Println("Initiating graceful shutdown...")
+		log.Println("Initiating graceful shutdown...")
 		ctx, cancel := context.WithTimeout(context.Background(), 30 * time.Second)
 		defer cancel()
 		// do stuff before exiting here
@@ -56,41 +60,22 @@ func main() {
 		srv.SetKeepAlivesEnabled(false)
 		err := srv.Shutdown(ctx)
 		if err != nil {
-			panic("Could not gracefully shut down server: " + err.Error())
+			log.Fatal("Could not gracefully shut down server: " + err.Error())
 		}
 	}()
 
 	fmt.Println("Server listening on", host)
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		fmt.Printf("server error: %v\n", err.Error())
+		log.Printf("server error: %v\n", err.Error())
 	}
-	fmt.Println("Server shutdown complete. Have a nice day!")
+	log.Println("Server shutdown complete. Have a nice day!")
 }
 
-func setupCA(caDir, certFilename, keyFilename string) error {
-	certFile := fmt.Sprintf("%s/%s", caDir, certFilename)
-	keyFile := fmt.Sprintf("%s/%s", caDir, keyFilename)
-
-	// check if root certificate exists
-	if !doesFileExist(certFile) || !doesFileExist(keyFile) {
-		// if no, generate new one and save to file
-		if err := generateRootCertAndKey(caDir, certFilename, keyFilename); err != nil {
-			return err
-		}
-	}
-
-	// if yes, try to load it. return error, if any
-	caFiles, err := tls.LoadX509KeyPair(certFile, keyFile)
-	if err != nil {
-		return err
-	}
-	// parse the content
-	_, err = x509.ParseCertificate(caFiles.Certificate[0])
-	if err != nil {
-		return err
-	}
-
-	return nil
+func setupRoutes(router *mux.Router) {
+	router.HandleFunc("/api/certificate/request", certificateRequestHandler)
+	router.HandleFunc("/api/certificate/{id}/obtain", certificateObtainHandler)
+	router.HandleFunc("/api/privatekey/{id}/obtain", privateKeyObtainHandler)
 }
+
 
 
