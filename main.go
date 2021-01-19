@@ -32,7 +32,6 @@ func main() {
 		log.Fatalf("could not set up CA: %s", err.Error())
 	}
 
-
 	host := fmt.Sprintf(":%s", port)
 	router := mux.NewRouter()
 	setupRoutes(router)
@@ -71,9 +70,9 @@ func main() {
 }
 
 func setupRoutes(router *mux.Router) {
-	router.HandleFunc("/api/certificate/request", certificateRequestHandler)
-	router.HandleFunc("/api/certificate/{id}/obtain", certificateObtainHandler)
-	router.HandleFunc("/api/privatekey/{id}/obtain", privateKeyObtainHandler)
+	router.HandleFunc("/api/certificate/request", certificateRequestHandler).Methods("POST")
+	router.HandleFunc("/api/certificate/{id}/obtain", certificateObtainHandler).Methods("GET")
+	router.HandleFunc("/api/privatekey/{id}/obtain", privateKeyObtainHandler).Methods("GET")
 }
 
 

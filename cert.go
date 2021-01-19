@@ -140,9 +140,11 @@ func generateRootCertAndKey() error {
 
 
 
-func generateLeafCertAndKey(request certificateRequest) error {
+func generateLeafCertAndKey(request certificateRequest) (int64, error) {
 	// Load CA
-	catls, err := tls.LoadX509KeyPair("ca.crt", "ca.key")
+	catls, err := tls.LoadX509KeyPair(
+		fmt.Sprintf("%s/root-cert.pem", globalConfig.DataDir),
+		fmt.Sprintf("%s/root-key.pem", globalConfig.DataDir))
 	if err != nil {
 		panic(err)
 	}
@@ -155,7 +157,7 @@ func generateLeafCertAndKey(request certificateRequest) error {
 		request.Days = 182
 	}
 
-	ips := make([]net.IP, 1)
+	ips := make([]net.IP, 0)
 	for _, v := range request.IPs {
 		ip := net.ParseIP(v)
 		if ip != nil {
@@ -165,7 +167,7 @@ func generateLeafCertAndKey(request certificateRequest) error {
 
 	nextSn, err := getNextSerialNumber()
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	cert := &x509.Certificate{
@@ -193,43 +195,79 @@ func generateLeafCertAndKey(request certificateRequest) error {
 
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	pub := &priv.PublicKey
 
 	// Sign the certificate
 	certBytes, err := x509.CreateCertificate(rand.Reader, cert, ca, pub, catls.PrivateKey)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	// Public key
 	certOut, err := os.Create(outCertFilename)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	err = pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
 	if err != nil {
-		return err
+		return 0, err
 	}
 	err = certOut.Close()
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	// Private key
 	keyOut, err := os.OpenFile(outKeyFilename, os.O_WRONLY | os.O_CREATE | os.O_TRUNC, 0600)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	err = pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
 	if err != nil {
-		return err
+		return 0, err
 	}
 	err = keyOut.Close()
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	return nil
+	return nextSn, nil
+}
+
+func findLeafCertificate(id string) ([]byte, error) {
+	certFile := fmt.Sprintf("%s/leafcerts/%s-cert.pem", globalConfig.DataDir, id)
+	if !doesFileExist(certFile) {
+		return nil, fmt.Errorf("cert file with id %s not found", id)
+	}
+
+	content, err := ioutil.ReadFile(certFile)
+	if err != nil {
+		return nil, err
+	}
+
+	//
+	// delete the certificate file?
+	//
+
+	return content, nil
+}
+
+func findPrivateKey(id string) ([]byte, error) {
+	keyFile := fmt.Sprintf("%s/leafcerts/%s-key.pem", globalConfig.DataDir, id)
+	if !doesFileExist(keyFile) {
+		return nil, fmt.Errorf("key file with id %s not found", id)
+	}
+
+	content, err := ioutil.ReadFile(keyFile)
+	if err != nil {
+		return nil, err
+	}
+
+	//
+	// delete the private key file?
+	//
+
+	return content, nil
 }

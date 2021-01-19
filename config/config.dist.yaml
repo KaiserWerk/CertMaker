@@ -1,2 +1,2 @@
-server_host: localhost
+server_host: localhost:8880
 data_dir: data
