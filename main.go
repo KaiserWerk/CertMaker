@@ -13,12 +13,14 @@ import (
 )
 
 var (
-	port string
+	port         string
+	useUI        bool
 	globalConfig *sysConf
 )
 
 func main() {
-	flag.StringVar(&port,"port", "8880", "The port to run at")
+	flag.StringVar(&port, "port", "8880", "The port to run at")
+	flag.BoolVar(&useUI, "ui", true, "Adds a simple UI for certificate management")
 	flag.Parse()
 
 	var err error
@@ -34,24 +36,24 @@ func main() {
 
 	host := fmt.Sprintf(":%s", port)
 	router := mux.NewRouter()
-	setupRoutes(router)
+	setupRoutes(router, useUI)
 
 	notify := make(chan os.Signal)
 	signal.Notify(notify, os.Interrupt)
 
 	srv := &http.Server{
-		Addr: 				host,
-		Handler:            router,
-		ReadTimeout:		2 * time.Second,
-		WriteTimeout:       2 * time.Second,
-		IdleTimeout:        3 * time.Second,
-		ReadHeaderTimeout:  2 * time.Second,
+		Addr:              host,
+		Handler:           router,
+		ReadTimeout:       2 * time.Second,
+		WriteTimeout:      2 * time.Second,
+		IdleTimeout:       3 * time.Second,
+		ReadHeaderTimeout: 2 * time.Second,
 	}
 
 	go func() {
 		<-notify
 		log.Println("Initiating graceful shutdown...")
-		ctx, cancel := context.WithTimeout(context.Background(), 30 * time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		// do stuff before exiting here
 
@@ -69,11 +71,14 @@ func main() {
 	log.Println("Server shutdown complete. Have a nice day!")
 }
 
-func setupRoutes(router *mux.Router) {
+func setupRoutes(router *mux.Router, ui bool) {
+	if ui {
+		router.HandleFunc("/", indexHandler).Methods("GET")
+		router.HandleFunc("/add", addCertificateHandler).Methods("GET", "POST")
+		router.HandleFunc("/remove", removeCertificateHandler).Methods("GET", "POST")
+		//router.HandleFunc("/remoke", revokeCertificateHandler).Methods("GET", "POST")
+	}
 	router.HandleFunc("/api/certificate/request", certificateRequestHandler).Methods("POST")
 	router.HandleFunc("/api/certificate/{id}/obtain", certificateObtainHandler).Methods("GET")
 	router.HandleFunc("/api/privatekey/{id}/obtain", privateKeyObtainHandler).Methods("GET")
 }
-
-
-

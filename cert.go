@@ -21,11 +21,10 @@ import (
 var (
 	rootMutey sync.RWMutex
 	leafMutex sync.RWMutex
-	snMutex sync.RWMutex
-	certFile string
-	keyFile string
+	snMutex   sync.RWMutex
+	certFile  string
+	keyFile   string
 )
-
 
 func setupCA() error {
 	certFile = fmt.Sprintf("%s/%s", globalConfig.DataDir, "root-cert.pem")
@@ -115,7 +114,7 @@ func generateRootCertAndKey() error {
 	if err != nil {
 		return err
 	}
-	fh, err := os.OpenFile(certFile,  os.O_CREATE|os.O_WRONLY, 0600)
+	fh, err := os.OpenFile(certFile, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}
@@ -125,7 +124,7 @@ func generateRootCertAndKey() error {
 	}
 	_ = fh.Close()
 
-	fh, err = os.OpenFile(keyFile, os.O_CREATE | os.O_WRONLY, 0600)
+	fh, err = os.OpenFile(keyFile, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}
@@ -137,8 +136,6 @@ func generateRootCertAndKey() error {
 
 	return nil
 }
-
-
 
 func generateLeafCertAndKey(request certificateRequest) (int64, error) {
 	// Load CA
@@ -220,7 +217,7 @@ func generateLeafCertAndKey(request certificateRequest) (int64, error) {
 	}
 
 	// Private key
-	keyOut, err := os.OpenFile(outKeyFilename, os.O_WRONLY | os.O_CREATE | os.O_TRUNC, 0600)
+	keyOut, err := os.OpenFile(outKeyFilename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return 0, err
 	}

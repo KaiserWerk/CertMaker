@@ -1,0 +1,27 @@
+{{ template "header_default" . }}
+<div class="container">
+    <h1>All available certificates</h1>
+    <table class="table-bordered table-condensed table-hover">
+        <thead>
+        <tr>
+            <th>SN</th>
+            <th>Certificate</th>
+            <th>PrivateKey</th>
+        </tr>
+        </thead>
+        <tbody>
+        {{ range .CertSNs }}
+        <tr>
+            <td>{{ . }}</td>
+            <td><a href="/api/certificate/{{ . }}/obtain" target="_blank">Download</a></td>
+            <td><a href="/api/privatekey/{{ . }}/obtain" target="_blank">Download</a></td>
+        </tr>
+        {{ else }}
+            <tr>
+                <td colspan="3">No leaf certs found. <a href="/add">Create one!</a></td>
+            </tr>
+        {{ end }}
+        </tbody>
+    </table>
+</div>
+{{ template "footer_default" . }}
