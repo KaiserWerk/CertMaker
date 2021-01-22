@@ -19,8 +19,3 @@ type certificateRequest struct {
 	Days int `json:"days"`
 }
 
-type CertInfo struct {
-	Id       string
-	CertFile string
-	KeyFile  string
-}
