@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/tls"
@@ -184,13 +186,16 @@ func generateLeafCertAndKey(request certificateRequest) (int64, error) {
 		SubjectKeyId: []byte{1, 2, 3, 4, 6},
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:     x509.KeyUsageDigitalSignature,
+		//PublicKeyAlgorithm: ,
+		SignatureAlgorithm: x509.SHA256WithRSA,
 	}
 
 	_ = os.Mkdir(fmt.Sprintf("%s/leafcerts", globalConfig.DataDir), 0600)
 	outCertFilename := fmt.Sprintf("%s/leafcerts/%s-cert.pem", globalConfig.DataDir, strconv.FormatInt(nextSn, 10))
 	outKeyFilename := fmt.Sprintf("%s/leafcerts/%s-key.pem", globalConfig.DataDir, strconv.FormatInt(nextSn, 10))
 
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	//priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return 0, err
 	}
@@ -221,7 +226,11 @@ func generateLeafCertAndKey(request certificateRequest) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	err = pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
+	privKeyBytes, err := x509.MarshalECPrivateKey(priv)
+	if err != nil {
+		return 0, err
+	}
+	err = pem.Encode(keyOut, &pem.Block{Type: "EC PRIVATE KEY", Bytes: privKeyBytes})
 	if err != nil {
 		return 0, err
 	}
