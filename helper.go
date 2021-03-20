@@ -59,22 +59,22 @@ func getConfig() (*sysConf, error) {
 	return s, nil
 }
 
-func ExecuteTemplate(w http.ResponseWriter, file string, data interface{}) error {
+func executeTemplate(w http.ResponseWriter, file string, data interface{}) error {
 	//var funcMap = template.FuncMap{
 	//	"getBuildDefCaption": GetBuildDefCaption,
 	//	"getUsernameById":    GetUsernameById,
 	//	"getFlashbag":        GetFlashbag(GetSessionManager()),
 	//	"formatDate":	      FormatDate,
 	//}
-	layoutContent, err := FSString(true, "/templates/_layout.gohtml") // with leading slash?
+	layoutContent, err := fsEmbed.ReadFile("templates/_layout.gohtml") // with leading slash?
 	if err != nil {
 		fmt.Println("could not get layout template: " + err.Error())
 		return err
 	}
 
-	layout := template.Must(template.New("_layout.gohtml").Parse(layoutContent)) //.Funcs(funcMap)
+	layout := template.Must(template.New("_layout.gohtml").Parse(string(layoutContent))) //.Funcs(funcMap)
 
-	content, err := FSString(true, "/templates/content/"+file) // with leading slash?
+	content, err := fsEmbed.ReadFile("templates/content/"+file) // with leading slash?
 	if err != nil {
 		fmt.Println("could not find template " + file + ": " + err.Error())
 		return err

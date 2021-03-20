@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"embed"
 	"flag"
 	"fmt"
 	"github.com/gorilla/mux"
@@ -16,6 +17,8 @@ var (
 	port         string
 	useUI        bool
 	globalConfig *sysConf
+	//go:embed templates/*
+	fsEmbed embed.FS
 )
 
 func main() {
@@ -76,7 +79,7 @@ func setupRoutes(router *mux.Router, ui bool) {
 		router.HandleFunc("/", indexHandler).Methods("GET")
 		router.HandleFunc("/add", addCertificateHandler).Methods("GET", "POST")
 		router.HandleFunc("/remove", removeCertificateHandler).Methods("GET", "POST")
-		//router.HandleFunc("/remoke", revokeCertificateHandler).Methods("GET", "POST")
+		//router.HandleFunc("/revoke", revokeCertificateHandler).Methods("GET", "POST")
 	}
 	router.HandleFunc("/api/certificate/request", certificateRequestHandler).Methods("POST")
 	router.HandleFunc("/api/certificate/{id}/obtain", certificateObtainHandler).Methods("GET")

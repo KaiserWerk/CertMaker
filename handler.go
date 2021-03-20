@@ -37,7 +37,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		CertSNs: certs,
 	}
 
-	if err := ExecuteTemplate(w, "index.gohtml", data); err != nil {
+	if err := executeTemplate(w, "index.gohtml", data); err != nil {
 		w.WriteHeader(404)
 	}
 }
@@ -118,7 +118,7 @@ func addCertificateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := ExecuteTemplate(w, "add_certificate.gohtml", nil); err != nil {
+	if err := executeTemplate(w, "add_certificate.gohtml", nil); err != nil {
 		w.WriteHeader(404)
 	}
 }
