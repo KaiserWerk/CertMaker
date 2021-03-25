@@ -100,9 +100,9 @@ func generateRootCertAndKey() error {
 			Organization:  []string{"KaiserWerk CA ROOT"},
 			Country:       []string{"DE"},
 			Province:      []string{"NRW"},
-			Locality:      []string{"Bergisch Gladbach"},
-			StreetAddress: []string{"Oberheidkamper Straße 80"},
-			PostalCode:    []string{"51469"},
+			Locality:      []string{"Musterort"},
+			StreetAddress: []string{"Musterstraße 1337"},
+			PostalCode:    []string{"12345"},
 		},
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().AddDate(30, 0, 0),
@@ -140,7 +140,6 @@ func generateRootCertAndKey() error {
 }
 
 func generateLeafCertAndKey(request certificateRequest) (int64, error) {
-	// Load CA
 	catls, err := tls.LoadX509KeyPair(
 		fmt.Sprintf("%s/root-cert.pem", globalConfig.DataDir),
 		fmt.Sprintf("%s/root-key.pem", globalConfig.DataDir))
@@ -178,6 +177,8 @@ func generateLeafCertAndKey(request certificateRequest) (int64, error) {
 			Locality:      []string{request.Subject.Locality},
 			StreetAddress: []string{request.Subject.StreetAddress},
 			PostalCode:    []string{request.Subject.PostalCode},
+			//SerialNumber: "hallo 123",
+
 		},
 		NotBefore:    time.Now(),
 		NotAfter:     time.Now().AddDate(0, 0, request.Days),
@@ -187,7 +188,9 @@ func generateLeafCertAndKey(request certificateRequest) (int64, error) {
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:     x509.KeyUsageDigitalSignature,
 		//PublicKeyAlgorithm: ,
-		SignatureAlgorithm: x509.SHA256WithRSA,
+		//SignatureAlgorithm: x509.SHA256WithRSA,
+		SignatureAlgorithm: x509.SHA512WithRSA,
+		OCSPServer: []string{"http://localhost:8880/api/ocsp", "http://codework.me:8000/"},
 	}
 
 	_ = os.Mkdir(fmt.Sprintf("%s/leafcerts", globalConfig.DataDir), 0600)
@@ -207,6 +210,12 @@ func generateLeafCertAndKey(request certificateRequest) (int64, error) {
 		return 0, err
 	}
 
+	//caCertBytes, err := ioutil.ReadFile(fmt.Sprintf("%s/root-cert.pem", globalConfig.DataDir))
+	//if err != nil {
+	//	return 0, err
+	//}
+	//b := append(certBytes, caCertBytes...)
+
 	// Public key
 	certOut, err := os.Create(outCertFilename)
 	if err != nil {
@@ -216,6 +225,10 @@ func generateLeafCertAndKey(request certificateRequest) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
+	//err = pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: caCertBytes})
+	//if err != nil {
+	//	return 0, err
+	//}
 	err = certOut.Close()
 	if err != nil {
 		return 0, err
@@ -253,10 +266,6 @@ func findLeafCertificate(id string) ([]byte, error) {
 		return nil, err
 	}
 
-	//
-	// delete the certificate file?
-	//
-
 	return content, nil
 }
 
@@ -270,10 +279,6 @@ func findPrivateKey(id string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	//
-	// delete the private key file?
-	//
 
 	return content, nil
 }

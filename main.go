@@ -56,7 +56,7 @@ func main() {
 	go func() {
 		<-notify
 		log.Println("Initiating graceful shutdown...")
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 30 * time.Second)
 		defer cancel()
 		// do stuff before exiting here
 
@@ -84,4 +84,7 @@ func setupRoutes(router *mux.Router, ui bool) {
 	router.HandleFunc("/api/certificate/request", certificateRequestHandler).Methods("POST")
 	router.HandleFunc("/api/certificate/{id}/obtain", certificateObtainHandler).Methods("GET")
 	router.HandleFunc("/api/privatekey/{id}/obtain", privateKeyObtainHandler).Methods("GET")
+	router.HandleFunc("/api/ocsp/", oscpRequestHandler)
 }
+
+
