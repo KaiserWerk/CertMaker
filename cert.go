@@ -269,7 +269,7 @@ func findLeafCertificate(id string) ([]byte, error) {
 	return content, nil
 }
 
-func findPrivateKey(id string) ([]byte, error) {
+func findLeafPrivateKey(id string) ([]byte, error) {
 	keyFile := fmt.Sprintf("%s/leafcerts/%s-key.pem", globalConfig.DataDir, id)
 	if !doesFileExist(keyFile) {
 		return nil, fmt.Errorf("key file with id %s not found", id)

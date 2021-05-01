@@ -163,14 +163,17 @@ func certificateObtainHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, _ = w.Write(certBytes)
+	_, err = w.Write(certBytes)
+	if err != nil {
+		log.Println("could not write cert bytes:", err.Error())
+	}
 }
 
 func privateKeyObtainHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	keyBytes, err := findPrivateKey(id)
+	keyBytes, err := findLeafPrivateKey(id)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -227,8 +230,10 @@ func oscpRequestHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Println(ocspReq.SerialNumber)
+
 	// hier prüfen, ob das Cert wirklich revoked ist
 	// ...
 
-	ocspResp := ocsp.CreateResponse()
+	//ocspResp := ocsp.CreateResponse()
 }
