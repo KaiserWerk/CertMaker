@@ -4,7 +4,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -15,13 +14,14 @@ import (
 	"net"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
 )
 
 var (
-	rootMutey sync.RWMutex
+	rootMutex sync.RWMutex
 	leafMutex sync.RWMutex
 	snMutex   sync.RWMutex
 	certFile  string
@@ -29,8 +29,8 @@ var (
 )
 
 func setupCA() error {
-	certFile = fmt.Sprintf("%s/%s", globalConfig.DataDir, "root-cert.pem")
-	keyFile = fmt.Sprintf("%s/%s", globalConfig.DataDir, "root-key.pem")
+	certFile = filepath.Join(globalConfig.DataDir, "root-cert.pem")
+	keyFile = filepath.Join(globalConfig.DataDir, "root-key.pem")
 
 	// check if root certificate exists
 	if !doesFileExist(certFile) || !doesFileExist(keyFile) {
@@ -88,7 +88,8 @@ func generateRootCertAndKey() error {
 		return err
 	}
 
-	privKey, err := rsa.GenerateKey(rand.Reader, 4096)
+	//privKey, err := rsa.GenerateKey(rand.Reader, 4096)
+	privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return err
 	}
@@ -116,6 +117,7 @@ func generateRootCertAndKey() error {
 	if err != nil {
 		return err
 	}
+
 	fh, err := os.OpenFile(certFile, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
@@ -130,7 +132,11 @@ func generateRootCertAndKey() error {
 	if err != nil {
 		return err
 	}
-	err = pem.Encode(fh, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privKey)})
+	privKeyBytes, err := x509.MarshalECPrivateKey(privKey)
+	if err != nil {
+		return err
+	}
+	err = pem.Encode(fh, &pem.Block{Type: "EC PRIVATE KEY", Bytes: privKeyBytes})
 	if err != nil {
 		return err
 	}
