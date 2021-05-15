@@ -204,7 +204,7 @@ func GenerateLeafCertAndKey(request entity.CertificateRequest) (int64, error) {
 		OCSPServer: []string{"http://localhost:8880/api/ocsp", "http://codework.me:8000/"}, // TODO implement/fix
 	}
 
-	_ = os.Mkdir(fmt.Sprintf("%s/leafcerts", config.DataDir), 0700)
+	_ = os.MkdirAll(fmt.Sprintf("%s/leafcerts", config.DataDir), 0700)
 	outCertFilename := fmt.Sprintf("%s/leafcerts/%s-cert.pem", config.DataDir, strconv.FormatInt(nextSn, 10))
 	outKeyFilename := fmt.Sprintf("%s/leafcerts/%s-key.pem", config.DataDir, strconv.FormatInt(nextSn, 10))
 
