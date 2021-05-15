@@ -73,6 +73,26 @@ func main() {
 	router := mux.NewRouter()
 	setupRoutes(router, *useUiPtr)
 
+	log.Printf("Server listening on %s...\n", host)
+
+	// handle administrative console input
+	log.Println("Waiting for input")
+	go func() {
+		for {
+			var in string
+			_, _ = fmt.Scanln(&in)
+			switch true {
+
+			case strings.HasPrefix(in, "create user"):
+				// TODO implement
+			case in == "shutdown" || in == "exit" || in == "quit":
+				log.Fatalf("Manual shutdown by console")
+			default:
+				log.Printf("Unknown command '%s'\n", in)
+			}
+		}
+	}()
+
 	notify := make(chan os.Signal)
 	signal.Notify(notify, os.Interrupt)
 
@@ -99,30 +119,10 @@ func main() {
 		}
 	}()
 
-	log.Printf("Server listening on %s...\n", host)
-
-	// handle administrative console input
-	log.Println("Waiting for input")
-	go func() {
-		for {
-			var in string
-			fmt.Scanln(&in)
-			switch true {
-
-			case strings.HasPrefix(in, "create user"):
-				// TODO implement
-			case in == "shutdown" || in == "exit" || in == "quit":
-				log.Fatalf("Manual shutdown by console")
-			default:
-				log.Printf("Unknown command '%s'\n", in)
-			}
-		}
-	}()
-
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Printf("server error: %v\n", err.Error())
 	}
-	log.Println("Server shutdown complete. Have a nice day!")
+	log.Println("Server shutdown complete.")
 }
 
 func setupRoutes(router *mux.Router, ui bool) {
