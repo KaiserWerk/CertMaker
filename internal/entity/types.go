@@ -1,11 +1,19 @@
-package main
+package entity
 
-type sysConf struct {
+import (
+	"gorm.io/gorm"
+)
+
+type Configuration struct {
 	ServerHost string `yaml:"server_host"`
 	DataDir    string `yaml:"data_dir"`
+	Database struct {
+		Driver string `yaml:"driver"`
+		DSN string `yaml:"dsn"`
+	} `yaml:"database"`
 }
 
-type certificateRequest struct {
+type CertificateRequest struct {
 	Domains []string `json:"domains"`
 	IPs     []string `json:"ips"`
 	Subject struct {
@@ -19,3 +27,11 @@ type certificateRequest struct {
 	Days int `json:"days"`
 }
 
+type User struct {
+	gorm.Model
+	Username string
+	Password string
+	ApiKey string
+	NoLogin bool
+	Locked bool
+}

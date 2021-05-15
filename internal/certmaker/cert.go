@@ -1,4 +1,4 @@
-package main
+package certmaker
 
 import (
 	"crypto/ecdsa"
@@ -9,6 +9,9 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
+	"github.com/KaiserWerk/SimpleCA/internal/entity"
+	"github.com/KaiserWerk/SimpleCA/internal/global"
+	"github.com/KaiserWerk/SimpleCA/internal/helper"
 	"io/ioutil"
 	"math/big"
 	"net"
@@ -28,14 +31,16 @@ var (
 	keyFile   string
 )
 
-func setupCA() error {
-	certFile = filepath.Join(globalConfig.DataDir, "root-cert.pem")
-	keyFile = filepath.Join(globalConfig.DataDir, "root-key.pem")
+func SetupCA() error {
+	config := global.GetConfiguration()
+
+	certFile = filepath.Join(config.DataDir, "root-cert.pem")
+	keyFile = filepath.Join(config.DataDir, "root-key.pem")
 
 	// check if root certificate exists
-	if !doesFileExist(certFile) || !doesFileExist(keyFile) {
+	if !helper.DoesFileExist(certFile) || !helper.DoesFileExist(keyFile) {
 		// if no, generate new one and save to file
-		if err := generateRootCertAndKey(); err != nil {
+		if err := GenerateRootCertAndKey(); err != nil {
 			return err
 		}
 	}
@@ -54,11 +59,13 @@ func setupCA() error {
 	return nil
 }
 
-func getNextSerialNumber() (int64, error) {
+func GetNextSerialNumber() (int64, error) {
+	config := global.GetConfiguration()
+
 	snMutex.Lock()
 	defer snMutex.Unlock()
 
-	file := fmt.Sprintf("%s/sn.txt", globalConfig.DataDir)
+	file := fmt.Sprintf("%s/sn.txt", config.DataDir)
 	cont, err := ioutil.ReadFile(file)
 	if err != nil {
 		return 0, err
@@ -78,12 +85,11 @@ func getNextSerialNumber() (int64, error) {
 	return sn, nil
 }
 
-func generateRootCertAndKey() error {
-	// create folder if it does not exist and
-	// suppress error if it exists
+func GenerateRootCertAndKey() error {
+	// create folder if it does not exist
 	_ = os.Mkdir(path.Dir(certFile), 0600)
 
-	nextSn, err := getNextSerialNumber()
+	nextSn, err := GetNextSerialNumber()
 	if err != nil {
 		return err
 	}
@@ -145,10 +151,9 @@ func generateRootCertAndKey() error {
 	return nil
 }
 
-func generateLeafCertAndKey(request certificateRequest) (int64, error) {
-	catls, err := tls.LoadX509KeyPair(
-		fmt.Sprintf("%s/root-cert.pem", globalConfig.DataDir),
-		fmt.Sprintf("%s/root-key.pem", globalConfig.DataDir))
+func GenerateLeafCertAndKey(request entity.CertificateRequest) (int64, error) {
+	config := global.GetConfiguration()
+	catls, err := tls.LoadX509KeyPair(filepath.Join(config.DataDir, "root-cert.pem"), filepath.Join(config.DataDir, "root-key.pem"))
 	if err != nil {
 		panic(err)
 	}
@@ -169,7 +174,7 @@ func generateLeafCertAndKey(request certificateRequest) (int64, error) {
 		}
 	}
 
-	nextSn, err := getNextSerialNumber()
+	nextSn, err := GetNextSerialNumber()
 	if err != nil {
 		return 0, err
 	}
@@ -199,9 +204,9 @@ func generateLeafCertAndKey(request certificateRequest) (int64, error) {
 		OCSPServer: []string{"http://localhost:8880/api/ocsp", "http://codework.me:8000/"},
 	}
 
-	_ = os.Mkdir(fmt.Sprintf("%s/leafcerts", globalConfig.DataDir), 0600)
-	outCertFilename := fmt.Sprintf("%s/leafcerts/%s-cert.pem", globalConfig.DataDir, strconv.FormatInt(nextSn, 10))
-	outKeyFilename := fmt.Sprintf("%s/leafcerts/%s-key.pem", globalConfig.DataDir, strconv.FormatInt(nextSn, 10))
+	_ = os.Mkdir(fmt.Sprintf("%s/leafcerts", config.DataDir), 0600)
+	outCertFilename := fmt.Sprintf("%s/leafcerts/%s-cert.pem", config.DataDir, strconv.FormatInt(nextSn, 10))
+	outKeyFilename := fmt.Sprintf("%s/leafcerts/%s-key.pem", config.DataDir, strconv.FormatInt(nextSn, 10))
 
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	//priv, err := rsa.GenerateKey(rand.Reader, 2048)
@@ -261,9 +266,10 @@ func generateLeafCertAndKey(request certificateRequest) (int64, error) {
 	return nextSn, nil
 }
 
-func findLeafCertificate(id string) ([]byte, error) {
-	certFile := fmt.Sprintf("%s/leafcerts/%s-cert.pem", globalConfig.DataDir, id)
-	if !doesFileExist(certFile) {
+func FindLeafCertificate(id string) ([]byte, error) {
+	config := global.GetConfiguration()
+	certFile := filepath.Join(config.DataDir, "leafcerts", fmt.Sprintf("%s-cert.pem", id))
+	if !helper.DoesFileExist(certFile) {
 		return nil, fmt.Errorf("cert file with id %s not found", id)
 	}
 
@@ -275,9 +281,10 @@ func findLeafCertificate(id string) ([]byte, error) {
 	return content, nil
 }
 
-func findLeafPrivateKey(id string) ([]byte, error) {
-	keyFile := fmt.Sprintf("%s/leafcerts/%s-key.pem", globalConfig.DataDir, id)
-	if !doesFileExist(keyFile) {
+func FindLeafPrivateKey(id string) ([]byte, error) {
+	config := global.GetConfiguration()
+	keyFile := filepath.Join(config.DataDir, "leafcerts", fmt.Sprintf("%s-key.pem", id))
+	if !helper.DoesFileExist(keyFile) {
 		return nil, fmt.Errorf("key file with id %s not found", id)
 	}
 
