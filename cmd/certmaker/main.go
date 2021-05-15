@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"github.com/KaiserWerk/SimpleCA/internal/certmaker"
 	"github.com/KaiserWerk/SimpleCA/internal/configuration"
+	"github.com/KaiserWerk/SimpleCA/internal/dbservice"
 	"github.com/KaiserWerk/SimpleCA/internal/handler"
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 )
 
@@ -33,6 +35,8 @@ func main() {
 	if *configFilePtr != "" {
 		configuration.SetFileSource(*configFilePtr)
 	}
+
+	// setup configuration and serial number file, if necessary
 	createdConfig, createdSn, err := configuration.Setup()
 	if err != nil {
 		log.Fatalf("could not set up configuration: %s", err.Error())
@@ -48,7 +52,7 @@ func main() {
 	}
 
 	if createdSn {
-		log.Printf("The serial number file not found; created")
+		log.Printf("The serial number was file not found; created")
 	}
 
 	// create root cert and key, if non-existent
@@ -57,6 +61,14 @@ func main() {
 		log.Fatalf("could not set up CA: %s", err.Error())
 	}
 
+	// make sure db schema exists
+	ds := dbservice.New()
+	err = ds.AutoMigrate()
+	if err != nil {
+		log.Fatalf("could not execute auto migrations: %s", err.Error())
+	}
+
+	// start with the server stuff
 	host := fmt.Sprintf(":%s", port)
 	router := mux.NewRouter()
 	setupRoutes(router, *useUiPtr)
@@ -88,6 +100,25 @@ func main() {
 	}()
 
 	log.Printf("Server listening on %s...\n", host)
+
+	// handle administrative console input
+	log.Println("Waiting for input")
+	go func() {
+		for {
+			var in string
+			fmt.Scanln(&in)
+			switch true {
+
+			case strings.HasPrefix(in, "create user"):
+				// TODO implement
+			case in == "shutdown" || in == "exit" || in == "quit":
+				log.Fatalf("Manual shutdown by console")
+			default:
+				log.Printf("Unknown command '%s'\n", in)
+			}
+		}
+	}()
+
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Printf("server error: %v\n", err.Error())
 	}
