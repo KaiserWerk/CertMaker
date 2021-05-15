@@ -97,10 +97,10 @@ func main() {
 func setupRoutes(router *mux.Router, ui bool) {
 	if ui {
 		router.HandleFunc("/", handler.IndexHandler).Methods(http.MethodGet)
-		router.HandleFunc("/login", handler.LoginHandler).Methods(http.MethodGet, http.MethodPost)
-		router.HandleFunc("/logout", handler.LogoutHandler).Methods(http.MethodGet)
+		router.HandleFunc("/login", handler.LoginHandler).Methods(http.MethodGet, http.MethodPost) // TODO implement
+		router.HandleFunc("/logout", handler.LogoutHandler).Methods(http.MethodGet) // TODO implement
 		router.HandleFunc("/add", handler.AddCertificateHandler).Methods(http.MethodGet, http.MethodPost)
-		router.HandleFunc("/revoke", handler.RevokeCertificateHandler).Methods(http.MethodGet, http.MethodPost) // TODO implement
+		router.HandleFunc("/revoke", handler.RevokeCertificateHandler).Methods(http.MethodGet, http.MethodPost) // TODO implement with cert upload form
 	}
 	router.HandleFunc("/api/certificate/request", handler.ApiRequestCertificateHandler).Methods(http.MethodPost)
 	router.HandleFunc("/api/certificate/{id}/obtain", handler.ApiObtainCertificateHandler).Methods(http.MethodGet)
