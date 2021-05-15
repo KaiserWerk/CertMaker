@@ -35,3 +35,10 @@ type User struct {
 	NoLogin bool
 	Locked bool
 }
+
+type CertInfo struct {
+	gorm.Model
+	SerialNumber int64
+	CreatedForUser int
+	Revoked bool
+}
