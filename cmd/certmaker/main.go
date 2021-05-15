@@ -9,6 +9,7 @@ import (
 	"github.com/KaiserWerk/SimpleCA/internal/dbservice"
 	"github.com/KaiserWerk/SimpleCA/internal/handler"
 	"github.com/gorilla/mux"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -27,6 +28,13 @@ func main() {
 	portPtr := flag.String("port", "", "The port to run at")
 	useUiPtr := flag.Bool("ui", true, "Adds a simple UI for certificate management")
 	flag.Parse()
+
+	logHandle, err := os.Create("certmaker.log")
+	if err != nil {
+		log.Fatal("cannot create log file!")
+	}
+	defer logHandle.Close()
+	log.SetOutput(io.MultiWriter(os.Stdout, logHandle))
 
 	if *portPtr != "" {
 		port = *portPtr
