@@ -81,7 +81,7 @@ func getNextSerialNumber() (int64, error) {
 func generateRootCertAndKey() error {
 	// create folder if it does not exist and
 	// suppress error if it exists
-	_ = os.Mkdir(path.Base(certFile), 0600)
+	_ = os.Mkdir(path.Dir(certFile), 0600)
 
 	nextSn, err := getNextSerialNumber()
 	if err != nil {
@@ -195,7 +195,7 @@ func generateLeafCertAndKey(request certificateRequest) (int64, error) {
 		KeyUsage:     x509.KeyUsageDigitalSignature,
 		//PublicKeyAlgorithm: ,
 		//SignatureAlgorithm: x509.SHA256WithRSA,
-		SignatureAlgorithm: x509.SHA512WithRSA,
+		SignatureAlgorithm: x509.ECDSAWithSHA256,
 		OCSPServer: []string{"http://localhost:8880/api/ocsp", "http://codework.me:8000/"},
 	}
 
