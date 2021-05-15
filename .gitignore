@@ -1,5 +1,7 @@
 .idea/
+build/
 
 config.yaml
+
 data/
-data/sn.txt
+!data/leafcerts/.gitkeep
