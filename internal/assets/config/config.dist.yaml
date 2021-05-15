@@ -2,4 +2,4 @@ server_host: localhost:8880
 data_dir: data
 database:
   driver: mysql
-  dsn: 'root:root@tcp(127.0.0.1:3306)/simpleca?parseTime=true&charset=utf8'
+  dsn: 'root:root@tcp(127.0.0.1:3306)/certmaker?parseTime=true&charset=utf8'
