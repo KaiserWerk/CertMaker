@@ -23,7 +23,7 @@ type CertificateRequest struct {
 		Locality      string `json:"locality"`
 		StreetAddress string `json:"street_address"`
 		PostalCode    string `json:"postal_code"`
-	} `json:"subject"`
+	} `json:"subject,omitempty"`
 	Days int `json:"days"`
 }
 
