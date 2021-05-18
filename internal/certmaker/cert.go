@@ -77,7 +77,7 @@ func GetNextSerialNumber() (int64, error) {
 	}
 	sn++
 
-	err = ioutil.WriteFile(file, []byte(strconv.FormatInt(sn, 10)), 0600)
+	err = ioutil.WriteFile(file, []byte(strconv.FormatInt(sn, 10)), 0744)
 	if err != nil {
 		return 0, err
 	}
@@ -87,14 +87,13 @@ func GetNextSerialNumber() (int64, error) {
 
 func GenerateRootCertAndKey() error {
 	// create folder if it does not exist
-	_ = os.Mkdir(path.Dir(certFile), 0700)
+	_ = os.Mkdir(path.Dir(certFile), 0744)
 
 	nextSn, err := GetNextSerialNumber()
 	if err != nil {
 		return err
 	}
 
-	//privKey, err := rsa.GenerateKey(rand.Reader, 4096)
 	privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return err
@@ -124,7 +123,7 @@ func GenerateRootCertAndKey() error {
 		return err
 	}
 
-	fh, err := os.OpenFile(certFile, os.O_CREATE|os.O_WRONLY, 0600)
+	fh, err := os.OpenFile(certFile, os.O_CREATE|os.O_WRONLY, 0744)
 	if err != nil {
 		return err
 	}
@@ -134,7 +133,7 @@ func GenerateRootCertAndKey() error {
 	}
 	_ = fh.Close()
 
-	fh, err = os.OpenFile(keyFile, os.O_CREATE|os.O_WRONLY, 0600)
+	fh, err = os.OpenFile(keyFile, os.O_CREATE|os.O_WRONLY, 0700)
 	if err != nil {
 		return err
 	}
@@ -181,16 +180,6 @@ func GenerateLeafCertAndKey(request entity.CertificateRequest) (int64, error) {
 
 	cert := &x509.Certificate{
 		SerialNumber: big.NewInt(nextSn),
-		Subject: pkix.Name{
-			Organization:  []string{request.Subject.Organization},
-			Country:       []string{request.Subject.Country},
-			Province:      []string{request.Subject.Province},
-			Locality:      []string{request.Subject.Locality},
-			StreetAddress: []string{request.Subject.StreetAddress},
-			PostalCode:    []string{request.Subject.PostalCode},
-			//SerialNumber: "hallo 123",
-
-		},
 		NotBefore:    time.Now(),
 		NotAfter:     time.Now().AddDate(0, 0, request.Days),
 		DNSNames:     request.Domains,
@@ -203,8 +192,19 @@ func GenerateLeafCertAndKey(request entity.CertificateRequest) (int64, error) {
 		SignatureAlgorithm: x509.ECDSAWithSHA256,
 		OCSPServer: []string{"http://localhost:8880/api/ocsp", "http://codework.me:8000/"}, // TODO implement/fix
 	}
+	if request.Subject.Organization != "" && request.Subject.Province != "" && request.Subject.Locality != "" &&
+		request.Subject.PostalCode != "" && request.Subject.StreetAddress != "" && request.Subject.Country != "" {
+		cert.Subject = pkix.Name{
+			Country:            []string{request.Subject.Country},
+			Organization:       []string{request.Subject.Organization},
+			Locality:           []string{request.Subject.Locality},
+			Province:           []string{request.Subject.Province},
+			StreetAddress:      []string{request.Subject.StreetAddress},
+			PostalCode:         []string{request.Subject.PostalCode},
+		}
+	}
 
-	_ = os.MkdirAll(fmt.Sprintf("%s/leafcerts", config.DataDir), 0700)
+	_ = os.MkdirAll(fmt.Sprintf("%s/leafcerts", config.DataDir), 0744)
 	outCertFilename := fmt.Sprintf("%s/leafcerts/%s-cert.pem", config.DataDir, strconv.FormatInt(nextSn, 10))
 	outKeyFilename := fmt.Sprintf("%s/leafcerts/%s-key.pem", config.DataDir, strconv.FormatInt(nextSn, 10))
 
@@ -246,7 +246,7 @@ func GenerateLeafCertAndKey(request entity.CertificateRequest) (int64, error) {
 	}
 
 	// Private key
-	keyOut, err := os.OpenFile(outKeyFilename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	keyOut, err := os.OpenFile(outKeyFilename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0744)
 	if err != nil {
 		return 0, err
 	}
