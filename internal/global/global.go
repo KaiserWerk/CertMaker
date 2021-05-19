@@ -2,8 +2,8 @@ package global
 
 import (
 	"embed"
-	"github.com/KaiserWerk/SimpleCA/internal/assets"
-	"github.com/KaiserWerk/SimpleCA/internal/entity"
+	"github.com/KaiserWerk/CertMaker/internal/assets"
+	"github.com/KaiserWerk/CertMaker/internal/entity"
 )
 
 var config *entity.Configuration

@@ -2,9 +2,9 @@ package configuration
 
 import (
 	"fmt"
-	"github.com/KaiserWerk/SimpleCA/internal/entity"
-	"github.com/KaiserWerk/SimpleCA/internal/global"
-	"github.com/KaiserWerk/SimpleCA/internal/helper"
+	"github.com/KaiserWerk/CertMaker/internal/entity"
+	"github.com/KaiserWerk/CertMaker/internal/global"
+	"github.com/KaiserWerk/CertMaker/internal/helper"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"

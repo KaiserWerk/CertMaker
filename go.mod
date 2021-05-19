@@ -1,4 +1,4 @@
-module github.com/KaiserWerk/SimpleCA
+module github.com/KaiserWerk/CertMaker
 
 go 1.16
 

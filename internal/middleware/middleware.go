@@ -1,8 +1,10 @@
 package middleware
 
-import "net/http"
+import (
+	"net/http"
+)
 
-func headerMiddleware(next http.Handler) http.Handler {
+func HeaderMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "max-age=0, no-cache, no-store, must-revalidate")
 		w.Header().Set("Pragma", "no-cache")
@@ -12,7 +14,15 @@ func headerMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func sessionMiddleware(next http.Handler) http.Handler {
+func WithSession(next http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc (func(w http.ResponseWriter, r *http.Request) {
+
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func TokenMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 
@@ -20,10 +30,3 @@ func sessionMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func tokenMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-
-		next.ServeHTTP(w, r)
-	})
-}

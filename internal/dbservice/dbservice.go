@@ -1,8 +1,8 @@
 package dbservice
 
 import (
-	"github.com/KaiserWerk/SimpleCA/internal/entity"
-	"github.com/KaiserWerk/SimpleCA/internal/global"
+	"github.com/KaiserWerk/CertMaker/internal/entity"
+	"github.com/KaiserWerk/CertMaker/internal/global"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"

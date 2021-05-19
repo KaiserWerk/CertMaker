@@ -1,12 +1,12 @@
 package handler
 
 import (
-	"fmt"
-	"github.com/KaiserWerk/SimpleCA/internal/certmaker"
-	"github.com/KaiserWerk/SimpleCA/internal/entity"
-	"github.com/KaiserWerk/SimpleCA/internal/global"
-	"github.com/KaiserWerk/SimpleCA/internal/helper"
-	"github.com/KaiserWerk/SimpleCA/internal/templateservice"
+	"github.com/KaiserWerk/CertMaker/internal/certmaker"
+	"github.com/KaiserWerk/CertMaker/internal/entity"
+	"github.com/KaiserWerk/CertMaker/internal/global"
+	"github.com/KaiserWerk/CertMaker/internal/helper"
+	"github.com/KaiserWerk/CertMaker/internal/logging"
+	"github.com/KaiserWerk/CertMaker/internal/templateservice"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -16,11 +16,12 @@ import (
 func IndexHandler(w http.ResponseWriter, r *http.Request) {
 	// TODO auth
 	config := global.GetConfiguration()
+	logger := logging.GetLogger()
 	var files []string
 
 	err := filepath.Walk(config.DataDir + "/leafcerts", helper.Visit(&files))
 	if err != nil {
-		fmt.Println("could not read files: " + err.Error())
+		logger.Println("could not read files: " + err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -28,7 +29,6 @@ func IndexHandler(w http.ResponseWriter, r *http.Request) {
 	var certs []string
 	for _, file := range files {
 		p := strings.Split(file, "\\")
-		//fmt.Println("file:", p[len(p) - 1])
 		parts := strings.Split(p[len(p) - 1], "-")
 		certs = append(certs, parts[0])
 	}
@@ -47,6 +47,7 @@ func IndexHandler(w http.ResponseWriter, r *http.Request) {
 func AddCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	// TODO auth
 
+	logger := logging.GetLogger()
 	if r.Method == http.MethodPost {
 		organization := r.FormValue("organization")
 		country := r.FormValue("country")
@@ -55,17 +56,16 @@ func AddCertificateHandler(w http.ResponseWriter, r *http.Request) {
 		streetAddress := r.FormValue("street_address")
 		postalCode := r.FormValue("postal_code")
 		days := r.FormValue("days")
-		fmt.Println(organization, country, province, locality, streetAddress, postalCode, days)
 		if organization == "" || country == "" || province == "" || locality == "" || streetAddress == "" ||
 			postalCode == "" || days == "" {
-			fmt.Println("please fill in all required fields, marked with *")
+			logger.Println("please fill in all required fields, marked with *")
 			http.Redirect(w, r, "/add", http.StatusSeeOther)
 			return
 		}
 
 		daysVal, err := strconv.Atoi(days)
 		if err != nil {
-			fmt.Println("no valid value for field 'days' supplied!")
+			logger.Println("no valid value for field 'days' supplied!")
 			http.Redirect(w, r, "/add", http.StatusSeeOther)
 			return
 		}
@@ -112,7 +112,7 @@ func AddCertificateHandler(w http.ResponseWriter, r *http.Request) {
 
 		_, err = certmaker.GenerateLeafCertAndKey(certReq)
 		if err != nil {
-			fmt.Println("could not generate leaf cert and key: " + err.Error())
+			logger.Println("could not generate leaf cert and key: " + err.Error())
 			http.Redirect(w, r, "/add", http.StatusSeeOther)
 			return
 		}
