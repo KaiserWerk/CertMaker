@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/KaiserWerk/CertMaker/internal/dbservice"
+	"github.com/KaiserWerk/CertMaker/internal/entity"
 	"github.com/KaiserWerk/CertMaker/internal/global"
 	"github.com/KaiserWerk/CertMaker/internal/logging"
 	"gorm.io/gorm"
@@ -63,38 +64,12 @@ func WithSession(next http.HandlerFunc) http.HandlerFunc {
 func RequireAdmin(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc (func(w http.ResponseWriter, r *http.Request) {
 		logger := logging.GetLogger()
-		sessMgr := global.GetSessMgr()
-		cv, err := sessMgr.GetCookieValue(r)
-		if err != nil {
-			logger.Println("no user-provided cookie found")
-			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
-			return
-		}
 
-		sess, err := sessMgr.GetSession(cv)
-		if err != nil {
-			logger.Println("could not get session: " + err.Error())
-			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
-			return
-		}
-
-		userId, ok := sess.GetVar("user_id")
-		if !ok {
-			logger.Println("session var not found")
-			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
-			return
-		}
-
-		ds := dbservice.New()
-		u, err := ds.FindUser("id = ?", userId)
-		if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
-			logger.Println("user not found: " + err.Error())
-			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
-			return
-		}
+		val := r.Context().Value("user")
+		u := val.(entity.User)
 
 		if !u.Admin {
-			logger.Println("user is not an admin")
+			logger.Println("user " + u.Username + " is not an admin")
 			http.Redirect(w, r, "/", http.StatusSeeOther)
 			return
 		}
