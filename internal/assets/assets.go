@@ -1,6 +1,19 @@
 package assets
 
-import "embed"
+import (
+	"embed"
+)
 
 //go:embed config/*
-var AssetFS embed.FS
+var configFS embed.FS
+
+func GetConfigFS() *embed.FS {
+	return &configFS
+}
+
+//go:embed static
+var staticFS embed.FS
+
+func GetStaticFS() embed.FS {
+	return staticFS
+}
