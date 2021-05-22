@@ -1,13 +1,16 @@
 package security
 
-import "crypto/rand"
+import (
+	"crypto/rand"
+	"encoding/hex"
+)
 
-func GenerateToken(length uint8) ([]byte, error) {
+func GenerateToken(length uint8) (string, error) {
 	buf := make([]byte, length)
 	_, err := rand.Read(buf)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return buf, nil
+	return hex.EncodeToString(buf), nil
 }
