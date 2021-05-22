@@ -89,7 +89,7 @@ func GenerateRootCertAndKey() error {
 	// create folder if it does not exist
 	_ = os.Mkdir(path.Dir(certFile), 0744)
 
-	nextSn, err := GetNextSerialNumber()
+	nextSn, err := GetNextSerialNumber() // read sn from file and increment it
 	if err != nil {
 		return err
 	}
@@ -101,7 +101,7 @@ func GenerateRootCertAndKey() error {
 	pubKey := &privKey.PublicKey
 
 	ca := &x509.Certificate{
-		SerialNumber: big.NewInt(nextSn), // read sn from file an increment it
+		SerialNumber: big.NewInt(nextSn),
 		Subject: pkix.Name{
 			Organization:  []string{"KaiserWerk CA ROOT"},
 			Country:       []string{"DE"},
