@@ -2,29 +2,72 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>CertMaker</title>
-    <meta charset="utf-8">
+    <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+    <title>CertMaker</title>
+
+    <link rel="stylesheet" href="/static/static/css/mini-default.min.css" type="text/css" />
 </head>
 <body>
 
-<nav class="navbar navbar-default">
-    <div class="container-fluid">
-        <div class="navbar-header">
-            <a class="navbar-brand" href="/">Robin's Certificate Authority</a>
-        </div>
-        <ul class="nav navbar-nav">
-            <li class="active"><a href="/">Certificates</a></li>
-            <li><a href="/add">Add certificate</a></li>
-        </ul>
-    </div>
-</nav>
+<div class="main-panel">
+
+    <div class="container">
+
+        <div class="row">
+            <div class="col-md-3">
+                <h1>CertMaker <small>Your local CA</small></h1>
+                <nav>
+                    <a href="/">Dashboard</a>
+                    <span>Certificates</span>
+                        <a href="/certificate/list" class="sublink-1">All Certificates</a>
+                        <a href="/certificate/add" class="sublink-1">Add Certificate</a>
+                        <a href="/certificate/add-with-csr" class="sublink-1">Add with CSR</a>
+                    <span>Administration</span>
+                    <a href="/admin/settings" class="sublink-1">System Settings</a>
+                        <span class="sublink-1">Users</span>
+                        <a class="sublink-2" href="/admin/user/list">All User Accounts</a>
+                        <a class="sublink-2" href="/admin/user/add">Add Account</a>
+                </nav>
+            </div>
+            <div class="col-md-9">
 {{ end }}
 
 {{ define "footer_default" }}
+
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
+{{ end }}
+
+{{ define "header_auth" }}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CertMaker</title>
+
+    <link rel="stylesheet" href="/static/static/css/mini-default.min.css" type="text/css" />
+</head>
+<body>
+
+<div class="main-panel">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-4"></div>
+            <div class="col-md-4">
+{{ end }}
+
+{{ define "footer_auth" }}
+            </div>
+            <div class="col-md-4"></div>
+        </div>
+    </div>
+</div>
 </body>
 </html>
 {{ end }}
