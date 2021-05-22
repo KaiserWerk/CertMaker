@@ -35,9 +35,10 @@ func New() *dbservice {
 	return &dbservice{db: db}
 }
 
-func (ds dbservice) AutoMigrate() error {
+func (ds *dbservice) AutoMigrate() error {
 	err := ds.db.AutoMigrate(
 		&entity.CertInfo{},
+		&entity.SystemSetting{},
 		&entity.User{},
 	)
 	if err != nil {
