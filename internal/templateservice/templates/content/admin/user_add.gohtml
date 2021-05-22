@@ -1,0 +1,27 @@
+{{ template "header_default" . }}
+<div class="container">
+    <h1>Add new user account</h1>
+    <div class="row">
+        <div class="col-md-12">
+            <form method="post">
+
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" placeholder="Username" required><br>
+
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" placeholder="Email" required><br>
+
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" placeholder="Password" required><br>
+
+                <label for="password2">Repeat Password</label>
+                <input type="password" id="password2" name="password2" placeholder="Password" required><br>
+
+                <br><button type="submit" class="primary">Add</button>
+
+            </form>
+        </div>
+    </div>
+</div>
+
+{{ template "footer_default" . }}

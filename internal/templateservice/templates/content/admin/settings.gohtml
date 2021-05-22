@@ -11,12 +11,14 @@
                     <p>If no authentication provider is enabled, there is no authentication. Anyone can access these pages,
                     which is the initial default.<br>
                     Multiple authentication providers can be enabled at the same time. When deciding to enable an authentication provider,
-                    make sure you don't lock yourself out.</p>
+                    make sure you <u>don't lock yourself out</u>.</p>
 
-                    <input type="checkbox" id="authprovider_userpw" name="authprovider_userpw" value="1">
+                    {{ $authprovider_userpw := index .AdminSettings "authprovider_userpw" }}
+                    <input type="checkbox" id="authprovider_userpw" name="authprovider_userpw" value="true"{{if eq $authprovider_userpw "true"}} checked{{end}}>
                     <label for="authprovider_userpw">Username and Password (UI)</label><br>
 
-                    <input type="checkbox" id="authprovider_bearer" name="authprovider_bearer" value="1">
+                    {{ $authprovider_bearer := index .AdminSettings "authprovider_bearer" }}
+                    <input type="checkbox" id="authprovider_bearer" name="authprovider_bearer" value="true"{{if eq $authprovider_bearer "true"}} checked{{end}}>
                     <label for="authprovider_bearer">Bearer Token (API)</label><br>
 
                     <br><button type="submit" class="primary">Save</button>
@@ -31,32 +33,41 @@
                 <fieldset>
                     <legend>Certificates &amp; Requests</legend>
 
-                    <input type="checkbox" id="certificate_revocation_allow" name="certificate_revocation_allow" value="1">
+                    {{ $certificate_revocation_allow := index .AdminSettings "certificate_revocation_allow" }}
+                    <input type="checkbox" id="certificate_revocation_allow" name="certificate_revocation_allow" value="true"{{if eq $certificate_revocation_allow "true"}} checked{{end}}>
                     <label for="certificate_revocation_allow">Allow revocation of certificates</label><br>
 
-                    <input type="checkbox" id="certificate_revocation_only_by_requester" name="certificate_revocation_only_by_requester" value="1" style="margin-left: 20px;">
+                    {{ $certificate_revocation_only_by_requester := index .AdminSettings "certificate_revocation_only_by_requester" }}
+                    <input type="checkbox" id="certificate_revocation_only_by_requester" name="certificate_revocation_only_by_requester" value="true"
+                           style="margin-left: 20px;"{{if eq $certificate_revocation_only_by_requester "true"}} checked{{end}}>
                     <label for="certificate_revocation_only_by_requester">Allow only by original requester</label><br>
 
-                    <input type="checkbox" id="certificate_revocation_require_reasonphrase" name="certificate_revocation_require_reasonphrase" value="1" style="margin-left: 20px;">
+                    {{ $certificate_revocation_require_reasonphrase := index .AdminSettings "certificate_revocation_require_reasonphrase" }}
+                    <input type="checkbox" id="certificate_revocation_require_reasonphrase" name="certificate_revocation_require_reasonphrase" value="true"
+                           style="margin-left: 20px;"{{if eq $certificate_revocation_require_reasonphrase "true"}} checked{{end}}>
                     <label for="certificate_revocation_require_reasonphrase">Require a reason phrase</label><br>
 
                     <br>
 
-                    <input type="checkbox" id="certificate_request_simple_mode" name="certificate_request_simple_mode" value="1">
+                    {{ $certificate_request_simple_mode := index .AdminSettings "certificate_request_simple_mode" }}
+                    <input type="checkbox" id="certificate_request_simple_mode" name="certificate_request_simple_mode" value="true"{{if eq $certificate_request_simple_mode "true"}} checked{{end}}>
                     <label for="certificate_request_simple_mode">Simple Mode</label><br>
                     <small style="margin-left: 41px;">CertMaker generates both a private key and a certificate for the requester</small><br>
 
-                    <input type="checkbox" id="certificate_request_normal_mode" name="certificate_request_normal_mode" value="1">
+                    {{ $certificate_request_normal_mode := index .AdminSettings "certificate_request_normal_mode" }}
+                    <input type="checkbox" id="certificate_request_normal_mode" name="certificate_request_normal_mode" value="true"{{if eq $certificate_request_normal_mode "true"}} checked{{end}}>
                     <label for="certificate_request_normal_mode">Normal Mode</label><br>
                     <small style="margin-left: 41px;">CertMaker generates a certificate by the requester's provided certificate singing request (CSR)</small><br>
 
                     <br>
 
-                    <input type="checkbox" id="certificate_request_nocopy" name="certificate_request_nocopy" value="1">
-                    <label for="certificate_request_nocopy">Do not retain a file copy of all generated certificates and private keys</label><br>
+                    {{ $certificate_request_keepnocopy := index .AdminSettings "certificate_request_keepnocopy" }}
+                    <input type="checkbox" id="certificate_request_keepnocopy" name="certificate_request_keepnocopy" value="true"{{if eq $certificate_request_keepnocopy "true"}} checked{{end}}>
+                    <label for="certificate_request_keepnocopy">Do not retain a file copy of all generated certificates and private keys</label><br>
 
-                    <input type="checkbox" id="certificate_request_require_domain_owner" name="certificate_request_require_domain_owner" value="1">
-                    <label for="certificate_request_require_domain_owner">Require that request's domain points to the requester's IP address</label><br>
+                    {{ $certificate_request_require_domain_ownership := index .AdminSettings "certificate_request_require_domain_ownership" }}
+                    <input type="checkbox" id="certificate_request_require_domain_ownership" name="certificate_request_require_domain_ownership" value="true"{{if eq $certificate_request_require_domain_ownership "true"}} checked{{end}}>
+                    <label for="certificate_request_require_domain_ownership">Require that request's domain points to the requester's IP address</label><br>
 
                     <br><button type="submit" class="primary">Save</button>
                 </fieldset>
