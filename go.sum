@@ -1,3 +1,5 @@
+github.com/KaiserWerk/sessionstore v1.0.1 h1:NcLg0gZsBw4D2Sfx99ZlgXVwBX3i/wPfRT/TYdk4AhY=
+github.com/KaiserWerk/sessionstore v1.0.1/go.mod h1:j+zkNHbJKSu+UQqUuKOMsET6jshBAJFUT/sQgU9Q6fA=
 github.com/go-sql-driver/mysql v1.6.0 h1:BCTh4TKNUYmOmMUcQ3IipzF5prigylS7XXjEkfCHuOE=
 github.com/go-sql-driver/mysql v1.6.0/go.mod h1:DCzpHaOWr8IXmIStZouvnhqoel9Qv2LBy8hT2VhHyBg=
 github.com/gorilla/mux v1.8.0 h1:i40aqfkR1h2SlN9hojwV5ZA91wcXFOvkdNIeFDP5koI=
