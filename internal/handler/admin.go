@@ -176,8 +176,8 @@ func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 		password := r.FormValue("password")
 		password2 := r.FormValue("password2")
 
-		if username == "" || email == "" || password == "" || password2 == "" {
-			logger.Println("All fields required")
+		if username == "" || password == "" || password2 == "" {
+			logger.Println("username and passwords required")
 			http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
 			return
 		}
@@ -188,7 +188,6 @@ func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// TODO check if username or email already in use
 		ds := dbservice.New()
 		_, err = ds.FindUser("username = ?", username)
 		if err == nil {
@@ -197,15 +196,16 @@ func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		_, err = ds.FindUser("email = ?", email)
-		if err == nil {
-			logger.Println("email already taken")
-			http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
-			return
+		if email != "" {
+			_, err = ds.FindUser("email = ?", email)
+			if err == nil {
+				logger.Println("email already taken")
+				http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
+				return
+			}
 		}
 
-
-		apikey, err := security.GenerateToken(20)
+		apikey, err := security.GenerateToken(40)
 		if err != nil {
 			logger.Println("could not generate token: " + err.Error())
 			http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
@@ -216,9 +216,8 @@ func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 			Username: username,
 			Email:    email,
 			Password: password,
-			ApiKey: string(apikey),
+			ApiKey: apikey,
 		}
-
 
 		err = ds.AddUser(&u)
 		if err != nil {
