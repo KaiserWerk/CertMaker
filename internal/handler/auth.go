@@ -64,7 +64,38 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func LogoutHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "logout")
+	var (
+		sessMgr = global.GetSessMgr()
+		logger = logging.GetLogger()
+	)
+	cv, err := sessMgr.GetCookieValue(r)
+	if err != nil {
+		logger.Println("no user-provided cookie found")
+		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
+		return
+	}
+
+	sess, err := sessMgr.GetSession(cv)
+	if err != nil {
+		logger.Println("could not get session: " + err.Error())
+		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
+		return
+	}
+
+	err = sessMgr.RemoveSession(sess.Id)
+	if err != nil {
+		logger.Println("could not remove session: " + err.Error())
+		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
+		return
+	}
+	err = sessMgr.RemoveCookie(w)
+	if err != nil {
+		logger.Println("could not remove cookie: " + err.Error())
+		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
+		return
+	}
+
+	http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 }
 
 func RegistrationHandler(w http.ResponseWriter, r *http.Request) {
