@@ -159,20 +159,23 @@ func setupRoutes(router *mux.Router, ui bool) {
 
 		router.HandleFunc("/", middleware.WithSession(handler.IndexHandler)).Methods(http.MethodGet)
 
-		router.HandleFunc("/auth/login", handler.LoginHandler).Methods(http.MethodGet, http.MethodPost)
-		router.HandleFunc("/auth/logout", middleware.WithSession(handler.LogoutHandler)).Methods(http.MethodGet)
-		router.HandleFunc("/auth/register", handler.RegistrationHandler).Methods(http.MethodGet)
+		authRouter := router.PathPrefix("/auth").Subrouter()
+		authRouter.HandleFunc("/login", handler.LoginHandler).Methods(http.MethodGet, http.MethodPost)
+		authRouter.HandleFunc("/logout", middleware.WithSession(handler.LogoutHandler)).Methods(http.MethodGet)
+		authRouter.HandleFunc("/register", handler.RegistrationHandler).Methods(http.MethodGet, http.MethodPost)
 
-		router.HandleFunc("/certificate/list", middleware.WithSession(handler.ListCertificateHandler)).Methods(http.MethodGet)
-		router.HandleFunc("/certificate/add", middleware.WithSession(handler.AddCertificateHandler)).Methods(http.MethodGet, http.MethodPost)
-		router.HandleFunc("/certificate/add-with-csr", middleware.WithSession(handler.AddCertificateWithCSRHandler)).Methods(http.MethodGet, http.MethodPost)
-		router.HandleFunc("/certificate/revoke", middleware.WithSession(handler.RevokeCertificateHandler)).Methods(http.MethodGet, http.MethodPost) // TODO implement with cert upload form
+		certRouter := router.PathPrefix("/certificate").Subrouter()
+		certRouter.HandleFunc("/list", middleware.WithSession(handler.ListCertificateHandler)).Methods(http.MethodGet)
+		certRouter.HandleFunc("/add", middleware.WithSession(handler.AddCertificateHandler)).Methods(http.MethodGet, http.MethodPost)
+		certRouter.HandleFunc("/add-with-csr", middleware.WithSession(handler.AddCertificateWithCSRHandler)).Methods(http.MethodGet, http.MethodPost)
+		certRouter.HandleFunc("/revoke", middleware.WithSession(handler.RevokeCertificateHandler)).Methods(http.MethodGet, http.MethodPost) // TODO implement with cert upload form
 
-		router.HandleFunc("/admin/settings", middleware.WithSession(handler.AdminSettingsHandler)).Methods(http.MethodGet, http.MethodPost)
-		router.HandleFunc("/admin/user/list", middleware.WithSession(handler.AdminUserListHandler)).Methods(http.MethodGet)
-		router.HandleFunc("/admin/user/add", middleware.WithSession(handler.AdminUserAddHandler)).Methods(http.MethodGet, http.MethodPost)
-		router.HandleFunc("/admin/user/{id}/edit", middleware.WithSession(handler.AdminUserEditHandler)).Methods(http.MethodGet, http.MethodPost)
-		router.HandleFunc("/admin/user/{id}/remove", middleware.WithSession(handler.AdminUserRemoveHandler)).Methods(http.MethodGet, http.MethodPost)
+		adminRouter := router.PathPrefix("/admin").Subrouter()
+		adminRouter.HandleFunc("/settings", middleware.WithSession(middleware.RequireAdmin(handler.AdminSettingsHandler))).Methods(http.MethodGet, http.MethodPost)
+		adminRouter.HandleFunc("/user/list", middleware.WithSession(middleware.RequireAdmin(handler.AdminUserListHandler))).Methods(http.MethodGet)
+		adminRouter.HandleFunc("/user/add", middleware.WithSession(middleware.RequireAdmin(handler.AdminUserAddHandler))).Methods(http.MethodGet, http.MethodPost)
+		adminRouter.HandleFunc("/user/{id}/edit", middleware.WithSession(middleware.RequireAdmin(handler.AdminUserEditHandler))).Methods(http.MethodGet, http.MethodPost)
+		adminRouter.HandleFunc("/user/{id}/remove", middleware.WithSession(middleware.RequireAdmin(handler.AdminUserRemoveHandler))).Methods(http.MethodGet, http.MethodPost)
 	}
 	apiRouter := router.PathPrefix("/api").Subrouter()
 	apiRouter.HandleFunc("/certificate/request", handler.ApiRequestCertificateHandler).Methods(http.MethodPost)
