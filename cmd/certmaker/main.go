@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/KaiserWerk/CertMaker/internal/assets"
 	"github.com/KaiserWerk/CertMaker/internal/certmaker"
 	"github.com/KaiserWerk/CertMaker/internal/configuration"
 	"github.com/KaiserWerk/CertMaker/internal/dbservice"
@@ -91,7 +92,8 @@ func main() {
 
 	// start with the server stuff
 	host := fmt.Sprintf(":%s", port)
-	router := mux.NewRouter()
+	router := mux.NewRouter().StrictSlash(true)
+
 	setupRoutes(router, *useUiPtr)
 
 	logger.Printf("Server listening on %s...\n", host)
@@ -150,11 +152,20 @@ func main() {
 
 func setupRoutes(router *mux.Router, ui bool) {
 	if ui {
+		staticDir := "/static"
+		router.
+			PathPrefix(staticDir).
+			Handler(http.StripPrefix(staticDir, http.FileServer(http.FS(assets.GetStaticFS()))))
+
 		router.HandleFunc("/", middleware.WithSession(handler.IndexHandler)).Methods(http.MethodGet)
-		router.HandleFunc("/login", handler.LoginHandler).Methods(http.MethodGet, http.MethodPost) // TODO implement
-		router.HandleFunc("/logout", middleware.WithSession(handler.LogoutHandler)).Methods(http.MethodGet) // TODO implement
-		router.HandleFunc("/add", middleware.WithSession(handler.AddCertificateHandler)).Methods(http.MethodGet, http.MethodPost)
-		router.HandleFunc("/revoke", middleware.WithSession(handler.RevokeCertificateHandler)).Methods(http.MethodGet, http.MethodPost) // TODO implement with cert upload form
+		router.HandleFunc("/auth/login", handler.LoginHandler).Methods(http.MethodGet, http.MethodPost) // TODO implement
+		router.HandleFunc("/auth/logout", middleware.WithSession(handler.LogoutHandler)).Methods(http.MethodGet) // TODO implement
+		router.HandleFunc("/auth/register", handler.RegistrationHandler).Methods(http.MethodGet) // TODO implement
+		router.HandleFunc("/certificate/list", middleware.WithSession(handler.ListCertificateHandler)).Methods(http.MethodGet)
+		router.HandleFunc("/certificate/add", middleware.WithSession(handler.AddCertificateHandler)).Methods(http.MethodGet, http.MethodPost)
+		router.HandleFunc("/certificate/add-with-csr", middleware.WithSession(handler.AddCertificateWithCSRHandler)).Methods(http.MethodGet, http.MethodPost)
+		router.HandleFunc("/certificate/revoke", middleware.WithSession(handler.RevokeCertificateHandler)).Methods(http.MethodGet, http.MethodPost) // TODO implement with cert upload form
+		router.HandleFunc("/admin/settings", middleware.WithSession(handler.AdminSettingsHandler)).Methods(http.MethodGet)
 	}
 	apiRouter := router.PathPrefix("/api").Subrouter()
 	apiRouter.HandleFunc("/certificate/request", handler.ApiRequestCertificateHandler).Methods(http.MethodPost)

@@ -1,0 +1,19 @@
+{{ template "header_auth" . }}
+<div class="container">
+    <h1>User Registration</h1>
+    <form method="post">
+        <fieldset>
+            <legend>Register</legend>
+            <label for="username">Username</label>
+            <input type="text" id="Username" name="username" placeholder="Username"><br>
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" placeholder="Email"><br>
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" placeholder="Password"><br>
+            <label for="password2">Repeat Password</label>
+            <input type="password" id="password2" name="password2" placeholder="Repeat Password"><br>
+            <button type="submit">Register</button>
+        </fieldset>
+    </form>
+</div>
+{{ template "footer_auth" . }}

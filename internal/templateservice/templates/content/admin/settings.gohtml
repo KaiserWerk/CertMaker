@@ -1,0 +1,68 @@
+{{ template "header_default" . }}
+<div class="container">
+    <h1>Change System Settings</h1>
+    <div class="row">
+        <div class="col-md-12">
+            <form method="post">
+                <input type="hidden" name="form" value="authentication">
+                <fieldset>
+                    <legend>Authentication</legend>
+
+                    <p>If no authentication provider is enabled, there is no authentication. Anyone can access these pages,
+                    which is the initial default.<br>
+                    Multiple authentication providers can be enabled at the same time. When deciding to enable an authentication provider,
+                    make sure you don't lock yourself out.</p>
+
+                    <input type="checkbox" id="authprovider_userpw" name="authprovider_userpw" value="1">
+                    <label for="authprovider_userpw">Username and Password (UI)</label><br>
+
+                    <input type="checkbox" id="authprovider_bearer" name="authprovider_bearer" value="1">
+                    <label for="authprovider_bearer">Bearer Token (API)</label><br>
+
+                    <br><button type="submit" class="primary">Save</button>
+                </fieldset>
+            </form>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-12">
+            <form method="post">
+                <input type="hidden" name="form" value="certificates_and_requests">
+                <fieldset>
+                    <legend>Certificates &amp; Requests</legend>
+
+                    <input type="checkbox" id="certificate_revocation_allow" name="certificate_revocation_allow" value="1">
+                    <label for="certificate_revocation_allow">Allow revocation of certificates</label><br>
+
+                    <input type="checkbox" id="certificate_revocation_only_by_requester" name="certificate_revocation_only_by_requester" value="1" style="margin-left: 20px;">
+                    <label for="certificate_revocation_only_by_requester">Allow only by original requester</label><br>
+
+                    <input type="checkbox" id="certificate_revocation_require_reasonphrase" name="certificate_revocation_require_reasonphrase" value="1" style="margin-left: 20px;">
+                    <label for="certificate_revocation_require_reasonphrase">Require a reason phrase</label><br>
+
+                    <br>
+
+                    <input type="checkbox" id="certificate_request_simple_mode" name="certificate_request_simple_mode" value="1">
+                    <label for="certificate_request_simple_mode">Simple Mode</label><br>
+                    <small style="margin-left: 41px;">CertMaker generates both a private key and a certificate for the requester</small><br>
+
+                    <input type="checkbox" id="certificate_request_normal_mode" name="certificate_request_normal_mode" value="1">
+                    <label for="certificate_request_normal_mode">Normal Mode</label><br>
+                    <small style="margin-left: 41px;">CertMaker generates a certificate by the requester's provided certificate singing request (CSR)</small><br>
+
+                    <br>
+
+                    <input type="checkbox" id="certificate_request_nocopy" name="certificate_request_nocopy" value="1">
+                    <label for="certificate_request_nocopy">Do not retain a file copy of all generated certificates and private keys</label><br>
+
+                    <input type="checkbox" id="certificate_request_require_domain_owner" name="certificate_request_require_domain_owner" value="1">
+                    <label for="certificate_request_require_domain_owner">Require that request's domain points to the requester's IP address</label><br>
+
+                    <br><button type="submit" class="primary">Save</button>
+                </fieldset>
+            </form>
+
+        </div>
+    </div>
+</div>
+{{ template "footer_default" . }}
