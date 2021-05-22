@@ -49,6 +49,7 @@ func ApiObtainCertificateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Disposition", "attachment; filename=\""+id+"-cert.pem\"")
 	_, err = w.Write(certBytes)
 	if err != nil {
 		logger.Println("could not write cert bytes:", err.Error())
@@ -67,6 +68,7 @@ func ApiObtainPrivateKeyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Disposition", "attachment; filename=\""+id+"-key.pem\"")
 	_, err = w.Write(keyBytes)
 	if err != nil {
 		logger.Println("could not write private key bytes:", err.Error())
@@ -89,7 +91,7 @@ func ApiOcspRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 	if r.Header.Get("Accept") != "application/ocsp-response" {
 		logger.Println("incorrect Accept header: " + r.Header.Get("Accept"))
-		w.Write([]byte("Wrong Content-Type header: must be application/ocsp-request"))
+		w.Write([]byte("Wrong Content-Type header: must be application/ocsp-response"))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
