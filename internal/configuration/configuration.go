@@ -2,6 +2,7 @@ package configuration
 
 import (
 	"fmt"
+	"github.com/KaiserWerk/CertMaker/internal/assets"
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 	"github.com/KaiserWerk/CertMaker/internal/global"
 	"github.com/KaiserWerk/CertMaker/internal/helper"
@@ -34,7 +35,7 @@ func Setup() (bool, bool, error) {
 	var (
 		createdConfigFile = false
 		createdSnFile = false
-		assets = global.GetAssets()
+		assets = assets.GetConfigFS()
 	)
 
 	if !helper.DoesFileExist(configurationFile) {
