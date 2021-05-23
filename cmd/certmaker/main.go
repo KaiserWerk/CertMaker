@@ -178,9 +178,9 @@ func setupRoutes(router *mux.Router, ui bool) {
 		adminRouter.HandleFunc("/user/{id}/remove", middleware.WithSession(middleware.RequireAdmin(handler.AdminUserRemoveHandler))).Methods(http.MethodGet, http.MethodPost)
 	}
 	apiRouter := router.PathPrefix("/api").Subrouter()
-	apiRouter.HandleFunc("/certificate/request", handler.ApiRequestCertificateHandler).Methods(http.MethodPost)
-	apiRouter.HandleFunc("/certificate/{id}/obtain", handler.ApiObtainCertificateHandler).Methods(http.MethodGet)
-	apiRouter.HandleFunc("/privatekey/{id}/obtain", handler.ApiObtainPrivateKeyHandler).Methods(http.MethodGet)
+	apiRouter.HandleFunc("/certificate/request", middleware.WithToken(handler.ApiRequestCertificateHandler)).Methods(http.MethodPost)
+	apiRouter.HandleFunc("/certificate/{id}/obtain", middleware.WithToken(handler.ApiObtainCertificateHandler)).Methods(http.MethodGet)
+	apiRouter.HandleFunc("/privatekey/{id}/obtain", middleware.WithToken(handler.ApiObtainPrivateKeyHandler)).Methods(http.MethodGet)
 	apiRouter.HandleFunc("/ocsp/", handler.ApiOcspRequestHandler).Methods(http.MethodPost) // TODO only post?
 }
 
