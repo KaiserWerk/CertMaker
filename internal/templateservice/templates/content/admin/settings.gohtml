@@ -19,7 +19,7 @@
 
                     {{ $authprovider_bearer := index .AdminSettings "authprovider_bearer" }}
                     <input type="checkbox" id="authprovider_bearer" name="authprovider_bearer" value="true"{{if eq $authprovider_bearer "true"}} checked{{end}}>
-                    <label for="authprovider_bearer">Bearer Token (API)</label><br>
+                    <label for="authprovider_bearer">API Key (API)</label><br>
 
                     <br><button type="submit" class="primary">Save</button>
                 </fieldset>
