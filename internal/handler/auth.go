@@ -16,6 +16,19 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		ds = dbservice.New()
 		sessMgr = global.GetSessMgr()
 	)
+
+	val, err := ds.GetSetting("authprovider_userpw")
+	if err != nil {
+		logger.Println("could not get authentication provider setting")
+		return
+	} else {
+		if val != "true" {
+			//logger.Println("authprovider userpw not enabled; redirecting")
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+			return
+		}
+	}
+
 	if r.Method == http.MethodPost {
 		username := r.FormValue("username")
 		password := r.FormValue("password")
