@@ -26,6 +26,9 @@ func (ds *dbservice) GetSetting(name string) (string, error) {
 	var setting entity.SystemSetting
 	result := ds.db.Where("name = ?", name).First(&setting)
 	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return "", nil
+		}
 		return "", result.Error
 	}
 
