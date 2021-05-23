@@ -4,20 +4,26 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/KaiserWerk/CertMaker/internal/certmaker"
+	"github.com/KaiserWerk/CertMaker/internal/dbservice"
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 	"github.com/KaiserWerk/CertMaker/internal/global"
+	"github.com/KaiserWerk/CertMaker/internal/helper"
 	"github.com/KaiserWerk/CertMaker/internal/logging"
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/ocsp"
 	"io/ioutil"
+	"net"
 	"net/http"
 )
 
 func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
-	// dont forget authentication
-	config := global.GetConfiguration()
-	logger := logging.GetLogger()
-	var certRequest entity.CertificateRequest
+	var (
+		ds = dbservice.New()
+		config = global.GetConfiguration()
+		logger = logging.GetLogger()
+	    certRequest entity.CertificateRequest
+	)
+
 	err := json.NewDecoder(r.Body).Decode(&certRequest)
 	if err != nil {
 		logger.Printf("error parsing certificate request: %s\n", err.Error())
@@ -25,6 +31,44 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = r.Body.Close()
+
+	val, err := ds.GetSetting("certificate_request_require_domain_ownership")
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	} else {
+		if val == "true" {
+			clientIp := helper.GetUserIP(r)
+			okays := make(map[string]bool)
+			for _, domain := range certRequest.Domains {
+				ips, err := net.LookupIP(domain)
+				if err != nil {
+					logger.Println("could not determinte client ip: " + err.Error())
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				okays[domain] = false
+				for _, ip := range ips {
+					if ip.String() == clientIp {
+						okays[domain] = true
+						break
+					}
+				}
+			}
+			numOkays := 0
+			for _, ok := range okays {
+				if ok {
+					numOkays++
+				}
+			}
+
+			if len(certRequest.Domains) != numOkays {
+				logger.Println("not all requested domains point to the requester's IP address: " + clientIp)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+		}
+	}
 
 	sn, err := certmaker.GenerateLeafCertAndKey(certRequest)
 	if err != nil {
