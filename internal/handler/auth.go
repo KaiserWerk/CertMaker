@@ -5,6 +5,7 @@ import (
 	"github.com/KaiserWerk/CertMaker/internal/dbservice"
 	"github.com/KaiserWerk/CertMaker/internal/global"
 	"github.com/KaiserWerk/CertMaker/internal/logging"
+	"github.com/KaiserWerk/CertMaker/internal/security"
 	"github.com/KaiserWerk/CertMaker/internal/templateservice"
 	"net/http"
 	"time"
@@ -46,7 +47,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if user.Password != password {
+		if !security.DoesHashMatch(password, user.Password) {
 			logger.Println("passwords did not match")
 			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 			return
@@ -112,6 +113,16 @@ func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func RegistrationHandler(w http.ResponseWriter, r *http.Request) {
+	var (
+		err error
+		logger = logging.GetLogger()
+		ds = dbservice.New()
+	)
+
+	if r.Method == http.MethodPost {
+		
+	}
+
 	if err := templateservice.ExecuteTemplate(w, "auth/registration.gohtml", nil); err != nil {
 		w.WriteHeader(404)
 	}

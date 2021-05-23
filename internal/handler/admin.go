@@ -213,10 +213,17 @@ func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		hash, err := security.HashString(password)
+		if err != nil {
+			logger.Println("could not hash password: " + err.Error())
+			http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
+			return
+		}
+
 		u := entity.User{
 			Username: username,
 			Email:    email,
-			Password: password,
+			Password: hash,
 			ApiKey: apikey,
 		}
 
@@ -281,7 +288,13 @@ func AdminUserEditHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if password != "" {
-			userToEdit.Password = password // TODO hashing!
+			hash, err := security.HashString(password)
+			if err != nil {
+				logger.Println("cloud not hash password: " + err.Error())
+				http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
+				return
+			}
+			userToEdit.Password = hash
 			changes++
 		}
 
