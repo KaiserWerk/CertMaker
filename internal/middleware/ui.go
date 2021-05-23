@@ -11,20 +11,27 @@ import (
 	"net/http"
 )
 
-func HeaderMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "max-age=0, no-cache, no-store, must-revalidate")
-		w.Header().Set("Pragma", "no-cache")
-		w.Header().Set("Expires", "Thu, 01 Jan 1970 00:00:00 GMT")
-
-		next.ServeHTTP(w, r)
-	})
-}
-
 func WithSession(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc (func(w http.ResponseWriter, r *http.Request) {
-		sessMgr := global.GetSessMgr()
-		logger := logging.GetLogger()
+		var (
+			sessMgr = global.GetSessMgr()
+			logger = logging.GetLogger()
+			ds = dbservice.New()
+		)
+
+		val, err := ds.GetSetting("authprovider_userpw")
+		if err != nil {
+			logger.Println("could not get authentication provider setting")
+			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
+			return
+		} else {
+			if val != "true" {
+				//logger.Println("authprovider userpw not enabled; redirecting")
+				next.ServeHTTP(w, r)
+				return
+			}
+		}
+
 		cv, err := sessMgr.GetCookieValue(r)
 		if err != nil {
 			logger.Println("no user-provided cookie found")
@@ -46,7 +53,7 @@ func WithSession(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		ds := dbservice.New()
+
 		u, err := ds.FindUser("id = ?", userId)
 		if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Println("user not found: " + err.Error())
@@ -66,6 +73,11 @@ func RequireAdmin(next http.HandlerFunc) http.HandlerFunc {
 		logger := logging.GetLogger()
 
 		val := r.Context().Value("user")
+		if val == nil {
+			logger.Println("user not found in context")
+			next.ServeHTTP(w, r)
+			return
+		}
 		u := val.(entity.User)
 
 		if !u.Admin {
@@ -77,13 +89,3 @@ func RequireAdmin(next http.HandlerFunc) http.HandlerFunc {
 		next.ServeHTTP(w, r)
 	})
 }
-
-
-func WithToken(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-
-		next.ServeHTTP(w, r)
-	})
-}
-
