@@ -1,0 +1,43 @@
+{{ template "header_default" . }}
+<div class="container">
+    <h1>Edit user account</h1>
+    {{ if .Message }}
+    <div class="row">
+        <div class="card">
+            <h3>Message</h3>
+            <p>{{ .Message }}</p>
+        </div>
+    </div>
+    {{ end }}
+    <div class="row">
+        <div class="col-md-12">
+            <form method="post">
+
+                <p>Empty fields will be ignored.</p>
+
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" placeholder="{{ .User.Username }}"><br>
+
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" placeholder="{{ .User.Email }}"><br>
+
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" placeholder="Password" ><br>
+
+                <label for="nologin">Disallow login</label>
+                <input type="checkbox" id="nologin" name="nologin" value="true"{{ if eq .User.NoLogin true }} checked{{ end }}><br>
+
+                <label for="locked">Disable account</label>
+                <input type="checkbox" id="locked" name="locked" value="true"{{ if eq .User.Locked true }} checked{{ end }}><br>
+
+                <label for="admin">Is Admin</label>
+                <input type="checkbox" id="admin" name="admin" value="true"{{ if eq .User.Admin true }} checked{{ end }}><br>
+
+                <br><button type="submit" class="primary">Save changes</button>
+
+            </form>
+        </div>
+    </div>
+</div>
+
+{{ template "footer_default" . }}
