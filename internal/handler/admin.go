@@ -7,6 +7,7 @@ import (
 	"github.com/KaiserWerk/CertMaker/internal/logging"
 	"github.com/KaiserWerk/CertMaker/internal/security"
 	"github.com/KaiserWerk/CertMaker/internal/templateservice"
+	"github.com/gorilla/mux"
 	"net/http"
 )
 
@@ -236,14 +237,136 @@ func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func AdminUserEditHandler(w http.ResponseWriter, r *http.Request) {
+	var (
+		vars = mux.Vars(r)
+		err error
+		logger = logging.GetLogger()
+		changes uint8 = 0
+		ds = dbservice.New()
+		message string
+	)
 
+	userToEdit, err := ds.FindUser("id = ?", vars["id"])
+	if err != nil {
+		logger.Printf("Could not find user with ID '%s': %s\n", vars["id"], err.Error())
+		http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
+		return
+	}
 
+	if r.Method == http.MethodPost {
+		username := r.FormValue("username")
+		email := r.FormValue("email")
+		password := r.FormValue("password")
 
-	if err := templateservice.ExecuteTemplate(w, "admin/user_edit.gohtml", nil); err != nil {
+		if username != "" {
+			_, err = ds.FindUser("username = ? && id != ?", username, userToEdit.ID)
+			if err == nil {
+				logger.Println("Username already taken")
+				http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
+				return
+			}
+			userToEdit.Username = username
+			changes++
+		}
+
+		if email != "" {
+			_, err = ds.FindUser("email = ? && id != ?", email, userToEdit.ID)
+			if err == nil {
+				logger.Println("Email already taken")
+				http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
+				return
+			}
+			userToEdit.Email = email
+			changes++
+		}
+
+		if password != "" {
+			userToEdit.Password = password // TODO hashing!
+			changes++
+		}
+
+		nologin := false
+		if r.FormValue("nologin") == "true" {
+			nologin = true
+		}
+		if userToEdit.NoLogin != nologin {
+			changes++
+			userToEdit.NoLogin = nologin
+		}
+
+		locked := false
+		if r.FormValue("locked") == "true" {
+			locked = true
+		}
+		if userToEdit.Locked != locked {
+			changes++
+			userToEdit.Locked = locked
+		}
+
+		admin := false
+		if r.FormValue("admin") == "true" {
+			admin = true
+		}
+		if userToEdit.Admin != admin {
+			changes++
+			userToEdit.Admin = admin
+		}
+
+		if changes == 0 {
+			message = "No changes were made."
+		} else {
+			message = fmt.Sprintf("%d changes were saved!", changes)
+		}
+
+		err = ds.UpdateUser(&userToEdit)
+		if err != nil {
+			logger.Println("user data could not be updated")
+			http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
+			return
+		}
+	}
+
+	data := struct {
+		User    entity.User
+		Message string
+	}{
+		User:    userToEdit,
+		Message: message,
+	}
+
+	if err := templateservice.ExecuteTemplate(w, "admin/user_edit.gohtml", data); err != nil {
 		w.WriteHeader(404)
 	}
 }
 
 func AdminUserRemoveHandler(w http.ResponseWriter, r *http.Request) {
+	var (
+		val = r.Context().Value("user")
+		u = val.(entity.User)
+		vars = mux.Vars(r)
+		logger = logging.GetLogger()
+		ds = dbservice.New()
+	)
 
+	if fmt.Sprintf("%s", u.ID) == vars["id"] {
+		logger.Println("You cannot remove your own user account!")
+		http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
+		return
+	}
+
+	user, err := ds.FindUser("id = ?", vars["id"])
+	if err != nil {
+		logger.Println("User could not be found")
+		http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
+		return
+	}
+
+	err = ds.DeleteUser(&user)
+	if err != nil {
+		logger.Println("User could not be deleted!")
+		http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
+		return
+	}
+
+	http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
 }
