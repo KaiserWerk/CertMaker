@@ -38,3 +38,22 @@ func (ds *dbservice) AddUser(u *entity.User) error {
 
 	return nil
 }
+
+func (ds *dbservice) UpdateUser(u *entity.User) error {
+	res := ds.db.Save(u)
+	if res.Error != nil {
+		return res.Error
+	}
+
+	return nil
+}
+
+func (ds *dbservice) DeleteUser(u *entity.User) error {
+	res := ds.db.Unscoped().Delete(u)
+	if res.Error != nil {
+		return res.Error
+	}
+
+	return nil
+}
+
