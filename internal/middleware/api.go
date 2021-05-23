@@ -23,6 +23,7 @@ func WithToken(next http.HandlerFunc) http.HandlerFunc {
 				return
 			}
 		}
+
 		token := r.Header.Get("X-Auth-Token") // Authorization: Bearer XX?
 		if token == "" {
 			logger.Println("missing auth header")
