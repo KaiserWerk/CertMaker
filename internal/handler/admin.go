@@ -11,6 +11,8 @@ import (
 	"net/http"
 )
 
+// AdminSettingsHandler takes care of checking and write system-wide settings
+// to the database
 func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		err error
@@ -23,7 +25,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 		var errors uint8 = 0
 		form := r.FormValue("form")
 
-		if form == "authentication" {
+		if form == "authentication_provider" {
 			authprovUserpw := "false"
 			if r.FormValue("authprovider_userpw") == "true" {
 				authprovUserpw = "true"
@@ -39,6 +41,26 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 				authprovBearer = "true"
 			}
 			err = ds.SetSetting("authprovider_bearer", authprovBearer)
+			if err != nil {
+				errors++
+				logger.Println(err.Error())
+			}
+		} else if form == "authentication" {
+			registrationEnabled := "registration_enabled"
+			if r.FormValue("registration_enabled") == "true" {
+				registrationEnabled = "true"
+			}
+			err = ds.SetSetting("registration_enabled", registrationEnabled)
+			if err != nil {
+				errors++
+				logger.Println(err.Error())
+			}
+
+			registrationRequireEmailConfirmation := "false"
+			if r.FormValue("registration_require_email_confirmation") == "true" {
+				registrationRequireEmailConfirmation = "true"
+			}
+			err = ds.SetSetting("registration_require_email_confirmation", registrationRequireEmailConfirmation)
 			if err != nil {
 				errors++
 				logger.Println(err.Error())
@@ -142,6 +164,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// AdminUserListHandler lists all existing user
 func AdminUserListHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		ds = dbservice.New()
@@ -165,6 +188,7 @@ func AdminUserListHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// AdminUserAddHandler takes form values and creates a new user account
 func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		err error
@@ -243,6 +267,7 @@ func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// AdminUserEditHandler allows changing values for a given user account
 func AdminUserEditHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		vars = mux.Vars(r)
@@ -352,6 +377,7 @@ func AdminUserEditHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// AdminUserRemoveHandler allows removing a given user account
 func AdminUserRemoveHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		val = r.Context().Value("user")
