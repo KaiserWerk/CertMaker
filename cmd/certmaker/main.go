@@ -17,7 +17,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"time"
 )
 
@@ -97,26 +96,6 @@ func main() {
 	setupRoutes(router, *useUiPtr)
 
 	logger.Printf("Server listening on %s...\n", host)
-
-	// handle administrative console input
-	if !*asServicePtr {
-		logger.Println("Waiting for input")
-		go func() {
-			for {
-				var in string
-				_, _ = fmt.Scanln(&in)
-				switch true {
-
-				case strings.HasPrefix(in, "create user"):
-					// TODO implement
-				case in == "shutdown" || in == "exit" || in == "quit":
-					logger.Fatalf("Manual shutdown by console")
-				default:
-					logger.Printf("Unknown command '%s'\n", in)
-				}
-			}
-		}()
-	}
 
 	notify := make(chan os.Signal)
 	signal.Notify(notify, os.Interrupt)
