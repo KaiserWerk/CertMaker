@@ -5,6 +5,7 @@ import (
 	"net/http"
 )
 
+// IndexHandler shows, well, the index page
 func IndexHandler(w http.ResponseWriter, r *http.Request) {
 	//val := r.Context().Value("user")
 	//u := val.(entity.User)

@@ -6,6 +6,8 @@ import (
 	"net/http"
 )
 
+// WithToken makes sure that, if enabled, a client must provide his API key
+// within an HTTP header
 func WithToken(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var (

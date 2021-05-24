@@ -11,6 +11,8 @@ import (
 	"net/http"
 )
 
+// WithSession requires the client to have a valid session
+// (to be logged in)
 func WithSession(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc (func(w http.ResponseWriter, r *http.Request) {
 		var (
@@ -68,6 +70,7 @@ func WithSession(next http.HandlerFunc) http.HandlerFunc {
 	})
 }
 
+// RequireAdmin only continues if the logged in user is an administrator
 func RequireAdmin(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc (func(w http.ResponseWriter, r *http.Request) {
 		logger := logging.GetLogger()

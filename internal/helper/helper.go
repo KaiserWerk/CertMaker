@@ -9,12 +9,16 @@ import (
 	"strings"
 )
 
+// TrimSliceElements removes whitespace from all elements
+// of a string slice
 func TrimSliceElements(parts []string) {
 	for k, v := range parts {
 		parts[k] = strings.TrimSpace(v)
 	}
 }
 
+// Visit returns a function for finding a list of file
+// matching certain criteria.
 func Visit(files *[]string) filepath.WalkFunc {
 	return func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -29,6 +33,7 @@ func Visit(files *[]string) filepath.WalkFunc {
 	}
 }
 
+// DoesFileExist check whether the file f exists.
 func DoesFileExist(f string) bool {
 	info, err := os.Stat(f)
 	if os.IsNotExist(err) {
@@ -37,6 +42,8 @@ func DoesFileExist(f string) bool {
 	return !info.IsDir()
 }
 
+// StringSliceContains returns true if the string key
+// exists in the string slice s.
 func StringSliceContains(s []string, key string) bool {
 	for _, v := range s {
 		if v == key {
@@ -47,6 +54,7 @@ func StringSliceContains(s []string, key string) bool {
 	return false
 }
 
+// GetUserIP returns the client's IP address.
 func GetUserIP(r *http.Request) string {
 	IPAddress := r.Header.Get("X-Real-Ip")
 	fmt.Println("X Real IP " + IPAddress)

@@ -13,6 +13,7 @@ type dbservice struct {
 	db *gorm.DB
 }
 
+// New creates and returns a new database connection
 func New() *dbservice {
 	config := global.GetConfiguration()
 
@@ -35,6 +36,8 @@ func New() *dbservice {
 	return &dbservice{db: db}
 }
 
+// AutoMigrate makes sure the database schema
+// is up-to-date.
 func (ds *dbservice) AutoMigrate() error {
 	err := ds.db.AutoMigrate(
 		&entity.CertInfo{},

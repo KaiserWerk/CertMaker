@@ -2,6 +2,7 @@ package entity
 
 import "gorm.io/gorm"
 
+// User defines a user account in the CertMaker system
 type User struct {
 	gorm.Model
 	Username string `gorm:"index:,unique"`

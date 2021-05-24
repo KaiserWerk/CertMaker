@@ -1,5 +1,7 @@
 package entity
 
+// CertificateRequest (not CSR) describes the content of a certificate request
+// against the API
 type CertificateRequest struct {
 	Domains []string `json:"domains"`
 	IPs     []string `json:"ips"`

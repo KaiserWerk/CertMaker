@@ -5,6 +5,7 @@ import (
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 )
 
+// GetAllUsers just fetches all users
 func (ds *dbservice) GetAllUsers() ([]entity.User, error) {
 	users := make([]entity.User, 0)
 	result := ds.db.Find(&users)
@@ -30,6 +31,7 @@ func (ds *dbservice) FindUser(cond string, args ...interface{}) (entity.User, er
 	return user, nil
 }
 
+// AddUser creates a new user entry in the database
 func (ds *dbservice) AddUser(u *entity.User) error {
 	res := ds.db.Create(u)
 	if res.Error != nil {
@@ -39,6 +41,8 @@ func (ds *dbservice) AddUser(u *entity.User) error {
 	return nil
 }
 
+// UpdateUser updates a user with the ID from the struct with the values
+// from the struct
 func (ds *dbservice) UpdateUser(u *entity.User) error {
 	res := ds.db.Save(u)
 	if res.Error != nil {
@@ -48,6 +52,7 @@ func (ds *dbservice) UpdateUser(u *entity.User) error {
 	return nil
 }
 
+// DeleteUser deletes a given user from the database
 func (ds *dbservice) DeleteUser(u *entity.User) error {
 	res := ds.db.Unscoped().Delete(u)
 	if res.Error != nil {

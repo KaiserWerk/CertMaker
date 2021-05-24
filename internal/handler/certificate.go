@@ -13,8 +13,9 @@ import (
 	"strings"
 )
 
+// ListCertificateHandler lists all available certificates and
+// private keys in the UI
 func ListCertificateHandler(w http.ResponseWriter, r *http.Request) {
-	// TODO auth
 	config := global.GetConfiguration()
 	logger := logging.GetLogger()
 	var files []string
@@ -44,6 +45,7 @@ func ListCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// AddCertificateHandler allows to add a new certificate + private key via UI
 func AddCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	// TODO auth
 
@@ -126,12 +128,15 @@ func AddCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// AddCertificateWithCSRHandler enables you to upload a file containing a CSR to
+// the UI and create a certificate
 func AddCertificateWithCSRHandler(w http.ResponseWriter, r *http.Request) {
 	if err := templateservice.ExecuteTemplate(w, "certificate/certificate_add_with_csr.gohtml", nil); err != nil {
 		w.WriteHeader(404)
 	}
 }
 
+// RevokeCertificateHandler allows the revocation of a certificate via the UI
 func RevokeCertificateHandler(w http.ResponseWriter, r *http.Request) {
 
 }

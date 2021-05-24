@@ -1,5 +1,6 @@
 package entity
 
+// Configuration represents the Go type of a configuration file
 type Configuration struct {
 	ServerHost string `yaml:"server_host"`
 	DataDir    string `yaml:"data_dir"`

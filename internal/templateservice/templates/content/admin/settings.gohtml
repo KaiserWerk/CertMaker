@@ -4,9 +4,9 @@
     <div class="row">
         <div class="col-md-12">
             <form method="post">
-                <input type="hidden" name="form" value="authentication">
+                <input type="hidden" name="form" value="authentication_provider">
                 <fieldset>
-                    <legend>Authentication</legend>
+                    <legend>Authentication Providers</legend>
 
                     <p>If no authentication provider is enabled, there is no authentication. Anyone can access these pages,
                     which is the initial default.<br>
@@ -21,11 +21,37 @@
                     <input type="checkbox" id="authprovider_bearer" name="authprovider_bearer" value="true"{{if eq $authprovider_bearer "true"}} checked{{end}}>
                     <label for="authprovider_bearer">API Key (API)</label><br>
 
+
+
                     <br><button type="submit" class="primary">Save</button>
                 </fieldset>
             </form>
         </div>
     </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <form method="post">
+                <input type="hidden" name="form" value="authentication">
+                <fieldset>
+                    <legend>Authentication</legend>
+
+                    {{ $registration_enabled := index .AdminSettings "registration_enabled" }}
+                    <input type="checkbox" id="registration_enabled" name="registration_enabled" value="true"{{if eq $registration_enabled "true"}} checked{{end}}>
+                    <label for="registration_enabled">Enable user account registration</label><br>
+
+                    {{ $registration_require_email_confirmation := index .AdminSettings "registration_require_email_confirmation" }}
+                    <input type="checkbox" id="registration_require_email_confirmation" name="registration_require_email_confirmation" value="true"{{if eq $registration_require_email_confirmation "true"}} checked{{end}}>
+                    <label for="registration_require_email_confirmation">Require email confirmation for registration</label><br>
+
+
+
+                    <br><button type="submit" class="primary">Save</button>
+                </fieldset>
+            </form>
+        </div>
+    </div>
+
     <div class="row">
         <div class="col-md-12">
             <form method="post">

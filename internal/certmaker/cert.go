@@ -31,6 +31,9 @@ var (
 	keyFile   string
 )
 
+// SetupCA checks if root key and certificate exist. if not,
+// both are created. Also check if both files are readable and
+// parseable.
 func SetupCA() error {
 	config := global.GetConfiguration()
 
@@ -59,6 +62,7 @@ func SetupCA() error {
 	return nil
 }
 
+// GetNextSerialNumber fetches the next serial number.
 func GetNextSerialNumber() (int64, error) {
 	config := global.GetConfiguration()
 
@@ -85,6 +89,8 @@ func GetNextSerialNumber() (int64, error) {
 	return sn, nil
 }
 
+// GenerateRootCertAndKey generates the root private key and with it,
+// the root certificate
 func GenerateRootCertAndKey() error {
 	// create folder if it does not exist
 	_ = os.Mkdir(path.Dir(certFile), 0744)
@@ -150,6 +156,8 @@ func GenerateRootCertAndKey() error {
 	return nil
 }
 
+// GenerateLeafCertAndKey generates a certificate signed by
+// the root certificate and a private key.
 func GenerateLeafCertAndKey(request entity.CertificateRequest) (int64, error) {
 	config := global.GetConfiguration()
 	catls, err := tls.LoadX509KeyPair(filepath.Join(config.DataDir, "root-cert.pem"), filepath.Join(config.DataDir, "root-key.pem"))
@@ -266,6 +274,8 @@ func GenerateLeafCertAndKey(request entity.CertificateRequest) (int64, error) {
 	return nextSn, nil
 }
 
+// FindLeafCertificate returns the contents of the leaf certificate
+// with the supplied ID
 func FindLeafCertificate(id string) ([]byte, error) {
 	config := global.GetConfiguration()
 	certFile := filepath.Join(config.DataDir, "leafcerts", fmt.Sprintf("%s-cert.pem", id))
@@ -281,6 +291,8 @@ func FindLeafCertificate(id string) ([]byte, error) {
 	return content, nil
 }
 
+// FindLeafPrivateKey returns the contents of the leaf private key
+// with the supplied ID
 func FindLeafPrivateKey(id string) ([]byte, error) {
 	config := global.GetConfiguration()
 	keyFile := filepath.Join(config.DataDir, "leafcerts", fmt.Sprintf("%s-key.pem", id))

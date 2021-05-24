@@ -19,27 +19,35 @@ var (
 	snDistFile = "config/sn.dist.txt"
 )
 
+// GetConfigFilename returns the path + name of
+// the configuration file
 func GetConfigFilename() string {
 	return configurationFile
 }
 
+// GetSnFilename returns the path + name of
+// the serial number file
 func GetSnFilename() string {
 	return snFile
 }
 
+// SetFileSource sets the file source for the configuration
+// to be read from
 func SetFileSource(f string) {
 	configurationFile = f
 }
 
+// Setup makes sure the configuration file and serial
+// number file exist. If not, they are created with sensible defaults.
 func Setup() (bool, bool, error) {
 	var (
 		createdConfigFile = false
 		createdSnFile = false
-		assets = assets.GetConfigFS()
+		assetsFS = assets.GetConfigFS()
 	)
 
 	if !helper.DoesFileExist(configurationFile) {
-		cont, err := assets.ReadFile(configDistFile)
+		cont, err := assetsFS.ReadFile(configDistFile)
 		if err != nil {
 			return createdConfigFile, createdSnFile, fmt.Errorf("config dist file '%s' not readable in embed.FS: %s", configDistFile, err.Error())
 		}
@@ -63,7 +71,7 @@ func Setup() (bool, bool, error) {
 
 	snFile = filepath.Join(c.DataDir, "sn.txt")
 	if !helper.DoesFileExist(snFile) {
-		snCont, err := assets.ReadFile("config/sn.dist.txt")
+		snCont, err := assetsFS.ReadFile("config/sn.dist.txt")
 		if err != nil {
 			return createdConfigFile, createdSnFile, fmt.Errorf("serial number dist file '%s' not readable in embed.FS: %s", snDistFile, err.Error())
 		}
@@ -85,6 +93,7 @@ func Setup() (bool, bool, error) {
 	return createdConfigFile, createdSnFile, nil
 }
 
+// Get fetches the actual, current configuration
 func Get() (*entity.Configuration, error) {
 	if !helper.DoesFileExist(configurationFile) {
 		return nil, fmt.Errorf("config file '%s' not found", configurationFile)

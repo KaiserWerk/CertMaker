@@ -16,6 +16,9 @@ import (
 	"net/http"
 )
 
+// ApiRequestCertificateHandler handles a client's request for a new certificate,
+// generates a new certificate and private key for the client and sets appropriate
+// location headers
 func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		ds = dbservice.New()
@@ -81,6 +84,7 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("X-Privatekey-Location", fmt.Sprintf("http://%s/api/privatekey/%d/obtain", config.ServerHost, sn))
 }
 
+// ApiObtainCertificateHandler allows to actually download a certificate
 func ApiObtainCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.GetLogger()
 	vars := mux.Vars(r)
@@ -100,6 +104,7 @@ func ApiObtainCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ApiObtainPrivateKeyHandler allows to actually download a private key
 func ApiObtainPrivateKeyHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.GetLogger()
 	vars := mux.Vars(r)
@@ -119,6 +124,8 @@ func ApiObtainPrivateKeyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ApiOcspRequestHandler responds to OCSP requests with whether the certificate
+// in question is revoked or not
 func ApiOcspRequestHandler(w http.ResponseWriter, r *http.Request) {
 	/*
 		httpReq.Header.Add("Content-Type", "application/ocsp-request")

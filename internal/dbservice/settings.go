@@ -6,6 +6,8 @@ import (
 	"gorm.io/gorm"
 )
 
+// GetAllSettings fetches a map[string]string containing all
+// available settings
 func (ds *dbservice) GetAllSettings() (map[string]string, error) {
 	settings := make([]entity.SystemSetting, 0)
 	result := ds.db.Find(&settings)
@@ -22,6 +24,8 @@ func (ds *dbservice) GetAllSettings() (map[string]string, error) {
 	return s, nil
 }
 
+// GetSetting fetches the setting with the given name. If it does not exist,
+// an empty string is returned instead of an error
 func (ds *dbservice) GetSetting(name string) (string, error) {
 	var setting entity.SystemSetting
 	result := ds.db.Where("name = ?", name).First(&setting)
@@ -35,6 +39,7 @@ func (ds *dbservice) GetSetting(name string) (string, error) {
 	return setting.Value, nil
 }
 
+// SetSetting sets a setting with the name name to the value value
 func (ds *dbservice) SetSetting(name, value string) error {
 	var setting entity.SystemSetting
 	result := ds.db.Where("name = ?", name).First(&setting)

@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"github.com/KaiserWerk/CertMaker/internal/dbservice"
+	"github.com/KaiserWerk/CertMaker/internal/entity"
 	"github.com/KaiserWerk/CertMaker/internal/global"
 	"github.com/KaiserWerk/CertMaker/internal/logging"
 	"github.com/KaiserWerk/CertMaker/internal/security"
@@ -11,6 +12,8 @@ import (
 	"time"
 )
 
+// LoginHandler authenticates the user against the database, created
+// a session and associates it with the user
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		logger = logging.GetLogger()
@@ -77,6 +80,8 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// LogoutHandler makes sure the user session is invalidated and
+// the session cookie is removed
 func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		sessMgr = global.GetSessMgr()
@@ -112,6 +117,8 @@ func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 }
 
+// RegistrationHandler handles form values, check for validity, adds the new user
+// account and optionally sends out a confirmation email
 func RegistrationHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		err error
@@ -119,8 +126,84 @@ func RegistrationHandler(w http.ResponseWriter, r *http.Request) {
 		ds = dbservice.New()
 	)
 
+	// Only comment out for debug purposes
+	val, err := ds.GetSetting("registration_enabled")
+	if err != nil {
+		logger.Println("could not get setting registration_enabled")
+		return
+	} else {
+		if val != "true" {
+			logger.Println("registration is not enabled")
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+			return
+		}
+	}
+
 	if r.Method == http.MethodPost {
-		
+		username := r.FormValue("username")
+		email := r.FormValue("email")
+		password1 := r.FormValue("password")
+		password2 := r.FormValue("password2")
+
+		if username == "" || password1 == "" || password2 == "" {
+			logger.Println("Username and password must be supplied")
+			http.Redirect(w, r, "/auth/register", http.StatusSeeOther)
+			return
+		}
+
+		if password1 != password2 {
+			logger.Println("passwords do not match")
+			http.Redirect(w, r, "/auth/register", http.StatusSeeOther)
+			return
+		}
+
+		_, err = ds.FindUser("username = ?", username)
+		if err == nil {
+			logger.Println("username already in use")
+			http.Redirect(w, r, "/auth/register", http.StatusSeeOther)
+			return
+		}
+
+		_, err = ds.FindUser("email = ?", email)
+		if err == nil {
+			logger.Println("email already in use")
+			http.Redirect(w, r, "/auth/register", http.StatusSeeOther)
+			return
+		}
+
+		hash, err := security.HashString(password1)
+		if err != nil {
+			logger.Println("password could not be hashed")
+			http.Redirect(w, r, "/auth/register", http.StatusSeeOther)
+			return
+		}
+
+		key, err := security.GenerateToken(40)
+		if err != nil {
+			logger.Println("api key could not be generated")
+			http.Redirect(w, r, "/auth/register", http.StatusSeeOther)
+			return
+		}
+
+		u := entity.User{
+			Username: username,
+			Email:    email,
+			Password: hash,
+			ApiKey:   key,
+			NoLogin:  false,
+			Locked:   false,
+			Admin:    false,
+		}
+
+		err = ds.AddUser(&u)
+		if err != nil {
+			logger.Println("could not insert user: " + err.Error())
+			http.Redirect(w, r, "/auth/register", http.StatusSeeOther)
+			return
+		}
+
+		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
+		return
 	}
 
 	if err := templateservice.ExecuteTemplate(w, "auth/registration.gohtml", nil); err != nil {
