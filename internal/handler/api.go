@@ -27,6 +27,8 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	    certRequest entity.CertificateRequest
 	)
 
+	// TODO enforce simple mode
+
 	err := json.NewDecoder(r.Body).Decode(&certRequest)
 	if err != nil {
 		logger.Printf("error parsing certificate request: %s\n", err.Error())
@@ -80,8 +82,8 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Add("X-Certificate-Location", fmt.Sprintf("http://%s/api/certificate/%d/obtain", config.ServerHost, sn))
-	w.Header().Add("X-Privatekey-Location", fmt.Sprintf("http://%s/api/privatekey/%d/obtain", config.ServerHost, sn))
+	w.Header().Add("X-Certificate-Location", fmt.Sprintf("%s/api/certificate/%d/obtain", config.ServerHost, sn))
+	w.Header().Add("X-Privatekey-Location", fmt.Sprintf("%s/api/privatekey/%d/obtain", config.ServerHost, sn))
 }
 
 // ApiObtainCertificateHandler allows to actually download a certificate
