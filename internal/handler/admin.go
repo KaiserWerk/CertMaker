@@ -160,7 +160,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := templateservice.ExecuteTemplate(w, "admin/settings.gohtml", data); err != nil {
-		w.WriteHeader(404)
+		w.WriteHeader(http.StatusNotFound)
 	}
 }
 
@@ -184,7 +184,7 @@ func AdminUserListHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := templateservice.ExecuteTemplate(w, "admin/user_list.gohtml", data); err != nil {
-		w.WriteHeader(404)
+		w.WriteHeader(http.StatusNotFound)
 	}
 }
 
@@ -263,7 +263,7 @@ func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := templateservice.ExecuteTemplate(w, "admin/user_add.gohtml", nil); err != nil {
-		w.WriteHeader(404)
+		w.WriteHeader(http.StatusNotFound)
 	}
 }
 
@@ -373,7 +373,7 @@ func AdminUserEditHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := templateservice.ExecuteTemplate(w, "admin/user_edit.gohtml", data); err != nil {
-		w.WriteHeader(404)
+		w.WriteHeader(http.StatusNotFound)
 	}
 }
 

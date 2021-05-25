@@ -41,13 +41,14 @@ func ListCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := templateservice.ExecuteTemplate(w, "certificate/certificate_list.gohtml", data); err != nil {
-		w.WriteHeader(404)
+		w.WriteHeader(http.StatusNotFound)
 	}
 }
 
 // AddCertificateHandler allows to add a new certificate + private key via UI
 func AddCertificateHandler(w http.ResponseWriter, r *http.Request) {
-	// TODO auth
+
+	// TODO enforce simple mode
 
 	logger := logging.GetLogger()
 	if r.Method == http.MethodPost {
@@ -124,7 +125,7 @@ func AddCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := templateservice.ExecuteTemplate(w, "certificate/certificate_add.gohtml", nil); err != nil {
-		w.WriteHeader(404)
+		w.WriteHeader(http.StatusNotFound)
 	}
 }
 
@@ -132,7 +133,7 @@ func AddCertificateHandler(w http.ResponseWriter, r *http.Request) {
 // the UI and create a certificate
 func AddCertificateWithCSRHandler(w http.ResponseWriter, r *http.Request) {
 	if err := templateservice.ExecuteTemplate(w, "certificate/certificate_add_with_csr.gohtml", nil); err != nil {
-		w.WriteHeader(404)
+		w.WriteHeader(http.StatusNotFound)
 	}
 }
 

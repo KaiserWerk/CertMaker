@@ -12,7 +12,7 @@ func IndexHandler(w http.ResponseWriter, r *http.Request) {
 	//fmt.Println("Username: " + u.Username)
 
 	if err := templateservice.ExecuteTemplate(w, "index.gohtml", nil); err != nil {
-		w.WriteHeader(404)
+		w.WriteHeader(http.StatusNotFound)
 	}
 }
 
