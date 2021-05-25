@@ -159,9 +159,10 @@ func setupRoutes(router *mux.Router, ui bool) {
 	}
 	apiRouter := router.PathPrefix("/api").Subrouter()
 	apiRouter.HandleFunc("/certificate/request", middleware.WithToken(handler.ApiRequestCertificateHandler)).Methods(http.MethodPost)
+	apiRouter.HandleFunc("/certificate/request-with-csr", middleware.WithToken(nil)).Methods(http.MethodPost) // TODO implement
 	apiRouter.HandleFunc("/certificate/{id}/obtain", middleware.WithToken(handler.ApiObtainCertificateHandler)).Methods(http.MethodGet)
 	apiRouter.HandleFunc("/privatekey/{id}/obtain", middleware.WithToken(handler.ApiObtainPrivateKeyHandler)).Methods(http.MethodGet)
-	apiRouter.HandleFunc("/ocsp/", handler.ApiOcspRequestHandler).Methods(http.MethodPost) // TODO only post?
+	apiRouter.HandleFunc("/ocsp/{base64}", handler.ApiOcspRequestHandler).Methods(http.MethodPost) // TODO only post?
 }
 
 
