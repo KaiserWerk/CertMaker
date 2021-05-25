@@ -30,9 +30,10 @@ func main() {
 	portPtr := flag.String("port", "", "The port to run at")
 	useUiPtr := flag.Bool("ui", true, "Adds a simple UI for certificate management")
 	asServicePtr := flag.Bool("as-service", false, "Whether to run in service mode")
+	logFilePtr := flag.String("logfile", "certmaker.log", "The path and filename of the log file")
 	flag.Parse()
 
-	logHandle, err := os.Create("certmaker.log")
+	logHandle, err := os.Create(*logFilePtr)
 	if err != nil {
 		log.Fatal("cannot create log file!")
 	}
