@@ -1,5 +1,5 @@
 # The public-facing host address. Used to construct external links referencing your CertMaker installation
-server_host: localhost:8880
+server_host: http://localhost:8880
 # The data directory where certs are stored. When not absolute, it is interpreted as relative to the binary
 data_dir: data
 # Details for the database connection
