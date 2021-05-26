@@ -33,7 +33,7 @@ func main() {
 	logFilePtr := flag.String("logfile", "certmaker.log", "The path and filename of the log file")
 	flag.Parse()
 
-	logHandle, err := os.Create(*logFilePtr)
+	logHandle, err := os.OpenFile(*logFilePtr, os.O_RDWR | os.O_APPEND | os.O_CREATE, 0755)
 	if err != nil {
 		log.Fatal("cannot create log file!")
 	}
@@ -65,7 +65,7 @@ func main() {
 	}
 
 	if createdConfig {
-		logger.Printf("The configuration file was not found; created\n\tStop execution? (y,n)")
+		logger.Printf("The configuration file was not found so it was created.\nStop execution? (y,n)")
 		var answer string
 		_, _ = fmt.Scanln(&answer)
 		if answer == "y" {
@@ -74,7 +74,7 @@ func main() {
 	}
 
 	if createdSn {
-		logger.Printf("The serial number was file not found; created")
+		logger.Printf("The serial number was file not found so it was created.")
 	}
 
 	// create root cert and key, if non-existent
