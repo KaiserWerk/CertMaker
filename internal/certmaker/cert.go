@@ -173,6 +173,10 @@ func GenerateLeafCertAndKey(request entity.CertificateRequest) (int64, error) {
 		request.Days = 182
 	}
 
+	if request.Days < 1 {
+		request.Days = 1
+	}
+
 	ips := make([]net.IP, 0)
 	for _, v := range request.IPs {
 		ip := net.ParseIP(v)
@@ -188,6 +192,14 @@ func GenerateLeafCertAndKey(request entity.CertificateRequest) (int64, error) {
 
 	cert := &x509.Certificate{
 		SerialNumber: big.NewInt(nextSn),
+		Subject: pkix.Name{
+			Country:            []string{request.Subject.Country},
+			Organization:       []string{request.Subject.Organization},
+			Locality:           []string{request.Subject.Locality},
+			Province:           []string{request.Subject.Province},
+			StreetAddress:      []string{request.Subject.StreetAddress},
+			PostalCode:         []string{request.Subject.PostalCode},
+		},
 		NotBefore:    time.Now(),
 		NotAfter:     time.Now().AddDate(0, 0, request.Days),
 		DNSNames:     request.Domains,
@@ -195,21 +207,8 @@ func GenerateLeafCertAndKey(request entity.CertificateRequest) (int64, error) {
 		SubjectKeyId: []byte{1, 2, 3, 4, 6},
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:     x509.KeyUsageDigitalSignature,
-		//PublicKeyAlgorithm: ,
-		//SignatureAlgorithm: x509.SHA256WithRSA,
 		SignatureAlgorithm: x509.ECDSAWithSHA256,
-		OCSPServer: []string{"http://localhost:8880/api/ocsp", "http://codework.me:8000/"}, // TODO implement/fix
-	}
-	if request.Subject.Organization != "" && request.Subject.Province != "" && request.Subject.Locality != "" &&
-		request.Subject.PostalCode != "" && request.Subject.StreetAddress != "" && request.Subject.Country != "" {
-		cert.Subject = pkix.Name{
-			Country:            []string{request.Subject.Country},
-			Organization:       []string{request.Subject.Organization},
-			Locality:           []string{request.Subject.Locality},
-			Province:           []string{request.Subject.Province},
-			StreetAddress:      []string{request.Subject.StreetAddress},
-			PostalCode:         []string{request.Subject.PostalCode},
-		}
+		OCSPServer: []string{config.ServerHost + "/api/ocsp"}, // TODO implement/fix
 	}
 
 	_ = os.MkdirAll(fmt.Sprintf("%s/leafcerts", config.DataDir), 0744)

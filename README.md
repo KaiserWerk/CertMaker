@@ -10,7 +10,7 @@ Perfect for your homelab or self-hosted infrastructure.
 * Programmatically obtain fresh certificates (and optionally private keys as well)
 * Programmatically obtain the root certificate (currently no intermediate certificates are used) (coming M2)
 * Manage your CertMaker instance with a simple web UI (optional)
-* Adjustable certificate validity (5 - 182 days)
+* Adjustable certificate validity (1 - 182 days)
 * Certificates can be created for domains as well as IP addresses
 * [CertMaker Bot](https://github.com/KaiserWerk/CertMaker-Bot), command line helper to obtain 
 certificates for 3rd-party apps which cannot obtain certificates themselves (in development)
