@@ -22,15 +22,14 @@ import (
 
 var (
 	port = "8880"
+	configFilePtr = flag.String("config", "", "The configuration file to use")
+	portPtr = flag.String("port", "", "The port to run at")
+	useUiPtr = flag.Bool("ui", true, "Adds a simple UI for certificate management")
+	asServicePtr = flag.Bool("as-service", false, "Whether to run in service mode")
+	logFilePtr = flag.String("logfile", "certmaker.log", "The path and filename of the log file")
 )
 
 func main() {
-	var err error
-	configFilePtr := flag.String("config", "", "The configuration file to use")
-	portPtr := flag.String("port", "", "The port to run at")
-	useUiPtr := flag.Bool("ui", true, "Adds a simple UI for certificate management")
-	asServicePtr := flag.Bool("as-service", false, "Whether to run in service mode")
-	logFilePtr := flag.String("logfile", "certmaker.log", "The path and filename of the log file")
 	flag.Parse()
 
 	logHandle, err := os.OpenFile(*logFilePtr, os.O_RDWR | os.O_APPEND | os.O_CREATE, 0755)
@@ -65,16 +64,17 @@ func main() {
 	}
 
 	if createdConfig {
-		logger.Printf("The configuration file was not found so it was created.\nStop execution? (y,n)")
+		logger.Printf("The configuration file was not found so it was created.\nStop execution? (y,n) ")
 		var answer string
 		_, _ = fmt.Scanln(&answer)
 		if answer == "y" {
-			logger.Fatalf("Okay, stopped.")
+			logger.Println("Okay, stopped.")
+			os.Exit(0)
 		}
 	}
 
 	if createdSn {
-		logger.Printf("The serial number was file not found so it was created.")
+		logger.Printf("The serial number file was not found so it was created.\n")
 	}
 
 	// create root cert and key, if non-existent
