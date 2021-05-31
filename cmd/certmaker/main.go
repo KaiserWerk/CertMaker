@@ -21,12 +21,12 @@ import (
 )
 
 var (
-	port = "8880"
+	port          = "8880"
 	configFilePtr = flag.String("config", "", "The configuration file to use")
-	portPtr = flag.String("port", "", "The port to run at")
-	useUiPtr = flag.Bool("ui", true, "Adds a simple UI for certificate management")
-	asServicePtr = flag.Bool("as-service", false, "Whether to run in service mode")
-	logFilePtr = flag.String("logfile", "certmaker.log", "The path and filename of the log file")
+	portPtr       = flag.String("port", "", "The port to run at")
+	useUiPtr      = flag.Bool("ui", true, "Adds a simple UI for certificate management")
+	debugModePtr  = flag.Bool("debug", false, "Run in debug mode")
+	logFilePtr    = flag.String("logfile", "certmaker.log", "The path and filename of the log file")
 )
 
 func main() {
@@ -41,7 +41,7 @@ func main() {
 
 	// set up logger stuff
 	var logger *log.Logger
-	if *asServicePtr {
+	if !*debugModePtr {
 		// log to file as well
 		logger = log.New(io.MultiWriter(os.Stdout, logHandle), "", 0)
 	} else {
