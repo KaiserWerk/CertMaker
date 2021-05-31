@@ -35,7 +35,7 @@ func New() *dbservice {
 		},
 	})
 	if err != nil {
-		logger.Panicln("gorm connection error: " + err.Error())
+		logger.Panic("gorm connection error: " + err.Error())
 	}
 
 	return &dbservice{db: db}

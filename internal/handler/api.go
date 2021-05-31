@@ -51,7 +51,7 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 		for _, domain := range certRequest.Domains {
 			ips, err := net.LookupIP(domain)
 			if err != nil {
-				logger.Debugln("could not determine client ip: " + err.Error())
+				logger.Debug("could not determine client ip: " + err.Error())
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
@@ -71,7 +71,7 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if len(certRequest.Domains) != numOkays {
-			logger.Infoln("not all requested domains point to the requester's IP address: " + clientIp)
+			logger.Info("not all requested domains point to the requester's IP address: " + clientIp)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -100,7 +100,7 @@ func ApiObtainCertificateHandler(w http.ResponseWriter, r *http.Request) {
 
 	certBytes, err := certmaker.FindLeafCertificate(id)
 	if err != nil {
-		logger.Debugf("No certificate found for ID %s\n", id)
+		logger.Debugf("No certificate found for ID %s", id)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -108,7 +108,7 @@ func ApiObtainCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", "attachment; filename=\""+id+"-cert.pem\"")
 	_, err = w.Write(certBytes)
 	if err != nil {
-		logger.Errorln("could not write cert bytes: " + err.Error())
+		logger.Error("could not write cert bytes: " + err.Error())
 	}
 }
 
@@ -122,7 +122,7 @@ func ApiObtainPrivateKeyHandler(w http.ResponseWriter, r *http.Request) {
 
 	keyBytes, err := certmaker.FindLeafPrivateKey(id)
 	if err != nil {
-		logger.Debugln("No private key found for ID %s\n", id)
+		logger.Debugf("No private key found for ID %s", id)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -130,7 +130,7 @@ func ApiObtainPrivateKeyHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", "attachment; filename=\""+id+"-key.pem\"")
 	_, err = w.Write(keyBytes)
 	if err != nil {
-		logger.Errorln("could not write private key bytes: " + err.Error())
+		logger.Error("could not write private key bytes: " + err.Error())
 	}
 }
 

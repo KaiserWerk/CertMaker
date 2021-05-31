@@ -33,7 +33,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 			err = ds.SetSetting("authprovider_userpw", authprovUserpw)
 			if err != nil {
 				errors++
-				logger.Errorln(err.Error())
+				logger.Error(err.Error())
 			}
 
 			authprovBearer := "false"
@@ -43,7 +43,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 			err = ds.SetSetting("authprovider_bearer", authprovBearer)
 			if err != nil {
 				errors++
-				logger.Errorln(err.Error())
+				logger.Error(err.Error())
 			}
 		} else if form == "authentication" {
 			registrationEnabled := "registration_enabled"
@@ -53,7 +53,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 			err = ds.SetSetting("registration_enabled", registrationEnabled)
 			if err != nil {
 				errors++
-				logger.Errorln(err.Error())
+				logger.Error(err.Error())
 			}
 
 			registrationRequireEmailConfirmation := "false"
@@ -63,7 +63,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 			err = ds.SetSetting("registration_require_email_confirmation", registrationRequireEmailConfirmation)
 			if err != nil {
 				errors++
-				logger.Errorln(err.Error())
+				logger.Error(err.Error())
 			}
 		} else if form == "certificates_and_requests" {
 			certificateRevocationAllow := "false"
@@ -73,7 +73,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 			err = ds.SetSetting("certificate_revocation_allow", certificateRevocationAllow)
 			if err != nil {
 				errors++
-				logger.Errorln(err.Error())
+				logger.Error(err.Error())
 			}
 
 			certificateRevocationOnlyByRequester := "false"
@@ -83,7 +83,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 			err = ds.SetSetting("certificate_revocation_only_by_requester", certificateRevocationOnlyByRequester)
 			if err != nil {
 				errors++
-				logger.Errorln(err.Error())
+				logger.Error(err.Error())
 			}
 
 			certificateRevocationRequireReasonphrase := "false"
@@ -93,7 +93,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 			err = ds.SetSetting("certificate_revocation_require_reasonphrase", certificateRevocationRequireReasonphrase)
 			if err != nil {
 				errors++
-				logger.Errorln(err.Error())
+				logger.Error(err.Error())
 			}
 
 			certificateRequestSimpleMode := "false"
@@ -103,7 +103,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 			err = ds.SetSetting("certificate_request_simple_mode", certificateRequestSimpleMode)
 			if err != nil {
 				errors++
-				logger.Errorln(err.Error())
+				logger.Error(err.Error())
 			}
 
 			certificateRequestNormalMode := "false"
@@ -113,7 +113,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 			err = ds.SetSetting("certificate_request_normal_mode", certificateRequestNormalMode)
 			if err != nil {
 				errors++
-				logger.Errorln(err.Error())
+				logger.Error(err.Error())
 			}
 
 			certificateRequestKeepnocopy := "false"
@@ -123,7 +123,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 			err = ds.SetSetting("certificate_request_keepnocopy", certificateRequestKeepnocopy)
 			if err != nil {
 				errors++
-				logger.Errorln(err.Error())
+				logger.Error(err.Error())
 			}
 
 			certificateRequestRequireDomainOwnership := "false"
@@ -133,14 +133,14 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 			err = ds.SetSetting("certificate_request_require_domain_ownership", certificateRequestRequireDomainOwnership)
 			if err != nil {
 				errors++
-				logger.Errorln(err.Error())
+				logger.Error(err.Error())
 			}
 		}
 
 		if errors > 0 {
 			logger.Errorf("When trying to save admin settings, %d error(s) occurred", errors)
 		} else {
-			logger.Traceln("admin settings saved")
+			logger.Trace("admin settings saved")
 		}
 
 		http.Redirect(w, r, "/admin/settings", http.StatusSeeOther)
@@ -149,7 +149,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 
 	allSettings, err := ds.GetAllSettings()
 	if err != nil {
-		logger.Errorln("could not get all settings: " + err.Error())
+		logger.Error("could not get all settings: " + err.Error())
 	}
 
 	data := struct {
@@ -171,7 +171,7 @@ func AdminUserListHandler(w http.ResponseWriter, r *http.Request) {
 	)
 	allUsers, err := ds.GetAllUsers()
 	if err != nil {
-		logger.Errorln("could not get all users: " + err.Error())
+		logger.Error("could not get all users: " + err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

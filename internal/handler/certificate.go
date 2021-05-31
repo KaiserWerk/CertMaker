@@ -24,7 +24,7 @@ func CertificateListHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := filepath.Walk(config.DataDir + "/leafcerts", helper.Visit(&files))
 	if err != nil {
-		logger.Errorln("could not read files: " + err.Error())
+		logger.Error("could not read files: " + err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

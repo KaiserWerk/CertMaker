@@ -21,7 +21,7 @@ func WithToken(next http.HandlerFunc) http.HandlerFunc {
 			return
 		} else {
 			if val != "true" {
-				logger.Debugln("authprovider userpw not enabled; redirecting")
+				logger.Debug("authprovider userpw not enabled; redirecting")
 				next.ServeHTTP(w, r)
 				return
 			}
