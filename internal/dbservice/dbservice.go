@@ -3,6 +3,7 @@ package dbservice
 import (
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 	"github.com/KaiserWerk/CertMaker/internal/global"
+	"github.com/KaiserWerk/CertMaker/internal/logging"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -15,12 +16,16 @@ type dbservice struct {
 
 // New creates and returns a new database connection
 func New() *dbservice {
-	config := global.GetConfiguration()
+	var (
+		config = global.GetConfiguration()
+		logger = logging.GetLogger()
+	)
 
 	var driver gorm.Dialector = mysql.Open(config.Database.DSN)
 	if config.Database.Driver == "sqlite" {
 		driver = sqlite.Open(config.Database.DSN)
 	}
+	// TODO add postgresql
 
 	db, err := gorm.Open(driver, &gorm.Config{
 		PrepareStmt: true,
@@ -30,7 +35,7 @@ func New() *dbservice {
 		},
 	})
 	if err != nil {
-		panic("gorm connection error: " + err.Error())
+		logger.Panicln("gorm connection error: " + err.Error())
 	}
 
 	return &dbservice{db: db}

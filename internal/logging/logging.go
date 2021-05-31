@@ -1,15 +1,15 @@
 package logging
 
-import "log"
+import log "github.com/sirupsen/logrus"
 
-var logger *log.Logger
+var logger *log.Entry
 
 // SetLogger sets the logger instance.
-func SetLogger(l *log.Logger) {
+func SetLogger(l *log.Entry) {
 	logger = l
 }
 
 // GetLogger gets the logger instance.
-func GetLogger() *log.Logger {
+func GetLogger() *log.Entry {
 	return logger
 }
