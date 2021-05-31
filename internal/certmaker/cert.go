@@ -117,7 +117,7 @@ func GenerateRootCertAndKey() error {
 			PostalCode:    []string{"12345"},
 		},
 		NotBefore:             time.Now(),
-		NotAfter:              time.Now().AddDate(30, 0, 0),
+		NotAfter:              time.Now().AddDate(15, 0, 0),
 		IsCA:                  true,
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
@@ -160,11 +160,11 @@ func GenerateRootCertAndKey() error {
 // the root certificate and a private key.
 func GenerateLeafCertAndKey(request entity.CertificateRequest) (int64, error) {
 	config := global.GetConfiguration()
-	catls, err := tls.LoadX509KeyPair(filepath.Join(config.DataDir, "root-cert.pem"), filepath.Join(config.DataDir, "root-key.pem"))
+	caTls, err := tls.LoadX509KeyPair(filepath.Join(config.DataDir, "root-cert.pem"), filepath.Join(config.DataDir, "root-key.pem"))
 	if err != nil {
 		panic(err)
 	}
-	ca, err := x509.ParseCertificate(catls.Certificate[0])
+	ca, err := x509.ParseCertificate(caTls.Certificate[0])
 	if err != nil {
 		panic(err)
 	}
@@ -216,25 +216,18 @@ func GenerateLeafCertAndKey(request entity.CertificateRequest) (int64, error) {
 	outKeyFilename := fmt.Sprintf("%s/leafcerts/%s-key.pem", config.DataDir, strconv.FormatInt(nextSn, 10))
 
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	//priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return 0, err
 	}
 	pub := &priv.PublicKey
 
 	// Sign the certificate
-	certBytes, err := x509.CreateCertificate(rand.Reader, cert, ca, pub, catls.PrivateKey)
+	certBytes, err := x509.CreateCertificate(rand.Reader, cert, ca, pub, caTls.PrivateKey)
 	if err != nil {
 		return 0, err
 	}
 
-	//caCertBytes, err := ioutil.ReadFile(fmt.Sprintf("%s/root-cert.pem", globalConfig.DataDir))
-	//if err != nil {
-	//	return 0, err
-	//}
-	//b := append(certBytes, caCertBytes...)
-
-	// Public key
+	// Public key + cert
 	certOut, err := os.Create(outCertFilename)
 	if err != nil {
 		return 0, err
@@ -243,10 +236,6 @@ func GenerateLeafCertAndKey(request entity.CertificateRequest) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	//err = pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: caCertBytes})
-	//if err != nil {
-	//	return 0, err
-	//}
 	err = certOut.Close()
 	if err != nil {
 		return 0, err
