@@ -1,7 +1,6 @@
 package helper
 
 import (
-	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -57,14 +56,11 @@ func StringSliceContains(s []string, key string) bool {
 // GetUserIP returns the client's IP address.
 func GetUserIP(r *http.Request) string {
 	IPAddress := r.Header.Get("X-Real-Ip")
-	fmt.Println("X Real IP " + IPAddress)
 	if IPAddress == "" {
 		IPAddress = r.Header.Get("X-Forwarded-For") // should I use that?
-		fmt.Println("X Forwarded For " + IPAddress)
 	}
 	if IPAddress == "" {
 		IPAddress = r.RemoteAddr
-		fmt.Println("Remote Addr " + IPAddress)
 	}
 
 	//if strings.Contains(IPAddress, ":") {
@@ -76,7 +72,6 @@ func GetUserIP(r *http.Request) string {
 	if err != nil {
 		return ""
 	}
-	fmt.Println("Host: " + host)
 
 	if host == "::1" {
 		return "127.0.0.1"
