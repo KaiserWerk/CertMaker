@@ -15,25 +15,33 @@
 
                 <p>Empty fields will be ignored.</p>
 
-                <label for="username">Username</label>
-                <input type="text" id="username" name="username" placeholder="{{ .User.Username }}"><br>
+                <div class="row">
+                    <div class="col-md-2 label-row"><label for="username">Username</label></div>
+                    <div class="col-md-10"><input type="text" id="username" name="username" placeholder="{{ .User.Username }}"></div>
+                </div>
+                <div class="row">
+                    <div class="col-md-2 label-row"><label for="email">Email</label></div>
+                    <div class="col-md-10"><input type="email" id="email" name="email" placeholder="{{ .User.Email }}"></div>
+                </div>
+                <div class="row">
+                    <div class="col-md-2 label-row"><label for="password">Password</label></div>
+                    <div class="col-md-10"><input type="password" id="password" name="password" placeholder="Password"></div>
+                </div>
+                <div class="row">
+                    <div class="col-md-2 label-row"><label for="nologin">Disallow login</label></div>
+                    <div class="col-md-10"><input type="checkbox" id="nologin" name="nologin" value="true"{{ if eq .User.NoLogin true }} checked{{ end }}></div>
+                </div>
 
-                <label for="email">Email</label>
-                <input type="email" id="email" name="email" placeholder="{{ .User.Email }}"><br>
+                <div class="row">
+                    <div class="col-md-2 label-row"><label for="locked">Disable account</label></div>
+                    <div class="col-md-10"><input type="checkbox" id="locked" name="locked" value="true"{{ if eq .User.Locked true }} checked{{ end }}></div>
+                </div>
+                <div class="row">
+                    <div class="col-md-2 label-row"><label for="admin">Is Admin</label></div>
+                    <div class="col-md-10"><input type="checkbox" id="admin" name="admin" value="true"{{ if eq .User.Admin true }} checked{{ end }}></div>
+                </div>
 
-                <label for="password">Password</label>
-                <input type="password" id="password" name="password" placeholder="Password" ><br>
-
-                <label for="nologin">Disallow login</label>
-                <input type="checkbox" id="nologin" name="nologin" value="true"{{ if eq .User.NoLogin true }} checked{{ end }}><br>
-
-                <label for="locked">Disable account</label>
-                <input type="checkbox" id="locked" name="locked" value="true"{{ if eq .User.Locked true }} checked{{ end }}><br>
-
-                <label for="admin">Is Admin</label>
-                <input type="checkbox" id="admin" name="admin" value="true"{{ if eq .User.Admin true }} checked{{ end }}><br>
-
-                <br><button type="submit" class="primary">Save changes</button>
+                <button type="submit" class="primary">Save changes</button>
 
             </form>
         </div>
