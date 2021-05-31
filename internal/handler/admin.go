@@ -16,7 +16,7 @@ import (
 func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		err error
-		logger = logging.GetLogger()
+		logger = logging.GetLogger().WithField("function", "handler.AdminSettingsHandler")
 		ds = dbservice.New()
 	)
 
@@ -33,7 +33,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 			err = ds.SetSetting("authprovider_userpw", authprovUserpw)
 			if err != nil {
 				errors++
-				logger.Println(err.Error())
+				logger.Errorln(err.Error())
 			}
 
 			authprovBearer := "false"
@@ -43,7 +43,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 			err = ds.SetSetting("authprovider_bearer", authprovBearer)
 			if err != nil {
 				errors++
-				logger.Println(err.Error())
+				logger.Errorln(err.Error())
 			}
 		} else if form == "authentication" {
 			registrationEnabled := "registration_enabled"
@@ -53,7 +53,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 			err = ds.SetSetting("registration_enabled", registrationEnabled)
 			if err != nil {
 				errors++
-				logger.Println(err.Error())
+				logger.Errorln(err.Error())
 			}
 
 			registrationRequireEmailConfirmation := "false"
@@ -63,7 +63,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 			err = ds.SetSetting("registration_require_email_confirmation", registrationRequireEmailConfirmation)
 			if err != nil {
 				errors++
-				logger.Println(err.Error())
+				logger.Errorln(err.Error())
 			}
 		} else if form == "certificates_and_requests" {
 			certificateRevocationAllow := "false"
@@ -73,7 +73,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 			err = ds.SetSetting("certificate_revocation_allow", certificateRevocationAllow)
 			if err != nil {
 				errors++
-				logger.Println(err.Error())
+				logger.Errorln(err.Error())
 			}
 
 			certificateRevocationOnlyByRequester := "false"
@@ -83,7 +83,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 			err = ds.SetSetting("certificate_revocation_only_by_requester", certificateRevocationOnlyByRequester)
 			if err != nil {
 				errors++
-				logger.Println(err.Error())
+				logger.Errorln(err.Error())
 			}
 
 			certificateRevocationRequireReasonphrase := "false"
@@ -93,7 +93,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 			err = ds.SetSetting("certificate_revocation_require_reasonphrase", certificateRevocationRequireReasonphrase)
 			if err != nil {
 				errors++
-				logger.Println(err.Error())
+				logger.Errorln(err.Error())
 			}
 
 			certificateRequestSimpleMode := "false"
@@ -103,7 +103,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 			err = ds.SetSetting("certificate_request_simple_mode", certificateRequestSimpleMode)
 			if err != nil {
 				errors++
-				logger.Println(err.Error())
+				logger.Errorln(err.Error())
 			}
 
 			certificateRequestNormalMode := "false"
@@ -113,7 +113,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 			err = ds.SetSetting("certificate_request_normal_mode", certificateRequestNormalMode)
 			if err != nil {
 				errors++
-				logger.Println(err.Error())
+				logger.Errorln(err.Error())
 			}
 
 			certificateRequestKeepnocopy := "false"
@@ -123,7 +123,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 			err = ds.SetSetting("certificate_request_keepnocopy", certificateRequestKeepnocopy)
 			if err != nil {
 				errors++
-				logger.Println(err.Error())
+				logger.Errorln(err.Error())
 			}
 
 			certificateRequestRequireDomainOwnership := "false"
@@ -133,15 +133,14 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 			err = ds.SetSetting("certificate_request_require_domain_ownership", certificateRequestRequireDomainOwnership)
 			if err != nil {
 				errors++
-				logger.Println(err.Error())
+				logger.Errorln(err.Error())
 			}
 		}
 
 		if errors > 0 {
-			output := fmt.Sprintf("When trying to save admin settings, %d error(s) occurred", errors)
-			logger.Println(output)
+			logger.Errorf("When trying to save admin settings, %d error(s) occurred", errors)
 		} else {
-			logger.Println("admin settings saved")
+			logger.Traceln("admin settings saved")
 		}
 
 		http.Redirect(w, r, "/admin/settings", http.StatusSeeOther)
@@ -150,7 +149,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 
 	allSettings, err := ds.GetAllSettings()
 	if err != nil {
-		logger.Println("could not get all settings: " + err.Error())
+		logger.Errorln("could not get all settings: " + err.Error())
 	}
 
 	data := struct {
@@ -168,12 +167,12 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 func AdminUserListHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		ds = dbservice.New()
-		logger = logging.GetLogger()
+		logger = logging.GetLogger().WithField("function", "handler.AdminUserListHandler")
 	)
 	allUsers, err := ds.GetAllUsers()
 	if err != nil {
-		logger.Println("could not get all users: " + err.Error())
-		w.WriteHeader(500)
+		logger.Errorln("could not get all users: " + err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
@@ -192,7 +191,7 @@ func AdminUserListHandler(w http.ResponseWriter, r *http.Request) {
 func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		err error
-		logger = logging.GetLogger()
+		logger = logging.GetLogger().WithField("function", "handler.AdminUserAddHandler")
 	)
 	if r.Method == http.MethodPost {
 
@@ -202,13 +201,13 @@ func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 		password2 := r.FormValue("password2")
 
 		if username == "" || password == "" || password2 == "" {
-			logger.Println("username and passwords required")
+			logger.Debugln("username and passwords required")
 			http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
 			return
 		}
 
 		if password != password2 {
-			logger.Println("passwords dont match")
+			logger.Debugln("passwords don not match")
 			http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
 			return
 		}
@@ -216,7 +215,7 @@ func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 		ds := dbservice.New()
 		_, err = ds.FindUser("username = ?", username)
 		if err == nil {
-			logger.Println("username already taken")
+			logger.Debugln("username already taken")
 			http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
 			return
 		}
@@ -224,7 +223,7 @@ func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 		if email != "" {
 			_, err = ds.FindUser("email = ?", email)
 			if err == nil {
-				logger.Println("email already taken")
+				logger.Debugln("email already taken")
 				http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
 				return
 			}
@@ -232,14 +231,14 @@ func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 
 		apikey, err := security.GenerateToken(40)
 		if err != nil {
-			logger.Println("could not generate token: " + err.Error())
+			logger.Errorln("could not generate token: " + err.Error())
 			http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
 			return
 		}
 
 		hash, err := security.HashString(password)
 		if err != nil {
-			logger.Println("could not hash password: " + err.Error())
+			logger.Errorln("could not hash password: " + err.Error())
 			http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
 			return
 		}
@@ -253,12 +252,12 @@ func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 
 		err = ds.AddUser(&u)
 		if err != nil {
-			logger.Println("could not create user: " + err.Error())
+			logger.Errorln("could not create user: " + err.Error())
 			http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
 			return
 		}
 
-		logger.Println("user added")
+		logger.Traceln("user added")
 
 	}
 
@@ -272,7 +271,7 @@ func AdminUserEditHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		vars = mux.Vars(r)
 		err error
-		logger = logging.GetLogger()
+		logger = logging.GetLogger().WithField("function", "handler.AdminUserEditHandler")
 		changes uint8 = 0
 		ds = dbservice.New()
 		message string
@@ -280,7 +279,7 @@ func AdminUserEditHandler(w http.ResponseWriter, r *http.Request) {
 
 	userToEdit, err := ds.FindUser("id = ?", vars["id"])
 	if err != nil {
-		logger.Printf("Could not find user with ID '%s': %s\n", vars["id"], err.Error())
+		logger.Debugln("could not find user with ID '%s': %s\n", vars["id"], err.Error())
 		http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
 		return
 	}
@@ -293,7 +292,7 @@ func AdminUserEditHandler(w http.ResponseWriter, r *http.Request) {
 		if username != "" {
 			_, err = ds.FindUser("username = ? && id != ?", username, userToEdit.ID)
 			if err == nil {
-				logger.Println("Username already taken")
+				logger.Debugln("username already taken")
 				http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
 				return
 			}
@@ -304,7 +303,7 @@ func AdminUserEditHandler(w http.ResponseWriter, r *http.Request) {
 		if email != "" {
 			_, err = ds.FindUser("email = ? && id != ?", email, userToEdit.ID)
 			if err == nil {
-				logger.Println("Email already taken")
+				logger.Debugln("email already taken")
 				http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
 				return
 			}
@@ -315,7 +314,7 @@ func AdminUserEditHandler(w http.ResponseWriter, r *http.Request) {
 		if password != "" {
 			hash, err := security.HashString(password)
 			if err != nil {
-				logger.Println("cloud not hash password: " + err.Error())
+				logger.Errorln("could not hash password: " + err.Error())
 				http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
 				return
 			}
@@ -358,7 +357,7 @@ func AdminUserEditHandler(w http.ResponseWriter, r *http.Request) {
 
 		err = ds.UpdateUser(&userToEdit)
 		if err != nil {
-			logger.Println("user data could not be updated")
+			logger.Errorln("user data could not be updated")
 			http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
 			return
 		}
@@ -383,26 +382,26 @@ func AdminUserRemoveHandler(w http.ResponseWriter, r *http.Request) {
 		val = r.Context().Value("user")
 		u = val.(entity.User)
 		vars = mux.Vars(r)
-		logger = logging.GetLogger()
+		logger = logging.GetLogger().WithField("function", "handler.AdminUserRemoveHandler")
 		ds = dbservice.New()
 	)
 
 	if fmt.Sprintf("%s", u.ID) == vars["id"] {
-		logger.Println("You cannot remove your own user account!")
+		logger.Debugln("You cannot remove your own user account!")
 		http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
 		return
 	}
 
 	user, err := ds.FindUser("id = ?", vars["id"])
 	if err != nil {
-		logger.Println("User could not be found")
+		logger.Traceln("User could not be found")
 		http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
 		return
 	}
 
 	err = ds.DeleteUser(&user)
 	if err != nil {
-		logger.Println("User could not be deleted!")
+		logger.Errorln("User could not be deleted: " + err.Error())
 		http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
 		return
 	}

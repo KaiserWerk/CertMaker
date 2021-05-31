@@ -23,15 +23,15 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		ds = dbservice.New()
 		config = global.GetConfiguration()
-		logger = logging.GetLogger()
+		logger = logging.GetLogger().WithField("function", "handler.ApiRequestCertificateHandler")
 	    certRequest entity.CertificateRequest
 	)
 
-	// TODO enforce simple mode
+	// TODO check if simple mode is enabled
 
 	err := json.NewDecoder(r.Body).Decode(&certRequest)
 	if err != nil {
-		logger.Printf("error parsing certificate request: %s\n", err.Error())
+		logger.Infof("error parsing certificate request: %s\n", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -39,45 +39,48 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 
 	val, err := ds.GetSetting("certificate_request_require_domain_ownership")
 	if err != nil {
+		logger.Errorf("could not fetch setting '%s': %s\n", "certificate_request_require_domain_ownership", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
-	} else {
-		if val == "true" {
-			clientIp := helper.GetUserIP(r)
-			okays := make(map[string]bool)
-			for _, domain := range certRequest.Domains {
-				ips, err := net.LookupIP(domain)
-				if err != nil {
-					logger.Println("could not determinte client ip: " + err.Error())
-					w.WriteHeader(http.StatusInternalServerError)
-					return
-				}
-				okays[domain] = false
-				for _, ip := range ips {
-					if ip.String() == clientIp {
-						okays[domain] = true
-						break
-					}
-				}
-			}
-			numOkays := 0
-			for _, ok := range okays {
-				if ok {
-					numOkays++
-				}
-			}
+	}
 
-			if len(certRequest.Domains) != numOkays {
-				logger.Println("not all requested domains point to the requester's IP address: " + clientIp)
-				w.WriteHeader(http.StatusBadRequest)
+	// validate requester IP
+	if val == "true" {
+		clientIp := helper.GetUserIP(r)
+		okays := make(map[string]bool)
+		for _, domain := range certRequest.Domains {
+			ips, err := net.LookupIP(domain)
+			if err != nil {
+				logger.Debugln("could not determine client ip: " + err.Error())
+				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
+			okays[domain] = false
+			for _, ip := range ips {
+				if ip.String() == clientIp {
+					okays[domain] = true
+					break
+				}
+			}
+		}
+		numOkays := 0
+		for _, ok := range okays {
+			if ok {
+				numOkays++
+			}
+		}
+
+		if len(certRequest.Domains) != numOkays {
+			logger.Infoln("not all requested domains point to the requester's IP address: " + clientIp)
+			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
 	}
 
+
 	sn, err := certmaker.GenerateLeafCertAndKey(certRequest)
 	if err != nil {
-		logger.Printf("error generating key + certificate: %s\n", err.Error())
+		logger.Errorf("error generating key + certificate: %s\n", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -88,13 +91,16 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 
 // ApiObtainCertificateHandler allows to actually download a certificate
 func ApiObtainCertificateHandler(w http.ResponseWriter, r *http.Request) {
-	logger := logging.GetLogger()
-	vars := mux.Vars(r)
-	id := vars["id"]
+	var (
+		logger = logging.GetLogger().WithField("function", "handler.ApiObtainCertificateHandler")
+		vars = mux.Vars(r)
+		id = vars["id"]
+	)
+
 
 	certBytes, err := certmaker.FindLeafCertificate(id)
 	if err != nil {
-		logger.Printf("No certificate found for ID %s\n", id)
+		logger.Debugf("No certificate found for ID %s\n", id)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -102,19 +108,21 @@ func ApiObtainCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", "attachment; filename=\""+id+"-cert.pem\"")
 	_, err = w.Write(certBytes)
 	if err != nil {
-		logger.Println("could not write cert bytes:", err.Error())
+		logger.Errorln("could not write cert bytes: " + err.Error())
 	}
 }
 
 // ApiObtainPrivateKeyHandler allows to actually download a private key
 func ApiObtainPrivateKeyHandler(w http.ResponseWriter, r *http.Request) {
-	logger := logging.GetLogger()
-	vars := mux.Vars(r)
-	id := vars["id"]
+	var (
+		logger = logging.GetLogger().WithField("function", "handler.ApiObtainPrivateKeyHandler")
+		vars = mux.Vars(r)
+		id = vars["id"]
+	)
 
 	keyBytes, err := certmaker.FindLeafPrivateKey(id)
 	if err != nil {
-		logger.Printf("No private key found for ID %s\n", id)
+		logger.Debugln("No private key found for ID %s\n", id)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -122,7 +130,7 @@ func ApiObtainPrivateKeyHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", "attachment; filename=\""+id+"-key.pem\"")
 	_, err = w.Write(keyBytes)
 	if err != nil {
-		logger.Println("could not write private key bytes:", err.Error())
+		logger.Errorln("could not write private key bytes: " + err.Error())
 	}
 }
 
@@ -134,17 +142,17 @@ func ApiOcspRequestHandler(w http.ResponseWriter, r *http.Request) {
 					httpReq.Header.Add("Accept", "application/ocsp-response")
 					httpReq.Header.Add("Host", ocspUrl.Host)
 	*/
-	logger := logging.GetLogger()
+	logger := logging.GetLogger().WithField("function", "handler.ApiOcspRequestHandler")
 	if r.Header.Get("Content-Type") != "application/ocsp-request" {
-		logger.Println("incorrect content type header: " + r.Header.Get("Content-Type"))
-		w.Write([]byte("Wrong Content-Type header: must be application/ocsp-request"))
+		logger.Debugln("incorrect content type header: " + r.Header.Get("Content-Type"))
+		//w.Write([]byte("Wrong Content-Type header: must be application/ocsp-request"))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	if r.Header.Get("Accept") != "application/ocsp-response" {
-		logger.Println("incorrect Accept header: " + r.Header.Get("Accept"))
-		w.Write([]byte("Wrong Content-Type header: must be application/ocsp-response"))
+		logger.Debugln("incorrect Accept header: " + r.Header.Get("Accept"))
+		//w.Write([]byte("Wrong Accept header: must be application/ocsp-response"))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -160,21 +168,21 @@ func ApiOcspRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		logger.Println("could not read request body: " + err.Error())
-		w.Write([]byte("could not read request body: " + err.Error()))
+		logger.Debugln("could not read request body: " + err.Error())
+		//w.Write([]byte("could not read request body: " + err.Error()))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	_ = r.Body.Close()
 	ocspReq, err := ocsp.ParseRequest(reqBody)
 	if err != nil {
-		logger.Println("could not parse OCSP Request: " + err.Error())
-		w.Write([]byte("could not parse OCSP Request: " + err.Error()))
+		logger.Debugln("could not parse OCSP Request: " + err.Error())
+		//w.Write([]byte("could not parse OCSP Request: " + err.Error()))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	logger.Println(ocspReq.SerialNumber)
+	fmt.Println(ocspReq.SerialNumber)
 
 	// hier prüfen, ob das Cert wirklich revoked ist
 	// ...

@@ -16,14 +16,14 @@ import (
 // a session and associates it with the user
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		logger = logging.GetLogger()
+		logger = logging.GetLogger().WithField("function", "handler.LoginHandler")
 		ds = dbservice.New()
 		sessMgr = global.GetSessMgr()
 	)
 
 	val, err := ds.GetSetting("authprovider_userpw")
 	if err != nil {
-		logger.Println("could not get authentication provider setting")
+		logger.Errorln("could not get authentication provider setting: " + err.Error())
 		return
 	} else {
 		if val != "true" {
@@ -38,27 +38,27 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		password := r.FormValue("password")
 
 		if username == "" || password == "" {
-			logger.Println("username and password are required")
+			logger.Debugln("username and password are required")
 			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 			return
 		}
 
 		user, err := ds.FindUser("username = ?", username)
 		if err != nil {
-			logger.Println("could not find user: " + err.Error())
+			logger.Debugln("could not find user: " + err.Error())
 			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 			return
 		}
 
 		if !security.DoesHashMatch(password, user.Password) {
-			logger.Println("passwords did not match")
+			logger.Debugln("passwords did not match")
 			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 			return
 		}
 
 		sess, err := sessMgr.CreateSession(time.Now().AddDate(0,0,7))
 		if err != nil {
-			logger.Println("could not create session: " + err.Error())
+			logger.Errorln("could not create session: " + err.Error())
 			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 			return
 		}
@@ -66,7 +66,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		sess.SetVar("user_id", fmt.Sprintf("%d", user.ID))
 		err = sessMgr.SetCookie(w, sess.Id)
 		if err != nil {
-			logger.Println("could not set cookie: " + err.Error())
+			logger.Errorln("could not set cookie: " + err.Error())
 			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 			return
 		}
@@ -85,31 +85,31 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		sessMgr = global.GetSessMgr()
-		logger = logging.GetLogger()
+		logger = logging.GetLogger().WithField("function", "handler.LogoutHandler")
 	)
 	cv, err := sessMgr.GetCookieValue(r)
 	if err != nil {
-		logger.Println("no user-provided cookie found")
+		logger.Debugln("no user-provided cookie found")
 		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 		return
 	}
 
 	sess, err := sessMgr.GetSession(cv)
 	if err != nil {
-		logger.Println("could not get session: " + err.Error())
+		logger.Errorln("could not get session: " + err.Error())
 		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 		return
 	}
 
 	err = sessMgr.RemoveSession(sess.Id)
 	if err != nil {
-		logger.Println("could not remove session: " + err.Error())
+		logger.Errorln("could not remove session: " + err.Error())
 		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 		return
 	}
 	err = sessMgr.RemoveCookie(w)
 	if err != nil {
-		logger.Println("could not remove cookie: " + err.Error())
+		logger.Errorln("could not remove cookie: " + err.Error())
 		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 		return
 	}
@@ -122,18 +122,18 @@ func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 func RegistrationHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		err error
-		logger = logging.GetLogger()
+		logger = logging.GetLogger().WithField("function", "handler.RegistrationHandler")
 		ds = dbservice.New()
 	)
 
 	// Only comment out for debug purposes
 	val, err := ds.GetSetting("registration_enabled")
 	if err != nil {
-		logger.Println("could not get setting registration_enabled")
+		logger.Errorln("could not get setting 'registration_enabled'")
 		return
 	} else {
 		if val != "true" {
-			logger.Println("registration is not enabled")
+			logger.Traceln("registration is not enabled")
 			http.Redirect(w, r, "/", http.StatusSeeOther)
 			return
 		}
@@ -146,41 +146,41 @@ func RegistrationHandler(w http.ResponseWriter, r *http.Request) {
 		password2 := r.FormValue("password2")
 
 		if username == "" || password1 == "" || password2 == "" {
-			logger.Println("Username and password must be supplied")
+			logger.Debugln("Username and password must be supplied")
 			http.Redirect(w, r, "/auth/register", http.StatusSeeOther)
 			return
 		}
 
 		if password1 != password2 {
-			logger.Println("passwords do not match")
+			logger.Debugln("passwords do not match")
 			http.Redirect(w, r, "/auth/register", http.StatusSeeOther)
 			return
 		}
 
 		_, err = ds.FindUser("username = ?", username)
 		if err == nil {
-			logger.Println("username already in use")
+			logger.Debugln("username already in use")
 			http.Redirect(w, r, "/auth/register", http.StatusSeeOther)
 			return
 		}
 
 		_, err = ds.FindUser("email = ?", email)
 		if err == nil {
-			logger.Println("email already in use")
+			logger.Debugln("email already in use")
 			http.Redirect(w, r, "/auth/register", http.StatusSeeOther)
 			return
 		}
 
 		hash, err := security.HashString(password1)
 		if err != nil {
-			logger.Println("password could not be hashed")
+			logger.Errorln("password could not be hashed")
 			http.Redirect(w, r, "/auth/register", http.StatusSeeOther)
 			return
 		}
 
 		key, err := security.GenerateToken(40)
 		if err != nil {
-			logger.Println("api key could not be generated")
+			logger.Errorln("api key could not be generated")
 			http.Redirect(w, r, "/auth/register", http.StatusSeeOther)
 			return
 		}
@@ -197,7 +197,7 @@ func RegistrationHandler(w http.ResponseWriter, r *http.Request) {
 
 		err = ds.AddUser(&u)
 		if err != nil {
-			logger.Println("could not insert user: " + err.Error())
+			logger.Errorln("could not insert user: " + err.Error())
 			http.Redirect(w, r, "/auth/register", http.StatusSeeOther)
 			return
 		}

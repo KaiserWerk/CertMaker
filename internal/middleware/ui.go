@@ -17,13 +17,13 @@ func WithSession(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc (func(w http.ResponseWriter, r *http.Request) {
 		var (
 			sessMgr = global.GetSessMgr()
-			logger = logging.GetLogger()
+			logger = logging.GetLogger().WithField("function", "middleware.RequireAdmin")
 			ds = dbservice.New()
 		)
 
 		val, err := ds.GetSetting("authprovider_userpw")
 		if err != nil {
-			logger.Println("could not get authentication provider setting")
+			logger.Errorln("could not get authentication provider setting: " + err.Error())
 			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 			return
 		} else {
@@ -36,21 +36,21 @@ func WithSession(next http.HandlerFunc) http.HandlerFunc {
 
 		cv, err := sessMgr.GetCookieValue(r)
 		if err != nil {
-			logger.Println("no user-provided cookie found")
+			logger.Debugln("no user-provided cookie found or not readable: " + err.Error())
 			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 			return
 		}
 
 		sess, err := sessMgr.GetSession(cv)
 		if err != nil {
-			logger.Println("could not get session: " + err.Error())
+			logger.Debugln("could not get session: " + err.Error())
 			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 			return
 		}
 
 		userId, ok := sess.GetVar("user_id")
 		if !ok {
-			logger.Println("session var not found")
+			logger.Debugln("session var not found")
 			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 			return
 		}
@@ -58,7 +58,7 @@ func WithSession(next http.HandlerFunc) http.HandlerFunc {
 
 		u, err := ds.FindUser("id = ?", userId)
 		if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
-			logger.Println("user not found: " + err.Error())
+			logger.Debugln("user not found: " + err.Error())
 			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 			return
 		}
@@ -73,18 +73,18 @@ func WithSession(next http.HandlerFunc) http.HandlerFunc {
 // RequireAdmin only continues if the logged in user is an administrator
 func RequireAdmin(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc (func(w http.ResponseWriter, r *http.Request) {
-		logger := logging.GetLogger()
+		logger := logging.GetLogger().WithField("function", "middleware.RequireAdmin")
 
 		val := r.Context().Value("user")
 		if val == nil {
-			logger.Println("user not found in context")
+			logger.Errorln("user not found in context")
 			next.ServeHTTP(w, r)
 			return
 		}
 		u := val.(entity.User)
 
 		if !u.Admin {
-			logger.Println("user " + u.Username + " is not an admin")
+			logger.Debugln("user " + u.Username + " is not an admin")
 			http.Redirect(w, r, "/", http.StatusSeeOther)
 			return
 		}

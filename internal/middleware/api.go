@@ -12,15 +12,16 @@ func WithToken(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var (
 			ds = dbservice.New()
-			logger = logging.GetLogger()
+			logger = logging.GetLogger().WithField("function", "middleware.WithToken")
 		)
 		val, err := ds.GetSetting("authprovider_bearer")
 		if err != nil {
+			logger.Errorf("could not fetch setting '%s': %s\n", "authprovider_bearer", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		} else {
 			if val != "true" {
-				//logger.Println("authprovider userpw not enabled; redirecting")
+				logger.Debugln("authprovider userpw not enabled; redirecting")
 				next.ServeHTTP(w, r)
 				return
 			}

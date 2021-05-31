@@ -12,13 +12,19 @@ import (
 	"github.com/KaiserWerk/CertMaker/internal/logging"
 	"github.com/KaiserWerk/CertMaker/internal/middleware"
 	"github.com/gorilla/mux"
+	log "github.com/sirupsen/logrus"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"time"
 )
+
+const (
+	Version = "0.0.0"
+	VersionDate = "0000-00-00 00:00:00.000 +00:00"
+)
+
 
 var (
 	port          = "8880"
@@ -40,13 +46,18 @@ func main() {
 	//log.SetOutput(io.MultiWriter(os.Stdout, logHandle))
 
 	// set up logger stuff
-	var logger *log.Logger
-	if !*debugModePtr {
-		// log to file as well
-		logger = log.New(io.MultiWriter(os.Stdout, logHandle), "", 0)
+	var baseLogger = log.New()
+	if *debugModePtr {
+		baseLogger.SetFormatter(&log.TextFormatter{})
+		baseLogger.SetOutput(os.Stdout)
+		baseLogger.SetLevel(log.TraceLevel)
 	} else {
-		logger = log.New(os.Stdout, "", log.LstdFlags | log.Lmicroseconds)
+		// log to file as well
+		baseLogger.SetFormatter(&log.JSONFormatter{})
+		baseLogger.SetOutput(io.MultiWriter(os.Stdout, logHandle))
+		baseLogger.SetLevel(log.InfoLevel)
 	}
+	logger := baseLogger.WithFields(log.Fields{"application": "certmaker", "server": "appsrv.lan", "version": Version}) // TODO make server configurable
 	logging.SetLogger(logger)
 
 	if *portPtr != "" {
@@ -64,17 +75,17 @@ func main() {
 	}
 
 	if createdConfig {
-		logger.Printf("The configuration file was not found so it was created.\nStop execution? (y,n) ")
+		logger.Debugf("The configuration file was not found so it was created.\nStop execution? (y,n) ")
 		var answer string
 		_, _ = fmt.Scanln(&answer)
 		if answer == "y" {
-			logger.Println("Okay, stopped.")
+			logger.Debugln("Okay, stopped.")
 			os.Exit(0)
 		}
 	}
 
 	if createdSn {
-		logger.Printf("The serial number file was not found so it was created.\n")
+		logger.Debugln("The serial number file was not found so it was created.")
 	}
 
 	// create root cert and key, if non-existent
@@ -96,7 +107,7 @@ func main() {
 
 	setupRoutes(router, *useUiPtr)
 
-	logger.Printf("Server listening on %s...\n", host)
+	logger.Debugf("Server listening on %s...", host)
 
 	notify := make(chan os.Signal)
 	signal.Notify(notify, os.Interrupt)
@@ -112,7 +123,7 @@ func main() {
 
 	go func() {
 		<-notify
-		logger.Println("Initiating graceful shutdown...")
+		logger.Debugln("Initiating graceful shutdown...")
 		ctx, cancel := context.WithTimeout(context.Background(), 30 * time.Second)
 		defer cancel()
 		// do necessary stuff here before we exit
@@ -125,9 +136,9 @@ func main() {
 	}()
 
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		logger.Printf("server error: %v\n", err.Error())
+		logger.Errorf("server error: %s", err.Error())
 	}
-	logger.Println("Server shutdown complete.")
+	logger.Debug("Server shutdown complete.")
 }
 
 func setupRoutes(router *mux.Router, ui bool) {
@@ -145,9 +156,9 @@ func setupRoutes(router *mux.Router, ui bool) {
 		authRouter.HandleFunc("/register", handler.RegistrationHandler).Methods(http.MethodGet, http.MethodPost)
 
 		certRouter := router.PathPrefix("/certificate").Subrouter()
-		certRouter.HandleFunc("/list", middleware.WithSession(handler.ListCertificateHandler)).Methods(http.MethodGet)
-		certRouter.HandleFunc("/add", middleware.WithSession(handler.AddCertificateHandler)).Methods(http.MethodGet, http.MethodPost)
-		certRouter.HandleFunc("/add-with-csr", middleware.WithSession(handler.AddCertificateWithCSRHandler)).Methods(http.MethodGet, http.MethodPost)
+		certRouter.HandleFunc("/list", middleware.WithSession(handler.CertificateListHandler)).Methods(http.MethodGet)
+		certRouter.HandleFunc("/add", middleware.WithSession(handler.CertificateAddHandler)).Methods(http.MethodGet, http.MethodPost)
+		certRouter.HandleFunc("/add-with-csr", middleware.WithSession(handler.AddCertificateWithCSRHandler)).Methods(http.MethodGet, http.MethodPost) // TODO implement
 		certRouter.HandleFunc("/revoke", middleware.WithSession(handler.RevokeCertificateHandler)).Methods(http.MethodGet, http.MethodPost) // TODO implement with cert upload form
 
 		adminRouter := router.PathPrefix("/admin").Subrouter()

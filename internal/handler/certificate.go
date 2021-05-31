@@ -13,16 +13,18 @@ import (
 	"strings"
 )
 
-// ListCertificateHandler lists all available certificates and
+// CertificateListHandler lists all available certificates and
 // private keys in the UI
-func ListCertificateHandler(w http.ResponseWriter, r *http.Request) {
-	config := global.GetConfiguration()
-	logger := logging.GetLogger()
-	var files []string
+func CertificateListHandler(w http.ResponseWriter, r *http.Request) {
+	var (
+		config = global.GetConfiguration()
+		logger = logging.GetLogger().WithField("function", "handler.CertificateListHandler")
+		files []string
+	)
 
 	err := filepath.Walk(config.DataDir + "/leafcerts", helper.Visit(&files))
 	if err != nil {
-		logger.Println("could not read files: " + err.Error())
+		logger.Errorln("could not read files: " + err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -45,12 +47,12 @@ func ListCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// AddCertificateHandler allows to add a new certificate + private key via UI
-func AddCertificateHandler(w http.ResponseWriter, r *http.Request) {
+// CertificateAddHandler allows to add a new certificate + private key via UI
+func CertificateAddHandler(w http.ResponseWriter, r *http.Request) {
 
 	// TODO enforce simple mode
 
-	logger := logging.GetLogger()
+	logger := logging.GetLogger().WithField("function", "handler.CertificateAddHandler")
 	if r.Method == http.MethodPost {
 		organization := r.FormValue("organization")
 		country := r.FormValue("country")
@@ -61,14 +63,14 @@ func AddCertificateHandler(w http.ResponseWriter, r *http.Request) {
 		days := r.FormValue("days")
 		if organization == "" || country == "" || province == "" || locality == "" || streetAddress == "" ||
 			postalCode == "" || days == "" {
-			logger.Println("please fill in all required fields, marked with *")
+			logger.Debugln("please fill in all required fields, marked with *")
 			http.Redirect(w, r, "/add", http.StatusSeeOther)
 			return
 		}
 
 		daysVal, err := strconv.Atoi(days)
 		if err != nil {
-			logger.Println("no valid value for field 'days' supplied!")
+			logger.Debugln("no valid value for field 'days' supplied!")
 			http.Redirect(w, r, "/add", http.StatusSeeOther)
 			return
 		}
@@ -115,7 +117,7 @@ func AddCertificateHandler(w http.ResponseWriter, r *http.Request) {
 
 		_, err = certmaker.GenerateLeafCertAndKey(certReq)
 		if err != nil {
-			logger.Println("could not generate leaf cert and key: " + err.Error())
+			logger.Errorln("could not generate leaf cert and key: " + err.Error())
 			http.Redirect(w, r, "/add", http.StatusSeeOther)
 			return
 		}
