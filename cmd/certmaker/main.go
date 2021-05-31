@@ -38,12 +38,11 @@ var (
 func main() {
 	flag.Parse()
 
-	logHandle, err := os.OpenFile(*logFilePtr, os.O_RDWR | os.O_APPEND | os.O_CREATE, 0755)
+	logHandle, err := os.OpenFile(*logFilePtr, os.O_WRONLY | os.O_APPEND | os.O_CREATE, 0755)
 	if err != nil {
 		log.Fatal("cannot create log file!")
 	}
 	defer logHandle.Close()
-	//log.SetOutput(io.MultiWriter(os.Stdout, logHandle))
 
 	// set up logger stuff
 	var baseLogger = log.New()
@@ -52,7 +51,6 @@ func main() {
 		baseLogger.SetOutput(os.Stdout)
 		baseLogger.SetLevel(log.TraceLevel)
 	} else {
-		// log to file as well
 		baseLogger.SetFormatter(&log.JSONFormatter{})
 		baseLogger.SetOutput(io.MultiWriter(os.Stdout, logHandle))
 		baseLogger.SetLevel(log.InfoLevel)
@@ -126,7 +124,6 @@ func main() {
 		logger.Debugln("Initiating graceful shutdown...")
 		ctx, cancel := context.WithTimeout(context.Background(), 30 * time.Second)
 		defer cancel()
-		// do necessary stuff here before we exit
 
 		srv.SetKeepAlivesEnabled(false)
 		err := srv.Shutdown(ctx)
