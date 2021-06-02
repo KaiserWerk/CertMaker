@@ -8,37 +8,47 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
+	"sync"
 )
 
 type dbservice struct {
 	db *gorm.DB
 }
 
+var (
+	dbs dbservice
+	dbOnce sync.Once
+)
+
 // New creates and returns a new database connection
 func New() *dbservice {
-	var (
-		config = global.GetConfiguration()
-		logger = logging.GetLogger()
-	)
+	dbOnce.Do(func() {
+		var (
+			config = global.GetConfiguration()
+			logger = logging.GetLogger()
+		)
 
-	var driver gorm.Dialector = mysql.Open(config.Database.DSN)
-	if config.Database.Driver == "sqlite" {
-		driver = sqlite.Open(config.Database.DSN)
-	}
-	// TODO add postgresql
+		var driver gorm.Dialector = mysql.Open(config.Database.DSN)
+		if config.Database.Driver == "sqlite" {
+			driver = sqlite.Open(config.Database.DSN)
+		}
+		// TODO add postgresql
 
-	db, err := gorm.Open(driver, &gorm.Config{
-		PrepareStmt: true,
-		NamingStrategy: schema.NamingStrategy{
-			SingularTable: true,
-			NoLowerCase:   false,
-		},
+		db, err := gorm.Open(driver, &gorm.Config{
+			PrepareStmt: true,
+			NamingStrategy: schema.NamingStrategy{
+				SingularTable: true,
+				NoLowerCase:   false,
+			},
+		})
+		if err != nil {
+			logger.Panic("gorm connection error: " + err.Error())
+		}
+
+		dbs = dbservice{db: db}
 	})
-	if err != nil {
-		logger.Panic("gorm connection error: " + err.Error())
-	}
 
-	return &dbservice{db: db}
+	return &dbs
 }
 
 // AutoMigrate makes sure the database schema
