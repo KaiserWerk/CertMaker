@@ -146,6 +146,7 @@ func setupRoutes(router *mux.Router, ui bool) {
 			Handler(http.StripPrefix(staticDir, http.FileServer(http.FS(assets.GetStaticFS()))))
 
 		router.HandleFunc("/", middleware.WithSession(handler.IndexHandler)).Methods(http.MethodGet)
+		router.HandleFunc("/favicon.ico", handler.FaviconHandler)
 
 		authRouter := router.PathPrefix("/auth").Subrouter()
 		authRouter.HandleFunc("/login", handler.LoginHandler).Methods(http.MethodGet, http.MethodPost)

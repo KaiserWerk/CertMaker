@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"github.com/KaiserWerk/CertMaker/internal/assets"
 	"github.com/KaiserWerk/CertMaker/internal/templateservice"
 	"net/http"
 )
@@ -16,5 +17,15 @@ func IndexHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// FaviconHandler returns just the favicon
+func FaviconHandler(w http.ResponseWriter, r *http.Request) {
+	icon, err := assets.GetStaticFS().ReadFile("static/favicon.ico")
+	if err != nil {
+		http.Error(w, "Not found", http.StatusNotFound)
+		return
+	}
 
+	w.Header().Set("Content-Type", "image/x-icon")
+	_, _ = w.Write(icon)
+}
 
