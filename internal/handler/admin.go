@@ -229,6 +229,21 @@ func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
+		nologin := false
+		if r.FormValue("nologin") == "true" {
+			nologin = true
+		}
+
+		locked := false
+		if r.FormValue("locked") == "true" {
+			locked = true
+		}
+
+		admin := false
+		if r.FormValue("admin") == "true" {
+			admin = true
+		}
+
 		apikey, err := security.GenerateToken(40)
 		if err != nil {
 			logger.Errorln("could not generate token: " + err.Error())
@@ -248,6 +263,9 @@ func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 			Email:    email,
 			Password: hash,
 			ApiKey: apikey,
+			NoLogin: nologin,
+			Locked: locked,
+			Admin: admin,
 		}
 
 		err = ds.AddUser(&u)
