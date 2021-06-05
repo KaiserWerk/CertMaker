@@ -93,7 +93,7 @@
 
                     {{ $certificate_request_require_domain_ownership := index .AdminSettings "certificate_request_require_domain_ownership" }}
                     <input type="checkbox" id="certificate_request_require_domain_ownership" name="certificate_request_require_domain_ownership" value="true"{{if eq $certificate_request_require_domain_ownership "true"}} checked{{end}}>
-                    <label for="certificate_request_require_domain_ownership">Require that request's domain points to the requester's IP address</label><br>
+                    <label for="certificate_request_require_domain_ownership">Enable Domain/IP verification</label><br>
 
                     <br><button type="submit" class="primary">Save</button>
                 </fieldset>
