@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"encoding/json"
 	"github.com/KaiserWerk/CertMaker/internal/certmaker"
+	"github.com/KaiserWerk/CertMaker/internal/dbservice"
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 	"github.com/KaiserWerk/CertMaker/internal/global"
 	"github.com/KaiserWerk/CertMaker/internal/helper"
@@ -47,12 +49,25 @@ func CertificateListHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// CertificateDownloadHandler downloads a certificate requested via UI
+func CertificateDownloadHandler(w http.ResponseWriter, r *http.Request) {
+
+}
+
+// PrivateKeyDownloadHandler downloads a private key requested via UI
+func PrivateKeyDownloadHandler(w http.ResponseWriter, r *http.Request) {
+
+}
+
 // CertificateAddHandler allows to add a new certificate + private key via UI
 func CertificateAddHandler(w http.ResponseWriter, r *http.Request) {
+	var (
+		logger = logging.GetLogger().WithField("function", "handler.CertificateAddHandler")
+		ds = dbservice.New()
+	)
 
 	// TODO enforce simple mode
 
-	logger := logging.GetLogger().WithField("function", "handler.CertificateAddHandler")
 	if r.Method == http.MethodPost {
 		organization := r.FormValue("organization")
 		country := r.FormValue("country")
@@ -94,7 +109,7 @@ func CertificateAddHandler(w http.ResponseWriter, r *http.Request) {
 			ipList = append(ipList, strings.TrimSpace(ips))
 		}
 
-		certReq := entity.CertificateRequest{
+		certRequest := entity.CertificateRequest{
 			Domains: domainList,
 			IPs:     ipList,
 			Subject: struct {
@@ -115,10 +130,34 @@ func CertificateAddHandler(w http.ResponseWriter, r *http.Request) {
 			Days: daysVal,
 		}
 
-		_, err = certmaker.GenerateLeafCertAndKey(certReq)
+		sn, err := certmaker.GenerateLeafCertAndKey(certRequest)
 		if err != nil {
 			logger.Errorln("could not generate leaf cert and key: " + err.Error())
 			http.Redirect(w, r, "/add", http.StatusSeeOther)
+			return
+		}
+
+		crJson, err := json.Marshal(certRequest)
+		if err != nil {
+			logger.Errorf("could not marshal certificate request to json: %s", err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		userFromContext := r.Context().Value("user")
+		u := userFromContext.(entity.User)
+
+		ci := entity.CertInfo{
+			SerialNumber:       sn,
+			CertificateRequest: string(crJson),
+			CreatedForUser:     u.ID,
+			Revoked:            false,
+			RevokedBecause:     "",
+		}
+		err = ds.AddCertInfo(&ci)
+		if err != nil {
+			logger.Errorf("could not insert cert info into DB: %s", err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
