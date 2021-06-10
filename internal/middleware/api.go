@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"github.com/KaiserWerk/CertMaker/internal/dbservice"
 	"github.com/KaiserWerk/CertMaker/internal/logging"
 	"net/http"
@@ -33,14 +34,17 @@ func WithToken(next http.HandlerFunc) http.HandlerFunc {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		_, err = ds.FindUser("api_key = ?", token)
+		u, err := ds.FindUser("api_key = ?", token)
 		if err != nil {
 			logger.Println("could not find associated user")
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
-		next.ServeHTTP(w, r)
+		ctx := context.WithValue(r.Context(), "user", u)
+		cr := r.WithContext(ctx)
+
+		next.ServeHTTP(w, cr)
 	})
 }
 
