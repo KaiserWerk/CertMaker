@@ -40,7 +40,7 @@ func main() {
 
 	logHandle, err := os.OpenFile(*logFilePtr, os.O_WRONLY | os.O_APPEND | os.O_CREATE, 0755)
 	if err != nil {
-		log.Fatal("cannot create log file!")
+		log.Fatal("cannot open or create log file!")
 	}
 	defer logHandle.Close()
 
@@ -154,7 +154,7 @@ func setupRoutes(router *mux.Router, ui bool) {
 		authRouter.HandleFunc("/register", handler.RegistrationHandler).Methods(http.MethodGet, http.MethodPost)
 
 		certRouter := router.PathPrefix("/certificate").Subrouter()
-		certRouter.HandleFunc("/list", middleware.WithSession(handler.CertificateListHandler)).Methods(http.MethodGet)
+		certRouter.HandleFunc("/list", middleware.WithSession(middleware.RequireAdmin(handler.CertificateListHandler))).Methods(http.MethodGet)
 		certRouter.HandleFunc("/add", middleware.WithSession(handler.CertificateAddHandler)).Methods(http.MethodGet, http.MethodPost)
 		certRouter.HandleFunc("/add-with-csr", middleware.WithSession(handler.AddCertificateWithCSRHandler)).Methods(http.MethodGet, http.MethodPost) // TODO implement
 		certRouter.HandleFunc("/revoke", middleware.WithSession(handler.RevokeCertificateHandler)).Methods(http.MethodGet, http.MethodPost) // TODO implement with cert upload form

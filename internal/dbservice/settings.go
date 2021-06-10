@@ -3,6 +3,7 @@ package dbservice
 import (
 	"errors"
 	"github.com/KaiserWerk/CertMaker/internal/entity"
+	"github.com/KaiserWerk/CertMaker/internal/logging"
 	"gorm.io/gorm"
 )
 
@@ -26,17 +27,16 @@ func (ds *dbservice) GetAllSettings() (map[string]string, error) {
 
 // GetSetting fetches the setting with the given name. If it does not exist,
 // an empty string is returned instead of an error
-func (ds *dbservice) GetSetting(name string) (string, error) {
+func (ds *dbservice) GetSetting(name string) string {
 	var setting entity.SystemSetting
 	result := ds.db.Where("name = ?", name).First(&setting)
 	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return "", nil
-		}
-		return "", result.Error
+		logging.GetLogger().WithField("function", "dbservice.GetSetting()").Debugf("could not fetch setting %s: %s",
+			name, result.Error.Error())
+		return ""
 	}
 
-	return setting.Value, nil
+	return setting.Value
 }
 
 // SetSetting sets a setting with the name name to the value value

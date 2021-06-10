@@ -5,6 +5,12 @@ import (
 	"github.com/KaiserWerk/sessionstore"
 )
 
+const (
+	CertificateMinDays = 1
+	CertificateMaxDays = 182
+	CertificateDefaultDays = 7
+)
+
 var (
 	config *entity.Configuration
 	sessMgr *sessionstore.SessionManager

@@ -9,6 +9,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
+	"github.com/KaiserWerk/CertMaker/internal/dbservice"
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 	"github.com/KaiserWerk/CertMaker/internal/global"
 	"github.com/KaiserWerk/CertMaker/internal/helper"
@@ -169,12 +170,12 @@ func GenerateLeafCertAndKey(request entity.CertificateRequest) (int64, error) {
 		panic(err)
 	}
 
-	if request.Days > 182 {
-		request.Days = 182
+	if request.Days > global.CertificateMaxDays {
+		request.Days = global.CertificateMaxDays
 	}
 
-	if request.Days < 1 {
-		request.Days = 1
+	if request.Days < global.CertificateMinDays {
+		request.Days = global.CertificateMinDays
 	}
 
 	ips := make([]net.IP, 0)
@@ -202,13 +203,15 @@ func GenerateLeafCertAndKey(request entity.CertificateRequest) (int64, error) {
 		},
 		NotBefore:    time.Now(),
 		NotAfter:     time.Now().AddDate(0, 0, request.Days),
-		DNSNames:     request.Domains,
-		IPAddresses:  ips,
 		SubjectKeyId: []byte{1, 2, 3, 4, 6},
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:     x509.KeyUsageDigitalSignature,
 		SignatureAlgorithm: x509.ECDSAWithSHA256,
 		OCSPServer: []string{config.ServerHost + "/api/ocsp"}, // TODO implement/fix
+
+		DNSNames:     request.Domains,
+		IPAddresses:  ips,
+		EmailAddresses: request.EmailAddresses,
 	}
 
 	_ = os.MkdirAll(fmt.Sprintf("%s/leafcerts", config.DataDir), 0744)
@@ -260,6 +263,36 @@ func GenerateLeafCertAndKey(request entity.CertificateRequest) (int64, error) {
 	}
 
 	return nextSn, nil
+}
+
+func GenerateKeyPairByCSR(csr *x509.CertificateRequest) (int64, error) {
+	var (
+		config = global.GetConfiguration()
+		ds = dbservice.New()
+	)
+
+	nextSn, err := GetNextSerialNumber()
+	if err != nil {
+		return 0, err
+	}
+
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(nextSn),
+		Subject: csr.Subject,
+		NotBefore: time.Now(),
+		NotAfter: time.Now().AddDate(0, 0, 30),
+		SubjectKeyId: []byte{1, 2, 3, 4, 6},
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+		SignatureAlgorithm: x509.ECDSAWithSHA256,
+		OCSPServer: []string{config.ServerHost + "/api/ocsp"}, // TODO implement/fix
+
+		EmailAddresses: csr.EmailAddresses,
+		DNSNames: csr.DNSNames,
+		IPAddresses: csr.IPAddresses,
+	}
+
+	
 }
 
 // FindLeafCertificate returns the contents of the leaf certificate

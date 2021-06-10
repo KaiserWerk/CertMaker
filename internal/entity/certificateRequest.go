@@ -5,6 +5,7 @@ package entity
 type CertificateRequest struct {
 	Domains []string `json:"domains"`
 	IPs     []string `json:"ips"`
+	EmailAddresses     []string `json:"email_addresses"`
 	Subject struct {
 		Organization  string `json:"organization"`
 		Country       string `json:"country"`

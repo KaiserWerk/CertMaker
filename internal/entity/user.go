@@ -6,7 +6,7 @@ import "gorm.io/gorm"
 type User struct {
 	gorm.Model
 	Username string `gorm:"index:,unique"`
-	Email string
+	Email string `gorm:"default:''"`
 	Password string `gorm:"size:255"`
 	ApiKey string `gorm:"index:,unique"`
 	NoLogin bool `gorm:"default:0"`
