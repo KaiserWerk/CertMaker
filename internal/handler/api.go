@@ -9,10 +9,12 @@ import (
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 	"github.com/KaiserWerk/CertMaker/internal/global"
 	"github.com/KaiserWerk/CertMaker/internal/logging"
+	"github.com/KaiserWerk/CertMaker/internal/security"
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/ocsp"
 	"io/ioutil"
 	"net/http"
+	"strings"
 )
 
 // ApiRequestCertificateHandler handles a client's request for a new certificate,
@@ -20,10 +22,10 @@ import (
 // location headers
 func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		ds = dbservice.New()
-		config = global.GetConfiguration()
-		logger = logging.GetLogger().WithField("function", "handler.ApiRequestCertificateHandler")
-	    certRequest entity.CertificateRequest
+		ds          = dbservice.New()
+		config      = global.GetConfiguration()
+		logger      = logging.GetLogger().WithField("function", "handler.ApiRequestCertificateHandler")
+		certRequest entity.CertificateRequest
 	)
 
 	// TODO check if simple mode is enabled
@@ -36,44 +38,36 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = r.Body.Close()
 
-	val, err := ds.GetSetting("certificate_request_require_domain_ownership")
-	if err != nil {
-		logger.Errorf("could not fetch setting '%s': %s\n", "certificate_request_require_domain_ownership", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+	val := ds.GetSetting("certificate_request_require_domain_ownership")
 
-	// validate requester IP
 	if val == "true" {
-		//clientIp := helper.GetUserIP(r)
-		//okays := make(map[string]bool)
-		//for _, domain := range certRequest.Domains {
-		//	ips, err := net.LookupIP(domain)
-		//	if err != nil {
-		//		logger.Debug("could not determine client ip: " + err.Error())
-		//		w.WriteHeader(http.StatusInternalServerError)
-		//		return
-		//	}
-		//	okays[domain] = false
-		//	for _, ip := range ips {
-		//		if ip.String() == clientIp {
-		//			okays[domain] = true
-		//			break
-		//		}
-		//	}
-		//}
-		//numOkays := 0
-		//for _, ok := range okays {
-		//	if ok {
-		//		numOkays++
-		//	}
-		//}
-		//
-		//if len(certRequest.Domains) != numOkays {
-		//	logger.Info("not all requested domains point to the requester's IP address: " + clientIp)
-		//	w.WriteHeader(http.StatusBadRequest)
-		//	return
-		//}
+		// create challenge and return token
+		token, err := security.GenerateToken(80)
+		if err != nil {
+			logger.Infof("error generating token: %s\n", err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		ri := entity.RequestInfo{
+			Domains:        strings.Join(certRequest.Domains, ","),
+			IpAddresses:    strings.Join(certRequest.IPs, ","),
+			EmailAddresses: strings.Join(certRequest.EmailAddresses, ","),
+			Days:           certRequest.Days,
+			Token:          token,
+		}
+
+		err = ds.AddRequestInfo(&ri)
+		if err != nil {
+			logger.Infof("error inserting request info: %s\n", err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusAccepted)
+		fmt.Fprint(w, token)
+
+		return
 	}
 
 	sn, err := certmaker.GenerateLeafCertAndKey(certRequest)
@@ -83,22 +77,14 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	crJson, err := json.Marshal(certRequest)
-	if err != nil {
-		logger.Errorf("could not marshal certificate request to json: %s", err.Error())
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
 	userFromContext := r.Context().Value("user")
 	u := userFromContext.(entity.User)
 
 	ci := entity.CertInfo{
-		SerialNumber:       sn,
-		CertificateRequest: string(crJson),
-		CreatedForUser:     u.ID,
-		Revoked:            false,
-		RevokedBecause:     "",
+		SerialNumber:   sn,
+		CreatedForUser: u.ID,
+		Revoked:        false,
+		RevokedBecause: "",
 	}
 	err = ds.AddCertInfo(&ci)
 	if err != nil {
@@ -111,18 +97,13 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("X-Privatekey-Location", fmt.Sprintf("%s/api/privatekey/%d/obtain", config.ServerHost, sn))
 }
 
-
 func ApiRequestCertificateWithCSRHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		logger = logging.GetLogger().WithField("function", "handler.ApiRequestCertificateWithCSRHandler")
-		ds = dbservice.New()
-		err error
+		ds     = dbservice.New()
+		err    error
+		config = global.GetConfiguration()
 	)
-	/*
-	1. read CSR from request
-	2. validate dns names/ips, if necessary,
-	3. create certificate from CSR
-	 */
 
 	csrBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -139,27 +120,49 @@ func ApiRequestCertificateWithCSRHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// if domain/ip validation enabled, generate a token the requester
+	// if domain/ip validation is enabled, generate a token the requester
 	// must place to be available from a special url.
 	// /.well-known/certmaker-challenge/token.txt
 	dnsValidate := ds.GetSetting("certificate_request_require_domain_ownership")
 	if dnsValidate == "true" {
 		// create challenge
 
-
 	}
 
+	sn, err := certmaker.GenerateCertificateByCSR(csr)
+	if err != nil {
+		logger.Errorf("error generating key + certificate: %s\n", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
+	userFromContext := r.Context().Value("user")
+	u := userFromContext.(entity.User)
+
+	ci := entity.CertInfo{
+		SerialNumber:   sn,
+		CreatedForUser: u.ID,
+		Revoked:        false,
+		RevokedBecause: "",
+	}
+	err = ds.AddCertInfo(&ci)
+	if err != nil {
+		logger.Errorf("could not insert cert info into DB: %s", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Add("X-Certificate-Location", fmt.Sprintf("%s/api/certificate/%d/obtain", config.ServerHost, sn))
+	w.Header().Add("X-Privatekey-Location", fmt.Sprintf("%s/api/privatekey/%d/obtain", config.ServerHost, sn))
 }
 
 // ApiObtainCertificateHandler allows to actually download a certificate
 func ApiObtainCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		logger = logging.GetLogger().WithField("function", "handler.ApiObtainCertificateHandler")
-		vars = mux.Vars(r)
-		id = vars["id"]
+		vars   = mux.Vars(r)
+		id     = vars["id"]
 	)
-
 
 	certBytes, err := certmaker.FindLeafCertificate(id)
 	if err != nil {
@@ -179,8 +182,8 @@ func ApiObtainCertificateHandler(w http.ResponseWriter, r *http.Request) {
 func ApiObtainPrivateKeyHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		logger = logging.GetLogger().WithField("function", "handler.ApiObtainPrivateKeyHandler")
-		vars = mux.Vars(r)
-		id = vars["id"]
+		vars   = mux.Vars(r)
+		id     = vars["id"]
 	)
 
 	keyBytes, err := certmaker.FindLeafPrivateKey(id)

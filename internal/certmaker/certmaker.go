@@ -9,7 +9,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
-	"github.com/KaiserWerk/CertMaker/internal/dbservice"
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 	"github.com/KaiserWerk/CertMaker/internal/global"
 	"github.com/KaiserWerk/CertMaker/internal/helper"
@@ -265,11 +264,8 @@ func GenerateLeafCertAndKey(request entity.CertificateRequest) (int64, error) {
 	return nextSn, nil
 }
 
-func GenerateKeyPairByCSR(csr *x509.CertificateRequest) (int64, error) {
-	var (
-		config = global.GetConfiguration()
-		ds     = dbservice.New()
-	)
+func GenerateCertificateByCSR(csr *x509.CertificateRequest) (int64, error) {
+	config := global.GetConfiguration()
 
 	caTls, err := tls.LoadX509KeyPair(filepath.Join(config.DataDir, "root-cert.pem"), filepath.Join(config.DataDir, "root-key.pem"))
 	if err != nil {
@@ -303,10 +299,9 @@ func GenerateKeyPairByCSR(csr *x509.CertificateRequest) (int64, error) {
 
 	_ = os.MkdirAll(fmt.Sprintf("%s/leafcerts", config.DataDir), 0744)
 	outCertFilename := fmt.Sprintf("%s/leafcerts/%s-cert.pem", config.DataDir, strconv.FormatInt(nextSn, 10))
-	outKeyFilename := fmt.Sprintf("%s/leafcerts/%s-key.pem", config.DataDir, strconv.FormatInt(nextSn, 10))
 
 	// Sign the certificate
-	certBytes, err := x509.CreateCertificate(rand.Reader, template, ca, pub, caTls.PrivateKey)
+	certBytes, err := x509.CreateCertificate(rand.Reader, template, ca, csr.PublicKey, caTls.PrivateKey)
 	if err != nil {
 		return 0, err
 	}

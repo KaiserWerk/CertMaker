@@ -12,23 +12,17 @@ import (
 func WithToken(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var (
-			ds = dbservice.New()
+			ds     = dbservice.New()
 			logger = logging.GetLogger().WithField("function", "middleware.WithToken")
 		)
-		val, err := ds.GetSetting("authprovider_bearer")
-		if err != nil {
-			logger.Errorf("could not fetch setting '%s': %s\n", "authprovider_bearer", err.Error())
-			w.WriteHeader(http.StatusInternalServerError)
+		val := ds.GetSetting("authprovider_bearer")
+		if val != "true" {
+			logger.Debug("authprovider userpw not enabled; redirecting")
+			next.ServeHTTP(w, r)
 			return
-		} else {
-			if val != "true" {
-				logger.Debug("authprovider userpw not enabled; redirecting")
-				next.ServeHTTP(w, r)
-				return
-			}
 		}
 
-		token := r.Header.Get("X-Auth-Token") // Authorization: Bearer XX?
+		token := r.Header.Get("X-Auth-Token")
 		if token == "" {
 			logger.Println("missing auth header")
 			w.WriteHeader(http.StatusUnauthorized)
@@ -47,4 +41,3 @@ func WithToken(next http.HandlerFunc) http.HandlerFunc {
 		next.ServeHTTP(w, cr)
 	})
 }
-
