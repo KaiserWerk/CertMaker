@@ -21,17 +21,13 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		sessMgr = global.GetSessMgr()
 	)
 
-	val, err := ds.GetSetting("authprovider_userpw")
-	if err != nil {
-		logger.Errorln("could not get authentication provider setting: " + err.Error())
+	val := ds.GetSetting("authprovider_userpw")
+	if val != "true" {
+		//logger.Println("authprovider userpw not enabled; redirecting")
+		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
-	} else {
-		if val != "true" {
-			//logger.Println("authprovider userpw not enabled; redirecting")
-			http.Redirect(w, r, "/", http.StatusSeeOther)
-			return
-		}
 	}
+
 
 	if r.Method == http.MethodPost {
 		username := r.FormValue("username")
@@ -127,16 +123,11 @@ func RegistrationHandler(w http.ResponseWriter, r *http.Request) {
 	)
 
 	// Only comment out for debug purposes
-	val, err := ds.GetSetting("registration_enabled")
-	if err != nil {
-		logger.Errorln("could not get setting 'registration_enabled'")
+	val := ds.GetSetting("registration_enabled")
+	if val != "true" {
+		logger.Traceln("registration is not enabled")
+		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
-	} else {
-		if val != "true" {
-			logger.Traceln("registration is not enabled")
-			http.Redirect(w, r, "/", http.StatusSeeOther)
-			return
-		}
 	}
 
 	if r.Method == http.MethodPost {

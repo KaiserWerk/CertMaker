@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"github.com/KaiserWerk/CertMaker/internal/certmaker"
 	"github.com/KaiserWerk/CertMaker/internal/dbservice"
 	"github.com/KaiserWerk/CertMaker/internal/entity"
@@ -137,19 +136,11 @@ func CertificateAddHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		crJson, err := json.Marshal(certRequest)
-		if err != nil {
-			logger.Errorf("could not marshal certificate request to json: %s", err.Error())
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
 		userFromContext := r.Context().Value("user")
 		u := userFromContext.(entity.User)
 
 		ci := entity.CertInfo{
 			SerialNumber:       sn,
-			CertificateRequest: string(crJson),
 			CreatedForUser:     u.ID,
 			Revoked:            false,
 			RevokedBecause:     "",
