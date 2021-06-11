@@ -194,23 +194,23 @@ func GenerateLeafCertAndKey(request entity.CertificateRequest) (int64, error) {
 	cert := &x509.Certificate{
 		SerialNumber: big.NewInt(nextSn),
 		Subject: pkix.Name{
-			Country:            []string{request.Subject.Country},
-			Organization:       []string{request.Subject.Organization},
-			Locality:           []string{request.Subject.Locality},
-			Province:           []string{request.Subject.Province},
-			StreetAddress:      []string{request.Subject.StreetAddress},
-			PostalCode:         []string{request.Subject.PostalCode},
+			Country:       []string{request.Subject.Country},
+			Organization:  []string{request.Subject.Organization},
+			Locality:      []string{request.Subject.Locality},
+			Province:      []string{request.Subject.Province},
+			StreetAddress: []string{request.Subject.StreetAddress},
+			PostalCode:    []string{request.Subject.PostalCode},
 		},
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().AddDate(0, 0, request.Days),
-		SubjectKeyId: []byte{1, 2, 3, 4, 6},
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		KeyUsage:     x509.KeyUsageDigitalSignature,
+		NotBefore:          time.Now(),
+		NotAfter:           time.Now().AddDate(0, 0, request.Days),
+		SubjectKeyId:       []byte{1, 2, 3, 4, 6},
+		ExtKeyUsage:        []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:           x509.KeyUsageDigitalSignature,
 		SignatureAlgorithm: x509.ECDSAWithSHA256,
-		OCSPServer: []string{config.ServerHost + "/api/ocsp"}, // TODO implement/fix
+		OCSPServer:         []string{config.ServerHost + "/api/ocsp"}, // TODO implement/fix
 
-		DNSNames:     request.Domains,
-		IPAddresses:  ips,
+		DNSNames:       request.Domains,
+		IPAddresses:    ips,
 		EmailAddresses: request.EmailAddresses,
 	}
 
@@ -268,8 +268,17 @@ func GenerateLeafCertAndKey(request entity.CertificateRequest) (int64, error) {
 func GenerateKeyPairByCSR(csr *x509.CertificateRequest) (int64, error) {
 	var (
 		config = global.GetConfiguration()
-		ds = dbservice.New()
+		ds     = dbservice.New()
 	)
+
+	caTls, err := tls.LoadX509KeyPair(filepath.Join(config.DataDir, "root-cert.pem"), filepath.Join(config.DataDir, "root-key.pem"))
+	if err != nil {
+		panic(err)
+	}
+	ca, err := x509.ParseCertificate(caTls.Certificate[0])
+	if err != nil {
+		panic(err)
+	}
 
 	nextSn, err := GetNextSerialNumber()
 	if err != nil {
@@ -277,22 +286,46 @@ func GenerateKeyPairByCSR(csr *x509.CertificateRequest) (int64, error) {
 	}
 
 	template := &x509.Certificate{
-		SerialNumber: big.NewInt(nextSn),
-		Subject: csr.Subject,
-		NotBefore: time.Now(),
-		NotAfter: time.Now().AddDate(0, 0, 30),
-		SubjectKeyId: []byte{1, 2, 3, 4, 6},
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		KeyUsage:     x509.KeyUsageDigitalSignature,
+		SerialNumber:       big.NewInt(nextSn),
+		Subject:            csr.Subject,
+		NotBefore:          time.Now(),
+		NotAfter:           time.Now().AddDate(0, 0, 30),
+		SubjectKeyId:       []byte{1, 2, 3, 4, 6},
+		ExtKeyUsage:        []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:           x509.KeyUsageDigitalSignature,
 		SignatureAlgorithm: x509.ECDSAWithSHA256,
-		OCSPServer: []string{config.ServerHost + "/api/ocsp"}, // TODO implement/fix
+		OCSPServer:         []string{config.ServerHost + "/api/ocsp"}, // TODO implement/fix
 
 		EmailAddresses: csr.EmailAddresses,
-		DNSNames: csr.DNSNames,
-		IPAddresses: csr.IPAddresses,
+		DNSNames:       csr.DNSNames,
+		IPAddresses:    csr.IPAddresses,
 	}
 
-	
+	_ = os.MkdirAll(fmt.Sprintf("%s/leafcerts", config.DataDir), 0744)
+	outCertFilename := fmt.Sprintf("%s/leafcerts/%s-cert.pem", config.DataDir, strconv.FormatInt(nextSn, 10))
+	outKeyFilename := fmt.Sprintf("%s/leafcerts/%s-key.pem", config.DataDir, strconv.FormatInt(nextSn, 10))
+
+	// Sign the certificate
+	certBytes, err := x509.CreateCertificate(rand.Reader, template, ca, pub, caTls.PrivateKey)
+	if err != nil {
+		return 0, err
+	}
+
+	// Public key + cert
+	certOut, err := os.Create(outCertFilename)
+	if err != nil {
+		return 0, err
+	}
+	err = pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
+	if err != nil {
+		return 0, err
+	}
+	err = certOut.Close()
+	if err != nil {
+		return 0, err
+	}
+
+	return nextSn, nil
 }
 
 // FindLeafCertificate returns the contents of the leaf certificate
