@@ -16,7 +16,7 @@ type dbservice struct {
 }
 
 var (
-	dbs dbservice
+	dbs    dbservice
 	dbOnce sync.Once
 )
 
@@ -56,7 +56,7 @@ func New() *dbservice {
 func (ds *dbservice) AutoMigrate() error {
 	err := ds.db.AutoMigrate(
 		&entity.CertInfo{},
-		&entity.CsrInfo{},
+		&entity.RequestInfo{},
 		&entity.SystemSetting{},
 		&entity.User{},
 	)
