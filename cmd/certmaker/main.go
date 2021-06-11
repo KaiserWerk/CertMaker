@@ -21,10 +21,9 @@ import (
 )
 
 const (
-	Version = "0.0.0"
+	Version     = "0.0.0"
 	VersionDate = "0000-00-00 00:00:00.000 +00:00"
 )
-
 
 var (
 	port          = "8880"
@@ -38,7 +37,7 @@ var (
 func main() {
 	flag.Parse()
 
-	logHandle, err := os.OpenFile(*logFilePtr, os.O_WRONLY | os.O_APPEND | os.O_CREATE, 0755)
+	logHandle, err := os.OpenFile(*logFilePtr, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0755)
 	if err != nil {
 		log.Fatal("cannot open or create log file!")
 	}
@@ -122,7 +121,7 @@ func main() {
 	go func() {
 		<-notify
 		logger.Debugln("Initiating graceful shutdown...")
-		ctx, cancel := context.WithTimeout(context.Background(), 30 * time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
 		srv.SetKeepAlivesEnabled(false)
@@ -157,7 +156,7 @@ func setupRoutes(router *mux.Router, ui bool) {
 		certRouter.HandleFunc("/list", middleware.WithSession(middleware.RequireAdmin(handler.CertificateListHandler))).Methods(http.MethodGet)
 		certRouter.HandleFunc("/add", middleware.WithSession(handler.CertificateAddHandler)).Methods(http.MethodGet, http.MethodPost)
 		certRouter.HandleFunc("/add-with-csr", middleware.WithSession(handler.AddCertificateWithCSRHandler)).Methods(http.MethodGet, http.MethodPost) // TODO implement
-		certRouter.HandleFunc("/revoke", middleware.WithSession(handler.RevokeCertificateHandler)).Methods(http.MethodGet, http.MethodPost) // TODO implement with cert upload form
+		certRouter.HandleFunc("/revoke", middleware.WithSession(handler.RevokeCertificateHandler)).Methods(http.MethodGet, http.MethodPost)           // TODO implement with cert upload form
 
 		adminRouter := router.PathPrefix("/admin").Subrouter()
 		adminRouter.HandleFunc("/settings", middleware.WithSession(middleware.RequireAdmin(handler.AdminSettingsHandler))).Methods(http.MethodGet, http.MethodPost)
@@ -173,5 +172,3 @@ func setupRoutes(router *mux.Router, ui bool) {
 	apiRouter.HandleFunc("/privatekey/{id}/obtain", middleware.WithToken(handler.ApiObtainPrivateKeyHandler)).Methods(http.MethodGet)
 	apiRouter.HandleFunc("/ocsp/{base64}", handler.ApiOcspRequestHandler).Methods(http.MethodPost) // TODO only post?
 }
-
-

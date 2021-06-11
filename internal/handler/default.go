@@ -28,4 +28,3 @@ func FaviconHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "image/x-icon")
 	_, _ = w.Write(icon)
 }
-

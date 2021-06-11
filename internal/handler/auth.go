@@ -16,8 +16,8 @@ import (
 // a session and associates it with the user
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		logger = logging.GetLogger().WithField("function", "handler.LoginHandler")
-		ds = dbservice.New()
+		logger  = logging.GetLogger().WithField("function", "handler.LoginHandler")
+		ds      = dbservice.New()
 		sessMgr = global.GetSessMgr()
 	)
 
@@ -56,7 +56,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		sess, err := sessMgr.CreateSession(time.Now().AddDate(0,0,7))
+		sess, err := sessMgr.CreateSession(time.Now().AddDate(0, 0, 7))
 		if err != nil {
 			logger.Errorln("could not create session: " + err.Error())
 			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
@@ -85,7 +85,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		sessMgr = global.GetSessMgr()
-		logger = logging.GetLogger().WithField("function", "handler.LogoutHandler")
+		logger  = logging.GetLogger().WithField("function", "handler.LogoutHandler")
 	)
 	cv, err := sessMgr.GetCookieValue(r)
 	if err != nil {
@@ -121,9 +121,9 @@ func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 // account and optionally sends out a confirmation email
 func RegistrationHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		err error
+		err    error
 		logger = logging.GetLogger().WithField("function", "handler.RegistrationHandler")
-		ds = dbservice.New()
+		ds     = dbservice.New()
 	)
 
 	// Only comment out for debug purposes

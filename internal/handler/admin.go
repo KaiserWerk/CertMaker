@@ -15,9 +15,9 @@ import (
 // to the database
 func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		err error
+		err    error
 		logger = logging.GetLogger().WithField("function", "handler.AdminSettingsHandler")
-		ds = dbservice.New()
+		ds     = dbservice.New()
 	)
 
 	if r.Method == http.MethodPost {
@@ -166,7 +166,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 // AdminUserListHandler lists all existing user
 func AdminUserListHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		ds = dbservice.New()
+		ds     = dbservice.New()
 		logger = logging.GetLogger().WithField("function", "handler.AdminUserListHandler")
 	)
 	allUsers, err := ds.GetAllUsers()
@@ -190,7 +190,7 @@ func AdminUserListHandler(w http.ResponseWriter, r *http.Request) {
 // AdminUserAddHandler takes form values and creates a new user account
 func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		err error
+		err    error
 		logger = logging.GetLogger().WithField("function", "handler.AdminUserAddHandler")
 	)
 	if r.Method == http.MethodPost {
@@ -262,10 +262,10 @@ func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 			Username: username,
 			Email:    email,
 			Password: hash,
-			ApiKey: apikey,
-			NoLogin: nologin,
-			Locked: locked,
-			Admin: admin,
+			ApiKey:   apikey,
+			NoLogin:  nologin,
+			Locked:   locked,
+			Admin:    admin,
 		}
 
 		err = ds.AddUser(&u)
@@ -287,11 +287,11 @@ func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 // AdminUserEditHandler allows changing values for a given user account
 func AdminUserEditHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		vars = mux.Vars(r)
-		err error
-		logger = logging.GetLogger().WithField("function", "handler.AdminUserEditHandler")
+		vars    = mux.Vars(r)
+		err     error
+		logger        = logging.GetLogger().WithField("function", "handler.AdminUserEditHandler")
 		changes uint8 = 0
-		ds = dbservice.New()
+		ds            = dbservice.New()
 		message string
 	)
 
@@ -397,11 +397,11 @@ func AdminUserEditHandler(w http.ResponseWriter, r *http.Request) {
 // AdminUserRemoveHandler allows removing a given user account
 func AdminUserRemoveHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		val = r.Context().Value("user")
-		u = val.(entity.User)
-		vars = mux.Vars(r)
+		val    = r.Context().Value("user")
+		u      = val.(entity.User)
+		vars   = mux.Vars(r)
 		logger = logging.GetLogger().WithField("function", "handler.AdminUserRemoveHandler")
-		ds = dbservice.New()
+		ds     = dbservice.New()
 	)
 
 	if fmt.Sprintf("%s", u.ID) == vars["id"] {

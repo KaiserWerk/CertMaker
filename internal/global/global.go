@@ -6,13 +6,13 @@ import (
 )
 
 const (
-	CertificateMinDays = 1
-	CertificateMaxDays = 182
+	CertificateMinDays     = 1
+	CertificateMaxDays     = 182
 	CertificateDefaultDays = 7
 )
 
 var (
-	config *entity.Configuration
+	config  *entity.Configuration
 	sessMgr *sessionstore.SessionManager
 )
 

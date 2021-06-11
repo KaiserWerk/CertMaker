@@ -21,10 +21,10 @@ func CertificateListHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		config = global.GetConfiguration()
 		logger = logging.GetLogger().WithField("function", "handler.CertificateListHandler")
-		files []string
+		files  []string
 	)
 
-	err := filepath.Walk(config.DataDir + "/leafcerts", helper.Visit(&files))
+	err := filepath.Walk(config.DataDir+"/leafcerts", helper.Visit(&files))
 	if err != nil {
 		logger.Error("could not read files: " + err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -34,7 +34,7 @@ func CertificateListHandler(w http.ResponseWriter, r *http.Request) {
 	var certs []string
 	for _, file := range files {
 		p := strings.Split(file, "\\")
-		parts := strings.Split(p[len(p) - 1], "-")
+		parts := strings.Split(p[len(p)-1], "-")
 		certs = append(certs, parts[0])
 	}
 
@@ -63,7 +63,7 @@ func PrivateKeyDownloadHandler(w http.ResponseWriter, r *http.Request) {
 func CertificateAddHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		logger = logging.GetLogger().WithField("function", "handler.CertificateAddHandler")
-		ds = dbservice.New()
+		ds     = dbservice.New()
 	)
 
 	// TODO enforce simple mode

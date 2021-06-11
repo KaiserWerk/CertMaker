@@ -15,8 +15,8 @@ import (
 var (
 	configurationFile = "config.yaml"
 	configDistFile    = "config/config.dist.yaml"
-	snFile = ""
-	snDistFile = "config/sn.dist.txt"
+	snFile            = ""
+	snDistFile        = "config/sn.dist.txt"
 )
 
 // GetConfigFilename returns the path + name of
@@ -42,8 +42,8 @@ func SetFileSource(f string) {
 func Setup() (bool, bool, error) {
 	var (
 		createdConfigFile = false
-		createdSnFile = false
-		assetsFS = assets.GetConfigFS()
+		createdSnFile     = false
+		assetsFS          = assets.GetConfigFS()
 	)
 
 	if !helper.DoesFileExist(configurationFile) {

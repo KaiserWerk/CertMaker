@@ -79,6 +79,3 @@ func GetUserIP(r *http.Request) string {
 
 	return host
 }
-
-
-

@@ -61,4 +61,3 @@ func (ds *dbservice) DeleteUser(u *entity.User) error {
 
 	return nil
 }
-

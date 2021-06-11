@@ -26,7 +26,7 @@ func ExecuteTemplate(w io.Writer, file string, data interface{}) error {
 
 	layout := template.Must(template.New("_layout.gohtml").Parse(string(layoutContent))) //.Funcs(funcMap)
 
-	content, err := templateFS.ReadFile("templates/content/"+file) // with leading slash?
+	content, err := templateFS.ReadFile("templates/content/" + file) // with leading slash?
 	if err != nil {
 		fmt.Println("could not find template " + file + ": " + err.Error())
 		return err
