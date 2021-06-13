@@ -1,15 +1,15 @@
 package handler
 
 import (
+	"crypto/x509"
 	"github.com/KaiserWerk/CertMaker/internal/certmaker"
 	"github.com/KaiserWerk/CertMaker/internal/dbservice"
 	"github.com/KaiserWerk/CertMaker/internal/entity"
-	"github.com/KaiserWerk/CertMaker/internal/global"
 	"github.com/KaiserWerk/CertMaker/internal/helper"
 	"github.com/KaiserWerk/CertMaker/internal/logging"
 	"github.com/KaiserWerk/CertMaker/internal/templateservice"
+	"io/ioutil"
 	"net/http"
-	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -18,29 +18,51 @@ import (
 // private keys in the UI
 func CertificateListHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		config = global.GetConfiguration()
+		//config = global.GetConfiguration()
+		//files  []string
 		logger = logging.GetLogger().WithField("function", "handler.CertificateListHandler")
-		files  []string
+		ds     = dbservice.New()
 	)
-
-	err := filepath.Walk(config.DataDir+"/leafcerts", helper.Visit(&files))
+	// read certificates from db
+	ci, err := ds.GetAllCertInfo()
 	if err != nil {
-		logger.Error("could not read files: " + err.Error())
+		logger.Errorf("could not fetch cert info entries")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	var certs []string
-	for _, file := range files {
-		p := strings.Split(file, "\\")
-		parts := strings.Split(p[len(p)-1], "-")
-		certs = append(certs, parts[0])
+	var targetCertInfos []entity.CertInfo
+
+	val := r.Context().Value("user")
+	u := val.(entity.User)
+	if u.Admin == false {
+		for _, v := range ci {
+			if v.CreatedForUser == u.ID {
+				targetCertInfos = append(targetCertInfos, v)
+			}
+		}
+	} else {
+		targetCertInfos = ci
 	}
 
+	//err := filepath.Walk(config.DataDir+"/leafcerts", helper.Visit(&files))
+	//if err != nil {
+	//	logger.Error("could not read files: " + err.Error())
+	//	w.WriteHeader(http.StatusInternalServerError)
+	//	return
+	//}
+
+	//var certs []string
+	//for _, file := range files {
+	//	p := strings.Split(file, "\\")
+	//	parts := strings.Split(p[len(p)-1], "-")
+	//	certs = append(certs, parts[0])
+	//}
+
 	data := struct {
-		CertSNs []string
+		CertInfos []entity.CertInfo
 	}{
-		CertSNs: certs,
+		CertInfos: targetCertInfos,
 	}
 
 	if err := templateservice.ExecuteTemplate(w, "certificate/certificate_list.gohtml", data); err != nil {
@@ -140,10 +162,11 @@ func CertificateAddHandler(w http.ResponseWriter, r *http.Request) {
 		u := userFromContext.(entity.User)
 
 		ci := entity.CertInfo{
-			SerialNumber:       sn,
-			CreatedForUser:     u.ID,
-			Revoked:            false,
-			RevokedBecause:     "",
+			SerialNumber:   sn,
+			FromCSR:        false,
+			CreatedForUser: u.ID,
+			Revoked:        false,
+			RevokedBecause: "",
 		}
 		err = ds.AddCertInfo(&ci)
 		if err != nil {
@@ -161,9 +184,66 @@ func CertificateAddHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// AddCertificateWithCSRHandler enables you to upload a file containing a CSR to
+// AddCertificateFromCSRHandler enables you to upload a file containing a CSR to
 // the UI and create a certificate
-func AddCertificateWithCSRHandler(w http.ResponseWriter, r *http.Request) {
+func AddCertificateFromCSRHandler(w http.ResponseWriter, r *http.Request) {
+	var (
+		logger = logging.GetLogger().WithField("function", "handler.AddCertificateFromCSRHandler")
+		ds     = dbservice.New()
+	)
+
+	if r.Method == http.MethodPost {
+
+		csrFile, _, err := r.FormFile("csr_file")
+		if err != nil {
+			logger.Debug("could not perform CSR upload: " + err.Error())
+			http.Redirect(w, r, "/certificate/list", http.StatusSeeOther)
+			return
+		}
+
+		csrBytes, err := ioutil.ReadAll(csrFile)
+		if err != nil {
+			logger.Debug("could not read uploaded CSR file: " + err.Error())
+			http.Redirect(w, r, "/certificate/list", http.StatusSeeOther)
+			return
+		}
+
+		csr, err := x509.ParseCertificateRequest(csrBytes)
+		if err != nil {
+			logger.Debug("could not parse uploaded CSR file: " + err.Error())
+			http.Redirect(w, r, "/certificate/list", http.StatusSeeOther)
+			return
+		}
+		err = csr.CheckSignature()
+		if err != nil {
+			logger.Debug("CSR signature could not be verified: " + err.Error())
+			http.Redirect(w, r, "/certificate/list", http.StatusSeeOther)
+			return
+		}
+
+		sn, err := certmaker.GenerateCertificateByCSR(csr)
+		if err != nil {
+			logger.Debug("could not generate certificate FROM CSR: " + err.Error())
+			http.Redirect(w, r, "/certificate/list", http.StatusSeeOther)
+			return
+		}
+
+		userFromContext := r.Context().Value("user")
+		u := userFromContext.(entity.User)
+
+		ci := entity.CertInfo{
+			SerialNumber:   sn,
+			FromCSR:        true,
+			CreatedForUser: u.ID,
+		}
+		err = ds.AddCertInfo(&ci)
+		if err != nil {
+			logger.Errorf("could not insert cert info into DB: %s", err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	}
+
 	if err := templateservice.ExecuteTemplate(w, "certificate/certificate_add_with_csr.gohtml", nil); err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}

@@ -9,6 +9,7 @@ const (
 	CertificateMinDays     = 1
 	CertificateMaxDays     = 182
 	CertificateDefaultDays = 7
+	CsrUploadMaxBytes      = 5 << 10
 )
 
 var (

@@ -82,6 +82,7 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 
 	ci := entity.CertInfo{
 		SerialNumber:   sn,
+		FromCSR:        false,
 		CreatedForUser: u.ID,
 		Revoked:        false,
 		RevokedBecause: "",
@@ -141,6 +142,7 @@ func ApiRequestCertificateWithCSRHandler(w http.ResponseWriter, r *http.Request)
 
 	ci := entity.CertInfo{
 		SerialNumber:   sn,
+		FromCSR:        true,
 		CreatedForUser: u.ID,
 		Revoked:        false,
 		RevokedBecause: "",

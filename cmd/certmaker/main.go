@@ -155,8 +155,12 @@ func setupRoutes(router *mux.Router, ui bool) {
 		certRouter := router.PathPrefix("/certificate").Subrouter()
 		certRouter.HandleFunc("/list", middleware.WithSession(middleware.RequireAdmin(handler.CertificateListHandler))).Methods(http.MethodGet)
 		certRouter.HandleFunc("/add", middleware.WithSession(handler.CertificateAddHandler)).Methods(http.MethodGet, http.MethodPost)
-		certRouter.HandleFunc("/add-with-csr", middleware.WithSession(handler.AddCertificateWithCSRHandler)).Methods(http.MethodGet, http.MethodPost) // TODO implement
+		certRouter.HandleFunc("/add-with-csr", middleware.WithSession(handler.AddCertificateFromCSRHandler)).Methods(http.MethodGet, http.MethodPost) // TODO implement
 		certRouter.HandleFunc("/revoke", middleware.WithSession(handler.RevokeCertificateHandler)).Methods(http.MethodGet, http.MethodPost)           // TODO implement with cert upload form
+
+		dlRouter := router.PathPrefix("/download").Subrouter()
+		dlRouter.HandleFunc("/certificate/{id}", middleware.WithSession(handler.CertificateDownloadHandler)).Methods(http.MethodGet) // TODO implement
+		dlRouter.HandleFunc("/privatekey/{id}", middleware.WithSession(handler.PrivateKeyDownloadHandler)).Methods(http.MethodGet)   // TODO implement
 
 		adminRouter := router.PathPrefix("/admin").Subrouter()
 		adminRouter.HandleFunc("/settings", middleware.WithSession(middleware.RequireAdmin(handler.AdminSettingsHandler))).Methods(http.MethodGet, http.MethodPost)

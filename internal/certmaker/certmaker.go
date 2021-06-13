@@ -285,7 +285,7 @@ func GenerateCertificateByCSR(csr *x509.CertificateRequest) (int64, error) {
 		SerialNumber:       big.NewInt(nextSn),
 		Subject:            csr.Subject,
 		NotBefore:          time.Now(),
-		NotAfter:           time.Now().AddDate(0, 0, 30),
+		NotAfter:           time.Now().AddDate(0, 0, global.CertificateDefaultDays),
 		SubjectKeyId:       []byte{1, 2, 3, 4, 6},
 		ExtKeyUsage:        []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:           x509.KeyUsageDigitalSignature,

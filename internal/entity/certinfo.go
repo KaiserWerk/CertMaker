@@ -7,6 +7,7 @@ import "gorm.io/gorm"
 type CertInfo struct {
 	gorm.Model
 	SerialNumber   int64 `gorm:"index:,unique"`
+	FromCSR        bool
 	CreatedForUser uint
 	Revoked        bool
 	RevokedBecause string

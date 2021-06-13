@@ -4,17 +4,21 @@
     <table class="striped hoverable">
         <thead>
         <tr>
-            <th>SN</th>
+            <th>#</th>
+            <th>Serial Number</th>
             <th>Certificate</th>
-            <th>PrivateKey</th>
+            <th>Private Key</th>
+            <th>Action</th>
         </tr>
         </thead>
         <tbody>
-        {{ range .CertSNs }}
+        {{ range .CertInfos }}
         <tr>
-            <td>{{ . }}</td>
-            <td><a href="/api/certificate/{{ . }}/obtain" target="_blank">Download</a></td>
-            <td><a href="/api/privatekey/{{ . }}/obtain" target="_blank">Download</a></td>
+            <td>{{ .ID }}</td>
+            <td>{{ .SerialNumber }}</td>
+            <td><a href="/download/certificate/{{ .ID }}" target="_blank">Download</a></td>
+            <td>{{ if eq .FromCSR false }}<a href="/download/privatekey/{{ .ID }}" target="_blank">Download</a>{{ end }}</td>
+            <td><a href="/certificate/{{ .ID }}/revoke" target="_blank">Revoke</a></td>
         </tr>
         {{ else }}
         <tr>

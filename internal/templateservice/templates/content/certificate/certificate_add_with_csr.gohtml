@@ -4,6 +4,13 @@
 
     <form method="post" enctype="multipart/form-data">
 
+        <div class="row">
+            <div class="col-md-3 label-row"><label for="csr_file">CSR file*</label></div>
+            <div class="col-md-9 label-row"><input type="file" class="form-control" id="csr_file" name="csr_file" accept=".csr" required></div>
+        </div>
+        <br>
+        <button type="submit" class="btn primary">Generate certificate from CSR</button>
+
     </form>
 </div>
 {{ template "footer_default" . }}
