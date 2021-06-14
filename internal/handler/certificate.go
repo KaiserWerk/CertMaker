@@ -2,6 +2,7 @@ package handler
 
 import (
 	"crypto/x509"
+	"encoding/pem"
 	"github.com/KaiserWerk/CertMaker/internal/certmaker"
 	"github.com/KaiserWerk/CertMaker/internal/dbservice"
 	"github.com/KaiserWerk/CertMaker/internal/entity"
@@ -208,7 +209,9 @@ func AddCertificateFromCSRHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		csr, err := x509.ParseCertificateRequest(csrBytes)
+		p, _ := pem.Decode(csrBytes)
+
+		csr, err := x509.ParseCertificateRequest(p.Bytes)
 		if err != nil {
 			logger.Debug("could not parse uploaded CSR file: " + err.Error())
 			http.Redirect(w, r, "/certificate/list", http.StatusSeeOther)
