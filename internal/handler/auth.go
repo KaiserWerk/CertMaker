@@ -21,9 +21,8 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		sessMgr = global.GetSessMgr()
 	)
 
-	val := ds.GetSetting("authprovider_userpw")
-	if val != "true" {
-		//logger.Println("authprovider userpw not enabled; redirecting")
+	if val := ds.GetSetting("authprovider_userpw"); val != "true" {
+		logger.Debug("authprovider userpw not enabled; redirecting")
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
@@ -47,6 +46,12 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 		if !security.DoesHashMatch(password, user.Password) {
 			logger.Debug("passwords did not match")
+			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
+			return
+		}
+
+		if user.NoLogin {
+			logger.Info("user logged in correctly, but was cancelled due to nologin setting")
 			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 			return
 		}
@@ -121,9 +126,7 @@ func RegistrationHandler(w http.ResponseWriter, r *http.Request) {
 		ds     = dbservice.New()
 	)
 
-	// Only comment out for debug purposes
-	val := ds.GetSetting("registration_enabled")
-	if val != "true" {
+	if val := ds.GetSetting("registration_enabled"); val != "true" {
 		logger.Trace("registration is not enabled")
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
