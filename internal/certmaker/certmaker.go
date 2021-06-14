@@ -324,12 +324,12 @@ func GenerateCertificateByCSR(csr *x509.CertificateRequest) (int64, error) {
 }
 
 // FindLeafCertificate returns the contents of the leaf certificate
-// with the supplied ID
-func FindLeafCertificate(id string) ([]byte, error) {
+// with the supplied serial number
+func FindLeafCertificate(sn string) ([]byte, error) {
 	config := global.GetConfiguration()
-	certFile := filepath.Join(config.DataDir, "leafcerts", fmt.Sprintf("%s-cert.pem", id))
+	certFile := filepath.Join(config.DataDir, "leafcerts", fmt.Sprintf("%s-cert.pem", sn))
 	if !helper.DoesFileExist(certFile) {
-		return nil, fmt.Errorf("cert file with id %s not found", id)
+		return nil, fmt.Errorf("cert file with id %s not found", sn)
 	}
 
 	content, err := ioutil.ReadFile(certFile)
@@ -341,12 +341,12 @@ func FindLeafCertificate(id string) ([]byte, error) {
 }
 
 // FindLeafPrivateKey returns the contents of the leaf private key
-// with the supplied ID
-func FindLeafPrivateKey(id string) ([]byte, error) {
+// with the supplied serial number
+func FindLeafPrivateKey(sn string) ([]byte, error) {
 	config := global.GetConfiguration()
-	keyFile := filepath.Join(config.DataDir, "leafcerts", fmt.Sprintf("%s-key.pem", id))
+	keyFile := filepath.Join(config.DataDir, "leafcerts", fmt.Sprintf("%s-key.pem", sn))
 	if !helper.DoesFileExist(keyFile) {
-		return nil, fmt.Errorf("key file with id %s not found", id)
+		return nil, fmt.Errorf("key file with id %s not found", sn)
 	}
 
 	content, err := ioutil.ReadFile(keyFile)
