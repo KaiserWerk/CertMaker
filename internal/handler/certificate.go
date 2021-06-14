@@ -104,14 +104,14 @@ func CertificateAddHandler(w http.ResponseWriter, r *http.Request) {
 		days := r.FormValue("days")
 		if organization == "" || country == "" || province == "" || locality == "" || streetAddress == "" ||
 			postalCode == "" || days == "" {
-			logger.Debugln("please fill in all required fields, marked with *")
+			logger.Debug("please fill in all required fields, marked with *")
 			http.Redirect(w, r, "/certificate/add", http.StatusSeeOther)
 			return
 		}
 
 		daysVal, err := strconv.Atoi(days)
 		if err != nil {
-			logger.Debugln("no valid numeric value for field 'days' supplied!")
+			logger.Debug("no valid numeric value for field 'days' supplied!")
 			http.Redirect(w, r, "/certificate/add", http.StatusSeeOther)
 			return
 		}
@@ -158,7 +158,7 @@ func CertificateAddHandler(w http.ResponseWriter, r *http.Request) {
 
 		sn, err := certmaker.GenerateLeafCertAndKey(certRequest)
 		if err != nil {
-			logger.Errorln("could not generate leaf cert and key: " + err.Error())
+			logger.Error("could not generate leaf cert and key: " + err.Error())
 			http.Redirect(w, r, "/add", http.StatusSeeOther)
 			return
 		}

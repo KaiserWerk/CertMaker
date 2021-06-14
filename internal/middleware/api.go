@@ -24,13 +24,13 @@ func WithToken(next http.HandlerFunc) http.HandlerFunc {
 
 		token := r.Header.Get("X-Auth-Token")
 		if token == "" {
-			logger.Println("missing auth header")
+			logger.Print("missing auth header")
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 		u, err := ds.FindUser("api_key = ?", token)
 		if err != nil {
-			logger.Println("could not find associated user")
+			logger.Print("could not find associated user")
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}

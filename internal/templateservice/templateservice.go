@@ -2,7 +2,7 @@ package templateservice
 
 import (
 	"embed"
-	"fmt"
+	"github.com/KaiserWerk/CertMaker/internal/logging"
 	"html/template"
 	"io"
 )
@@ -11,37 +11,32 @@ import (
 var templateFS embed.FS
 
 func ExecuteTemplate(w io.Writer, file string, data interface{}) error {
+	logger := logging.GetLogger().WithField("function", "templateservice.ExecuteTemplate")
 	var err error
-	//var funcMap = template.FuncMap{
-	//	"getBuildDefCaption": GetBuildDefCaption,
-	//	"getUsernameById":    GetUsernameById,
-	//	"getFlashbag":        GetFlashbag(GetSessionManager()),
-	//	"formatDate":	      FormatDate,
-	//}
-	layoutContent, err := templateFS.ReadFile("templates/_layout.gohtml") // with leading slash?
+	layoutContent, err := templateFS.ReadFile("templates/_layout.gohtml")
 	if err != nil {
-		fmt.Println("could not get layout template: " + err.Error())
+		logger.Error("could not get layout template: " + err.Error())
 		return err
 	}
 
-	layout := template.Must(template.New("_layout.gohtml").Parse(string(layoutContent))) //.Funcs(funcMap)
+	layout := template.Must(template.New("_layout.gohtml").Parse(string(layoutContent)))
 
-	content, err := templateFS.ReadFile("templates/content/" + file) // with leading slash?
+	content, err := templateFS.ReadFile("templates/content/" + file)
 	if err != nil {
-		fmt.Println("could not find template " + file + ": " + err.Error())
+		logger.Error("could not find template " + file + ": " + err.Error())
 		return err
 	}
 
 	tmpl := template.Must(layout.Clone())
 	_, err = tmpl.Parse(string(content))
 	if err != nil {
-		fmt.Println("could not parse template into base layout: " + err.Error())
+		logger.Error("could not parse template into base layout: " + err.Error())
 		return err
 	}
 
 	err = tmpl.Execute(w, data)
 	if err != nil {
-		fmt.Println("could not execute template " + file + ": " + err.Error())
+		logger.Error("could not execute template " + file + ": " + err.Error())
 		return err
 	}
 

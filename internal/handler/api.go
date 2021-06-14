@@ -261,21 +261,21 @@ func ApiOcspRequestHandler(w http.ResponseWriter, r *http.Request) {
 	*/
 	logger := logging.GetLogger().WithField("function", "handler.ApiOcspRequestHandler")
 	if r.Header.Get("Content-Type") != "application/ocsp-request" {
-		logger.Debugln("incorrect content type header: " + r.Header.Get("Content-Type"))
+		logger.Debug("incorrect content type header: " + r.Header.Get("Content-Type"))
 		//w.Write([]byte("Wrong Content-Type header: must be application/ocsp-request"))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	if r.Header.Get("Accept") != "application/ocsp-response" {
-		logger.Debugln("incorrect Accept header: " + r.Header.Get("Accept"))
+		logger.Debug("incorrect Accept header: " + r.Header.Get("Accept"))
 		//w.Write([]byte("Wrong Accept header: must be application/ocsp-response"))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	//if r.Header.Get("Host") == "" {
-	//	log.Println("incorrect Host header: empty")
+	//	logger.Debug("incorrect Host header: empty")
 	//	w.Write([]byte("Wrong Host header: must not be empty"))
 	//	w.WriteHeader(http.StatusBadRequest)
 	//	return
@@ -285,7 +285,7 @@ func ApiOcspRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		logger.Debugln("could not read request body: " + err.Error())
+		logger.Debug("could not read request body: " + err.Error())
 		//w.Write([]byte("could not read request body: " + err.Error()))
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -293,13 +293,13 @@ func ApiOcspRequestHandler(w http.ResponseWriter, r *http.Request) {
 	_ = r.Body.Close()
 	ocspReq, err := ocsp.ParseRequest(reqBody)
 	if err != nil {
-		logger.Debugln("could not parse OCSP Request: " + err.Error())
+		logger.Debug("could not parse OCSP Request: " + err.Error())
 		//w.Write([]byte("could not parse OCSP Request: " + err.Error()))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	fmt.Println(ocspReq.SerialNumber)
+	logger.Debug(ocspReq.SerialNumber)
 
 	// hier prüfen, ob das Cert wirklich revoked ist
 	// ...

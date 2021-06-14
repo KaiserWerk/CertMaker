@@ -76,13 +76,13 @@ func main() {
 		var answer string
 		_, _ = fmt.Scanln(&answer)
 		if answer == "y" {
-			logger.Debugln("Okay, stopped.")
+			logger.Debug("Okay, stopped.")
 			os.Exit(0)
 		}
 	}
 
 	if createdSn {
-		logger.Debugln("The serial number file was not found so it was created.")
+		logger.Debug("The serial number file was not found so it was created.")
 	}
 
 	// create root cert and key, if non-existent
@@ -120,7 +120,7 @@ func main() {
 
 	go func() {
 		<-notify
-		logger.Debugln("Initiating graceful shutdown...")
+		logger.Debug("Initiating graceful shutdown...")
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 

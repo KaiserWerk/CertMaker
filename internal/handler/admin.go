@@ -201,13 +201,13 @@ func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 		password2 := r.FormValue("password2")
 
 		if username == "" || password == "" || password2 == "" {
-			logger.Debugln("username and passwords required")
+			logger.Debug("username and passwords required")
 			http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
 			return
 		}
 
 		if password != password2 {
-			logger.Debugln("passwords don not match")
+			logger.Debug("passwords don not match")
 			http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
 			return
 		}
@@ -215,7 +215,7 @@ func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 		ds := dbservice.New()
 		_, err = ds.FindUser("username = ?", username)
 		if err == nil {
-			logger.Debugln("username already taken")
+			logger.Debug("username already taken")
 			http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
 			return
 		}
@@ -223,7 +223,7 @@ func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 		if email != "" {
 			_, err = ds.FindUser("email = ?", email)
 			if err == nil {
-				logger.Debugln("email already taken")
+				logger.Debug("email already taken")
 				http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
 				return
 			}
@@ -246,14 +246,14 @@ func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 
 		apikey, err := security.GenerateToken(40)
 		if err != nil {
-			logger.Errorln("could not generate token: " + err.Error())
+			logger.Error("could not generate token: " + err.Error())
 			http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
 			return
 		}
 
 		hash, err := security.HashString(password)
 		if err != nil {
-			logger.Errorln("could not hash password: " + err.Error())
+			logger.Error("could not hash password: " + err.Error())
 			http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
 			return
 		}
@@ -270,12 +270,12 @@ func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 
 		err = ds.AddUser(&u)
 		if err != nil {
-			logger.Errorln("could not create user: " + err.Error())
+			logger.Error("could not create user: " + err.Error())
 			http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
 			return
 		}
 
-		logger.Traceln("user added")
+		logger.Trace("user added")
 
 	}
 
@@ -297,7 +297,7 @@ func AdminUserEditHandler(w http.ResponseWriter, r *http.Request) {
 
 	userToEdit, err := ds.FindUser("id = ?", vars["id"])
 	if err != nil {
-		logger.Debugln("could not find user with ID '%s': %s\n", vars["id"], err.Error())
+		logger.Debug("could not find user with ID '%s': %s\n", vars["id"], err.Error())
 		http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
 		return
 	}
@@ -310,7 +310,7 @@ func AdminUserEditHandler(w http.ResponseWriter, r *http.Request) {
 		if username != "" {
 			_, err = ds.FindUser("username = ? && id != ?", username, userToEdit.ID)
 			if err == nil {
-				logger.Debugln("username already taken")
+				logger.Debug("username already taken")
 				http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
 				return
 			}
@@ -321,7 +321,7 @@ func AdminUserEditHandler(w http.ResponseWriter, r *http.Request) {
 		if email != "" {
 			_, err = ds.FindUser("email = ? && id != ?", email, userToEdit.ID)
 			if err == nil {
-				logger.Debugln("email already taken")
+				logger.Debug("email already taken")
 				http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
 				return
 			}
@@ -332,7 +332,7 @@ func AdminUserEditHandler(w http.ResponseWriter, r *http.Request) {
 		if password != "" {
 			hash, err := security.HashString(password)
 			if err != nil {
-				logger.Errorln("could not hash password: " + err.Error())
+				logger.Error("could not hash password: " + err.Error())
 				http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
 				return
 			}
@@ -375,7 +375,7 @@ func AdminUserEditHandler(w http.ResponseWriter, r *http.Request) {
 
 		err = ds.UpdateUser(&userToEdit)
 		if err != nil {
-			logger.Errorln("user data could not be updated")
+			logger.Error("user data could not be updated")
 			http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
 			return
 		}
@@ -405,21 +405,21 @@ func AdminUserRemoveHandler(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if fmt.Sprintf("%s", u.ID) == vars["id"] {
-		logger.Debugln("You cannot remove your own user account!")
+		logger.Debug("You cannot remove your own user account!")
 		http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
 		return
 	}
 
 	user, err := ds.FindUser("id = ?", vars["id"])
 	if err != nil {
-		logger.Traceln("User could not be found")
+		logger.Trace("User could not be found")
 		http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
 		return
 	}
 
 	err = ds.DeleteUser(&user)
 	if err != nil {
-		logger.Errorln("User could not be deleted: " + err.Error())
+		logger.Error("User could not be deleted: " + err.Error())
 		http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
 		return
 	}
