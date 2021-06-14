@@ -155,8 +155,8 @@ func setupRoutes(router *mux.Router, ui bool) {
 		certRouter := router.PathPrefix("/certificate").Subrouter()
 		certRouter.HandleFunc("/list", middleware.WithSession(middleware.RequireAdmin(handler.CertificateListHandler))).Methods(http.MethodGet)
 		certRouter.HandleFunc("/add", middleware.WithSession(handler.CertificateAddHandler)).Methods(http.MethodGet, http.MethodPost)
-		certRouter.HandleFunc("/add-with-csr", middleware.WithSession(handler.AddCertificateFromCSRHandler)).Methods(http.MethodGet, http.MethodPost) // TODO implement
-		certRouter.HandleFunc("/revoke", middleware.WithSession(handler.RevokeCertificateHandler)).Methods(http.MethodGet, http.MethodPost)           // TODO implement with cert upload form
+		certRouter.HandleFunc("/add-with-csr", middleware.WithSession(handler.AddCertificateFromCSRHandler)).Methods(http.MethodGet, http.MethodPost)
+		certRouter.HandleFunc("/revoke", middleware.WithSession(handler.RevokeCertificateHandler)).Methods(http.MethodGet, http.MethodPost)
 
 		dlRouter := router.PathPrefix("/download").Subrouter()
 		dlRouter.HandleFunc("/certificate/{id}", middleware.WithSession(handler.CertificateDownloadHandler)).Methods(http.MethodGet) // TODO implement
@@ -171,8 +171,8 @@ func setupRoutes(router *mux.Router, ui bool) {
 	}
 	apiRouter := router.PathPrefix("/api").Subrouter()
 	apiRouter.HandleFunc("/certificate/request", middleware.WithToken(handler.ApiRequestCertificateHandler)).Methods(http.MethodPost)
-	apiRouter.HandleFunc("/certificate/request-with-csr", middleware.WithToken(nil)).Methods(http.MethodPost) // TODO implement
+	apiRouter.HandleFunc("/certificate/request-with-csr", middleware.WithToken(handler.ApiRequestCertificateWithCSRHandler)).Methods(http.MethodPost)
 	apiRouter.HandleFunc("/certificate/{id}/obtain", middleware.WithToken(handler.ApiObtainCertificateHandler)).Methods(http.MethodGet)
 	apiRouter.HandleFunc("/privatekey/{id}/obtain", middleware.WithToken(handler.ApiObtainPrivateKeyHandler)).Methods(http.MethodGet)
-	apiRouter.HandleFunc("/ocsp/{base64}", handler.ApiOcspRequestHandler).Methods(http.MethodPost) // TODO only post?
+	apiRouter.HandleFunc("/ocsp/{base64}", handler.ApiOcspRequestHandler).Methods(http.MethodPost) // TODO implement
 }

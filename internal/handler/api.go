@@ -3,6 +3,7 @@ package handler
 import (
 	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"github.com/KaiserWerk/CertMaker/internal/certmaker"
 	"github.com/KaiserWerk/CertMaker/internal/dbservice"
@@ -17,7 +18,7 @@ import (
 	"strings"
 )
 
-// ApiRequestCertificateHandler handles a client's request for a new certificate,
+// ApiRequestCertificateHandler handles a client's request,
 // generates a new certificate and private key for the client and sets appropriate
 // location headers
 func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
@@ -28,7 +29,12 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 		certRequest entity.CertificateRequest
 	)
 
-	// TODO check if simple mode is enabled
+	simpleMode := ds.GetSetting("certificate_request_simple_mode")
+	if simpleMode != "true" {
+		logger.Debug("simple mode is not enabled")
+		w.WriteHeader(http.StatusNotImplemented)
+		return
+	}
 
 	err := json.NewDecoder(r.Body).Decode(&certRequest)
 	if err != nil {
@@ -38,9 +44,8 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = r.Body.Close()
 
-	val := ds.GetSetting("certificate_request_require_domain_ownership")
-
-	if val == "true" {
+	dnsValidate := ds.GetSetting("certificate_request_require_domain_ownership")
+	if dnsValidate == "true" {
 		// create challenge and return token
 		token, err := security.GenerateToken(80)
 		if err != nil {
@@ -50,11 +55,13 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		ri := entity.RequestInfo{
+			FromCSR:        false,
 			Domains:        strings.Join(certRequest.Domains, ","),
 			IpAddresses:    strings.Join(certRequest.IPs, ","),
 			EmailAddresses: strings.Join(certRequest.EmailAddresses, ","),
 			Days:           certRequest.Days,
 			Token:          token,
+			Status:         "accepted",
 		}
 
 		err = ds.AddRequestInfo(&ri)
@@ -65,6 +72,7 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w.WriteHeader(http.StatusAccepted)
+		w.Header().Set("Content-Type", "text/plain")
 		fmt.Fprint(w, token)
 
 		return
@@ -98,6 +106,8 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("X-Privatekey-Location", fmt.Sprintf("%s/api/privatekey/%d/obtain", config.ServerHost, sn))
 }
 
+// ApiRequestCertificateWithCSRHandler handles a client's request for a new certificate,
+// generates a new certificate for the client and sets appropriate location headers
 func ApiRequestCertificateWithCSRHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		logger = logging.GetLogger().WithField("function", "handler.ApiRequestCertificateWithCSRHandler")
@@ -105,6 +115,13 @@ func ApiRequestCertificateWithCSRHandler(w http.ResponseWriter, r *http.Request)
 		err    error
 		config = global.GetConfiguration()
 	)
+
+	normalMode := ds.GetSetting("certificate_request_normal_mode")
+	if normalMode != "true" {
+		logger.Debug("normal mode is not enabled")
+		w.WriteHeader(http.StatusNotImplemented)
+		return
+	}
 
 	csrBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -114,7 +131,9 @@ func ApiRequestCertificateWithCSRHandler(w http.ResponseWriter, r *http.Request)
 	}
 	_ = r.Body.Close()
 
-	csr, err := x509.ParseCertificateRequest(csrBytes)
+	p, _ := pem.Decode(csrBytes)
+
+	csr, err := x509.ParseCertificateRequest(p.Bytes)
 	if err != nil {
 		logger.Debugf("could not parse certificate singing request: %s", err.Error())
 		http.Error(w, "malformed certificate singing request", http.StatusBadRequest)
@@ -126,13 +145,44 @@ func ApiRequestCertificateWithCSRHandler(w http.ResponseWriter, r *http.Request)
 	// /.well-known/certmaker-challenge/token.txt
 	dnsValidate := ds.GetSetting("certificate_request_require_domain_ownership")
 	if dnsValidate == "true" {
-		// create challenge
+		token, err := security.GenerateToken(80)
+		if err != nil {
+			logger.Infof("error generating token: %s\n", err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 
+		ips := make([]string, 0)
+		for _, v := range csr.IPAddresses {
+			ips = append(ips, v.String())
+		}
+		ri := entity.RequestInfo{
+			FromCSR:        true,
+			Domains:        strings.Join(csr.DNSNames, ","),
+			IpAddresses:    strings.Join(ips, ","),
+			EmailAddresses: strings.Join(csr.EmailAddresses, ","),
+			Days:           global.CertificateDefaultDays,
+			Token:          token,
+			Status:         "accepted",
+		}
+
+		err = ds.AddRequestInfo(&ri)
+		if err != nil {
+			logger.Infof("error inserting request info: %s\n", err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusAccepted)
+		w.Header().Set("Content-Type", "text/plain")
+		fmt.Fprint(w, token)
+
+		return
 	}
 
 	sn, err := certmaker.GenerateCertificateByCSR(csr)
 	if err != nil {
-		logger.Errorf("error generating key + certificate: %s\n", err.Error())
+		logger.Errorf("error generating certificate: %s\n", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -155,7 +205,6 @@ func ApiRequestCertificateWithCSRHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	w.Header().Add("X-Certificate-Location", fmt.Sprintf("%s/api/certificate/%d/obtain", config.ServerHost, sn))
-	w.Header().Add("X-Privatekey-Location", fmt.Sprintf("%s/api/privatekey/%d/obtain", config.ServerHost, sn))
 }
 
 // ApiObtainCertificateHandler allows to actually download a certificate
