@@ -66,7 +66,15 @@ func WithSession(next http.HandlerFunc) http.HandlerFunc {
 // RequireAdmin only continues if the logged in user is an administrator
 func RequireAdmin(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logger := logging.GetLogger().WithField("function", "middleware.RequireAdmin")
+		var (
+			logger = logging.GetLogger().WithField("function", "middleware.RequireAdmin")
+			ds = dbservice.New()
+		)
+
+		if userpw := ds.GetSetting("authprovider_userpw"); userpw != "true" {
+			next.ServeHTTP(w, r)
+			return
+		}
 
 		val := r.Context().Value("user")
 		if val == nil {
