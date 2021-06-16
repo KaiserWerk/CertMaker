@@ -147,6 +147,11 @@ func setupRoutes(router *mux.Router, ui bool) {
 		router.HandleFunc("/", middleware.WithSession(handler.IndexHandler)).Methods(http.MethodGet)
 		router.HandleFunc("/favicon.ico", handler.FaviconHandler)
 
+		userRouter := router.PathPrefix("/user").Subrouter()
+		userRouter.HandleFunc("/profile", middleware.WithSession(handler.ProfileHandler))
+		userRouter.HandleFunc("/profile/edit", middleware.WithSession(handler.ProfileEditHandler))
+		userRouter.HandleFunc("/regenerate-key", middleware.WithSession(handler.ProfileRegenerateKeyHandler))
+
 		authRouter := router.PathPrefix("/auth").Subrouter()
 		authRouter.HandleFunc("/login", handler.LoginHandler).Methods(http.MethodGet, http.MethodPost)
 		authRouter.HandleFunc("/logout", middleware.WithSession(handler.LogoutHandler)).Methods(http.MethodGet)
@@ -169,10 +174,13 @@ func setupRoutes(router *mux.Router, ui bool) {
 		adminRouter.HandleFunc("/user/{id}/edit", middleware.WithSession(middleware.RequireAdmin(handler.AdminUserEditHandler))).Methods(http.MethodGet, http.MethodPost)
 		adminRouter.HandleFunc("/user/{id}/remove", middleware.WithSession(middleware.RequireAdmin(handler.AdminUserRemoveHandler))).Methods(http.MethodGet, http.MethodPost)
 	}
+
 	apiRouter := router.PathPrefix("/api").Subrouter()
 	apiRouter.HandleFunc("/certificate/request", middleware.WithToken(handler.ApiRequestCertificateHandler)).Methods(http.MethodPost)
 	apiRouter.HandleFunc("/certificate/request-with-csr", middleware.WithToken(handler.ApiRequestCertificateWithCSRHandler)).Methods(http.MethodPost)
 	apiRouter.HandleFunc("/certificate/{id}/obtain", middleware.WithToken(handler.ApiObtainCertificateHandler)).Methods(http.MethodGet)
 	apiRouter.HandleFunc("/privatekey/{id}/obtain", middleware.WithToken(handler.ApiObtainPrivateKeyHandler)).Methods(http.MethodGet)
-	apiRouter.HandleFunc("/ocsp/{base64}", handler.ApiOcspRequestHandler).Methods(http.MethodPost) // TODO implement
+	apiRouter.HandleFunc("/challenge/{token}/solve", middleware.WithToken(nil)).Methods(http.MethodGet) // TODO implement
+	apiRouter.HandleFunc("/challenge-with-csr/{token}/solve", middleware.WithToken(nil)).Methods(http.MethodGet) // TODO implement
+	apiRouter.HandleFunc("/ocsp/{base64}", handler.ApiOcspRequestHandler).Methods(http.MethodGet, http.MethodPost) // TODO implement
 }
