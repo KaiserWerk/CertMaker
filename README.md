@@ -7,18 +7,21 @@ Perfect for your homelab or self-hosted infrastructure.
 
 ### Features
 
-* Programmatically obtain fresh certificates (and optionally private keys as well)
-* Programmatically obtain the root certificate (currently no intermediate certificates are used) (coming M2)
-* Manage your CertMaker instance with a simple web UI (optional)
+* Obtain fresh certificates via UI and API
+  * With optional DNS name/IP ownership verification
+* Obtain the root certificate via UI and API (coming M2)
+* Manage your CertMaker instance with a simple web UI (optional) 
 * Adjustable certificate validity (1 - 182 days)
-* Certificates can be created for domains as well as IP addresses and/or email addresses
-* [CertMaker Bot](https://github.com/KaiserWerk/CertMaker-Bot), command line helper to obtain 
-certificates for 3rd-party apps which cannot obtain certificates themselves (in development)
-* [The Go SDK](https://github.com/KaiserWerk/CertMaker-Go-SDK) (in development)
-* The .NET SDK (probably)
+  * Default validity is 7 days
+* Certificates can be created for domains, IP addresses and email addresses
 
 ### Documentation
 
-- API: See Swagger docs (coming soon)
-- UI: coming soon
+* [UI](docs/ui-documentation.md)
+* [API](docs/api-documentation.md)
+* [Security](docs/security-documentation.md)
+
+### Tools
+* [CertMaker Bot](https://github.com/KaiserWerk/CertMaker-Bot)
+* [Go SDK](https://github.com/KaiserWerk/CertMaker-Go-SDK)
 
