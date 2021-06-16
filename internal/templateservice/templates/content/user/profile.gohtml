@@ -1,0 +1,29 @@
+{{ template "header_default" . }}
+<div class="container">
+    <h1>Profile</h1>
+    <div class="row">
+        <div class="col-md-9">
+            <div class="container">
+                <div class="row" style="margin-top: 30px;">
+                    <div class="col-md-4">Your username</div>
+                    <div class="col-md-8">{{ .User.Username }}</div>
+                </div>
+                <div class="row" style="margin-top: 30px;">
+                    <div class="col-md-4">Your email</div>
+                    <div class="col-md-8">{{ .User.Email }}</div>
+                </div>
+                <div class="row" style="margin-top: 30px;">
+                    <div class="col-md-4">Your API Token</div>
+                    <div class="col-md-8">{{ .User.ApiKey }}</div>
+                </div>
+                <div class="row" style="margin-top: 30px;">
+                    <div class="col-md-4">Admin</div>
+                    <div class="col-md-8">{{ if eq .User.Admin true }}Yes{{ else }}No{{ end }}</div>
+                </div>
+
+                <a href="/user/profile/edit">Edit Profile</a>
+            </div>
+        </div>
+    </div>
+</div>
+{{ template "footer_default" . }}
