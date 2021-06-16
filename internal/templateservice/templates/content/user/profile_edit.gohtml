@@ -2,7 +2,11 @@
 <div class="container">
     <h1>Profile</h1>
     <div class="row">
-        <form method="post">
+        {{ .Message }}
+    </div>
+    <div class="row">
+        <form method="post" style="width: 95%;">
+            <input type="hidden" name="form_name" value="personal_data">
             <div class="row" style="margin-top: 30px;">
                 <div class="col-md-4"><label for="username">Your username</label></div>
                 <div class="col-md-8"><input type="text" name="username" id="username" value="{{ .User.Username }}"></div>
@@ -21,8 +25,29 @@
             </div>
 
             <button type="submit" class="btn primary">Save changes</button>
-            <a href="/user/profile">Back to profile</a>
         </form>
+    </div>
+
+    <div class="row">
+        <form method="post" style="width: 95%;">
+            <input type="hidden" name="form_name" value="change_password">
+            <div class="row" style="margin-top: 30px;">
+                <div class="col-md-4"><label for="new_password">Your new password</label></div>
+                <div class="col-md-8"><input type="password" name="new_password" id="new_password" required></div>
+            </div>
+            <div class="row" style="margin-top: 30px;">
+                <div class="col-md-4"><label for="new_password2">Repeat your new password</label></div>
+                <div class="col-md-8"><input type="password" name="new_password2" id="new_password2" required></div>
+            </div>
+            <div class="row" style="margin-top: 30px;">
+                <div class="col-md-4"><label for="confirm_with_password">Confirm your password</label></div>
+                <div class="col-md-8"><input type="password" name="confirm_with_password" id="confirm_with_password" required></div>
+            </div>
+
+            <button type="submit" class="btn primary">Set new password</button>
+        </form>
+
+        <a href="/user/profile" style="margin-left: 10px;">Back to profile</a>
     </div>
 </div>
 {{ template "footer_default" . }}
