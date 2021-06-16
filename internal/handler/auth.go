@@ -171,7 +171,7 @@ func RegistrationHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		key, err := security.GenerateToken(40)
+		key, err := security.GenerateToken(global.ApiTokenLength)
 		if err != nil {
 			logger.Error("api key could not be generated")
 			http.Redirect(w, r, "/auth/register", http.StatusSeeOther)

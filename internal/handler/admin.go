@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/KaiserWerk/CertMaker/internal/dbservice"
 	"github.com/KaiserWerk/CertMaker/internal/entity"
+	"github.com/KaiserWerk/CertMaker/internal/global"
 	"github.com/KaiserWerk/CertMaker/internal/logging"
 	"github.com/KaiserWerk/CertMaker/internal/security"
 	"github.com/KaiserWerk/CertMaker/internal/templateservice"
@@ -244,7 +245,7 @@ func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 			admin = true
 		}
 
-		apikey, err := security.GenerateToken(40)
+		apikey, err := security.GenerateToken(global.ApiTokenLength)
 		if err != nil {
 			logger.Error("could not generate token: " + err.Error())
 			http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)

@@ -48,7 +48,7 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	dnsValidate := ds.GetSetting("certificate_request_require_domain_ownership")
 	if dnsValidate == "true" {
 		// create challenge and return token
-		token, err := security.GenerateToken(80)
+		token, err := security.GenerateToken(global.ChallengeTokenLength)
 		if err != nil {
 			logger.Infof("error generating token: %s\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
@@ -146,7 +146,7 @@ func ApiRequestCertificateWithCSRHandler(w http.ResponseWriter, r *http.Request)
 	// /.well-known/certmaker-challenge/token.txt
 	dnsValidate := ds.GetSetting("certificate_request_require_domain_ownership")
 	if dnsValidate == "true" {
-		token, err := security.GenerateToken(80)
+		token, err := security.GenerateToken(global.ChallengeTokenLength)
 		if err != nil {
 			logger.Infof("error generating token: %s\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
