@@ -2,6 +2,7 @@ package handler
 
 import (
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
@@ -259,42 +260,52 @@ func ApiOcspRequestHandler(w http.ResponseWriter, r *http.Request) {
 					httpReq.Header.Add("Accept", "application/ocsp-response")
 					httpReq.Header.Add("Host", ocspUrl.Host)
 	*/
-	logger := logging.GetLogger().WithField("function", "handler.ApiOcspRequestHandler")
+	var (
+		logger = logging.GetLogger().WithField("function", "handler.ApiOcspRequestHandler")
+		vars = mux.Vars(r)
+	)
 	if r.Header.Get("Content-Type") != "application/ocsp-request" {
 		logger.Debug("incorrect content type header: " + r.Header.Get("Content-Type"))
-		//w.Write([]byte("Wrong Content-Type header: must be application/ocsp-request"))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	if r.Header.Get("Accept") != "application/ocsp-response" {
 		logger.Debug("incorrect Accept header: " + r.Header.Get("Accept"))
-		//w.Write([]byte("Wrong Accept header: must be application/ocsp-response"))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	//if r.Header.Get("Host") == "" {
 	//	logger.Debug("incorrect Host header: empty")
-	//	w.Write([]byte("Wrong Host header: must not be empty"))
 	//	w.WriteHeader(http.StatusBadRequest)
 	//	return
 	//}
+
+	b64 := vars["base64"]
 
 	w.Header().Set("Content-Type", "application/ocsp-response")
 
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		logger.Debug("could not read request body: " + err.Error())
-		//w.Write([]byte("could not read request body: " + err.Error()))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+
+	logger.Debugf("Request body length: %d", len(reqBody))
+
+	b64dec, err := base64.StdEncoding.DecodeString(b64)
+	if err != nil {
+		logger.Debug("could not decode base64 request variable: " + err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
 	_ = r.Body.Close()
-	ocspReq, err := ocsp.ParseRequest(reqBody)
+	ocspReq, err := ocsp.ParseRequest(b64dec)
 	if err != nil {
 		logger.Debug("could not parse OCSP Request: " + err.Error())
-		//w.Write([]byte("could not parse OCSP Request: " + err.Error()))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
