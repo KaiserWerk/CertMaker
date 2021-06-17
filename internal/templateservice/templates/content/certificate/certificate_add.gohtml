@@ -30,8 +30,8 @@
         <div class="row" style="margin-top: 30px;">
             <div class="col-md-3 label-row"><label for="days">Lifetime in days*</label></div>
             <div class="col-md-9">
-                <input type="number" min="1" max="182" value="30" class="form-control" id="days" name="days" required>
-                <small class="form-text text-muted">Must be between 1 and 182.</small>
+                <input type="number" min="1" max="182" value="{{ .DefaultDays }}" class="form-control" id="days" name="days" required>
+                <small class="form-text text-muted">Must be between 1 and 182; default is 7 days.</small>
             </div>
         </div>
         <div class="row" style="margin-top: 30px;">

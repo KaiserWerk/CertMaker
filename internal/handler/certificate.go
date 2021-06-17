@@ -6,6 +6,7 @@ import (
 	"github.com/KaiserWerk/CertMaker/internal/certmaker"
 	"github.com/KaiserWerk/CertMaker/internal/dbservice"
 	"github.com/KaiserWerk/CertMaker/internal/entity"
+	"github.com/KaiserWerk/CertMaker/internal/global"
 	"github.com/KaiserWerk/CertMaker/internal/helper"
 	"github.com/KaiserWerk/CertMaker/internal/logging"
 	"github.com/KaiserWerk/CertMaker/internal/templateservice"
@@ -184,7 +185,13 @@ func CertificateAddHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := templateservice.ExecuteTemplate(w, "certificate/certificate_add.gohtml", nil); err != nil {
+	data := struct {
+		DefaultDays int
+	}{
+		DefaultDays: global.CertificateDefaultDays,
+	}
+
+	if err := templateservice.ExecuteTemplate(w, "certificate/certificate_add.gohtml", data); err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
