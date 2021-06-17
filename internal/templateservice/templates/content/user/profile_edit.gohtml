@@ -17,7 +17,7 @@
             </div>
             <div class="row" style="margin-top: 30px;">
                 <div class="col-md-4"><label>Your API Token</label></div>
-                <div class="col-md-8">{{ .User.ApiKey }}<br><a href="/user/regenerate-key">Regenerate the token</a></div>
+                <div class="col-md-8">{{ .User.ApiKey }}<br><a href="/user/regenerate-key" onclick="return confirm('Really regenerate API token?');">Regenerate the token</a></div>
             </div>
             <div class="row" style="margin-top: 30px;">
                 <div class="col-md-4"><label for="confirm_with_password">Confirm your password</label></div>
