@@ -40,7 +40,7 @@ var (
 func init() {
 	sessMgr = sessionstore.NewManager("CERTMAKERSESS")
 	httpClient = http.Client{
-		Timeout: 5 * time.Second,
+		Timeout: 1500 * time.Millisecond,
 	}
 }
 
