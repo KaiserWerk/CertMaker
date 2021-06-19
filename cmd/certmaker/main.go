@@ -115,7 +115,7 @@ func main() {
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       10 * time.Second,
-		ReadHeaderTimeout: 2 * time.Second,
+		ReadHeaderTimeout: 3 * time.Second,
 	}
 
 	go func() {
