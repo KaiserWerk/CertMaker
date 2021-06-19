@@ -15,7 +15,7 @@ import (
 func ProfileHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		val = r.Context().Value("user")
-		u = val.(entity.User)
+		u   = val.(entity.User)
 	)
 
 	data := struct {
@@ -32,10 +32,10 @@ func ProfileHandler(w http.ResponseWriter, r *http.Request) {
 // ProfileEditHandler allows profile changes to be made
 func ProfileEditHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		logger = logging.GetLogger().WithField("function", "ProfileEditHandler")
-		ds = dbservice.New()
-		val = r.Context().Value("user")
-		u = val.(entity.User)
+		logger  = logging.GetLogger().WithField("function", "ProfileEditHandler")
+		ds      = dbservice.New()
+		val     = r.Context().Value("user")
+		u       = val.(entity.User)
 		message string
 		changes uint8
 	)
@@ -115,10 +115,10 @@ func ProfileEditHandler(w http.ResponseWriter, r *http.Request) {
 	message += fmt.Sprintf(" %d changes were made.", changes)
 
 	data := struct {
-		User entity.User
+		User    entity.User
 		Message string
 	}{
-		User: u,
+		User:    u,
 		Message: message,
 	}
 
@@ -131,10 +131,9 @@ func ProfileEditHandler(w http.ResponseWriter, r *http.Request) {
 func ProfileRegenerateKeyHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		logger = logging.GetLogger().WithField("function", "handler.ProfileRegenerateKeyHandler")
-		ds = dbservice.New()
-		val = r.Context().Value("user")
-		u = val.(entity.User)
-
+		ds     = dbservice.New()
+		val    = r.Context().Value("user")
+		u      = val.(entity.User)
 	)
 
 	token, err := security.GenerateToken(global.ApiTokenLength)

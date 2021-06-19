@@ -3,6 +3,8 @@ package global
 import (
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 	"github.com/KaiserWerk/sessionstore"
+	"net/http"
+	"time"
 )
 
 const (
@@ -10,17 +12,38 @@ const (
 	CertificateMaxDays     = 182
 	CertificateDefaultDays = 7
 	CsrUploadMaxBytes      = 5 << 10
-	ApiTokenLength = 40
-	ChallengeTokenLength = 80
+	ApiTokenLength         = 40
+	ChallengeTokenLength   = 80
+
+	TokenHeader               = "X-Api-Token"
+	CertificateLocationHeader = "X-Certificate-Location"
+	PrivateKeyLocationHandler = "X-Privatekey-Location"
+	ChallengeLocationHeader   = "X-Challenge-Location"
+
+	WellKnownPath      = "/.well-known/certmaker-challenge/token.txt"
+	SolveChallengePath = "/api/challenge/%d/solve"
 )
 
 var (
-	config  *entity.Configuration
-	sessMgr *sessionstore.SessionManager
+	DnsNamesToSkip = []string{"localhost", "127.0.0.1", "::1", "[::1]"}
+)
+
+var (
+	config     *entity.Configuration
+	sessMgr    *sessionstore.SessionManager
+	httpClient http.Client
 )
 
 func init() {
 	sessMgr = sessionstore.NewManager("CERTMAKERSESS")
+	httpClient = http.Client{
+		Timeout: 5 * time.Second,
+	}
+}
+
+// GetClient returns a readily usable *http.Client
+func GetClient() *http.Client {
+	return &httpClient
 }
 
 // SetConfiguration sets the global configuration to a given object

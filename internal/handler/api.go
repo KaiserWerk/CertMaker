@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bytes"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -10,13 +11,15 @@ import (
 	"github.com/KaiserWerk/CertMaker/internal/dbservice"
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 	"github.com/KaiserWerk/CertMaker/internal/global"
+	"github.com/KaiserWerk/CertMaker/internal/helper"
 	"github.com/KaiserWerk/CertMaker/internal/logging"
 	"github.com/KaiserWerk/CertMaker/internal/security"
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/ocsp"
+	"io"
 	"io/ioutil"
 	"net/http"
-	"strings"
+	"strconv"
 )
 
 // ApiRequestCertificateHandler handles a client's request,
@@ -27,7 +30,7 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 		ds          = dbservice.New()
 		config      = global.GetConfiguration()
 		logger      = logging.GetLogger().WithField("function", "handler.ApiRequestCertificateHandler")
-		certRequest entity.CertificateRequest
+		certRequest entity.SimpleRequest
 	)
 
 	simpleMode := ds.GetSetting("certificate_request_simple_mode")
@@ -37,17 +40,31 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := json.NewDecoder(r.Body).Decode(&certRequest)
+	var b bytes.Buffer
+	_, err := io.Copy(&b, r.Body)
 	if err != nil {
-		logger.Infof("error parsing certificate request: %s\n", err.Error())
+		logger.Infof("could not read request body: %s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	_ = r.Body.Close()
 
-	dnsValidate := ds.GetSetting("certificate_request_require_domain_ownership")
-	if dnsValidate == "true" {
-		// create challenge and return token
+	err = json.Unmarshal(b.Bytes(), &certRequest)
+	if err != nil {
+		logger.Infof("error parsing certificate request: %s", err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	defer r.Body.Close()
+
+	if certRequest.Days > global.CertificateMaxDays {
+		certRequest.Days = global.CertificateMaxDays
+	}
+	if certRequest.Days < global.CertificateMinDays {
+		certRequest.Days = global.CertificateMinDays
+	}
+
+	if dnsValidate := ds.GetSetting("certificate_request_require_domain_ownership"); dnsValidate == "true" {
 		token, err := security.GenerateToken(global.ChallengeTokenLength)
 		if err != nil {
 			logger.Infof("error generating token: %s\n", err.Error())
@@ -56,25 +73,21 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		ri := entity.RequestInfo{
-			FromCSR:        false,
-			Domains:        strings.Join(certRequest.Domains, ","),
-			IpAddresses:    strings.Join(certRequest.IPs, ","),
-			EmailAddresses: strings.Join(certRequest.EmailAddresses, ","),
-			Days:           certRequest.Days,
-			Token:          token,
-			Status:         "accepted",
+			SimpleRequestBytes: b.Bytes(),
+			Token:              token,
+			Status:             "accepted",
 		}
 
-		err = ds.AddRequestInfo(&ri)
-		if err != nil {
+		if err = ds.AddRequestInfo(&ri); err != nil {
 			logger.Infof("error inserting request info: %s\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
+		w.Header().Set("Content-Type", "text/plain; charset=utf8")
+		w.Header().Set(global.ChallengeLocationHeader, fmt.Sprintf(config.ServerHost+global.SolveChallengePath, ri.ID))
 		w.WriteHeader(http.StatusAccepted)
-		w.Header().Set("Content-Type", "text/plain")
-		fmt.Fprint(w, token)
+		_, _ = io.WriteString(w, token)
 
 		return
 	}
@@ -96,15 +109,15 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 		Revoked:        false,
 		RevokedBecause: "",
 	}
-	err = ds.AddCertInfo(&ci)
-	if err != nil {
+
+	if err = ds.AddCertInfo(&ci); err != nil {
 		logger.Errorf("could not insert cert info into DB: %s", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Add("X-Certificate-Location", fmt.Sprintf("%s/api/certificate/%d/obtain", config.ServerHost, sn))
-	w.Header().Add("X-Privatekey-Location", fmt.Sprintf("%s/api/privatekey/%d/obtain", config.ServerHost, sn))
+	w.Header().Add(global.CertificateLocationHeader, fmt.Sprintf("%s/api/certificate/%d/obtain", config.ServerHost, sn))
+	w.Header().Add(global.PrivateKeyLocationHandler, fmt.Sprintf("%s/api/privatekey/%d/obtain", config.ServerHost, sn))
 }
 
 // ApiRequestCertificateWithCSRHandler handles a client's request for a new certificate,
@@ -141,11 +154,7 @@ func ApiRequestCertificateWithCSRHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// if domain/ip validation is enabled, generate a token the requester
-	// must place to be available from a special url.
-	// /.well-known/certmaker-challenge/token.txt
-	dnsValidate := ds.GetSetting("certificate_request_require_domain_ownership")
-	if dnsValidate == "true" {
+	if dnsValidate := ds.GetSetting("certificate_request_require_domain_ownership"); dnsValidate == "true" {
 		token, err := security.GenerateToken(global.ChallengeTokenLength)
 		if err != nil {
 			logger.Infof("error generating token: %s\n", err.Error())
@@ -153,29 +162,22 @@ func ApiRequestCertificateWithCSRHandler(w http.ResponseWriter, r *http.Request)
 			return
 		}
 
-		ips := make([]string, 0)
-		for _, v := range csr.IPAddresses {
-			ips = append(ips, v.String())
-		}
 		ri := entity.RequestInfo{
-			FromCSR:        true,
-			Domains:        strings.Join(csr.DNSNames, ","),
-			IpAddresses:    strings.Join(ips, ","),
-			EmailAddresses: strings.Join(csr.EmailAddresses, ","),
-			Days:           global.CertificateDefaultDays,
-			Token:          token,
-			Status:         "accepted",
+			CsrBytes: csrBytes,
+			Token:    token,
+			Status:   "accepted",
 		}
 
-		err = ds.AddRequestInfo(&ri)
-		if err != nil {
+		if err = ds.AddRequestInfo(&ri); err != nil {
 			logger.Infof("error inserting request info: %s\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
+
+		w.Header().Set("Content-Type", "text/plain; charset=utf8")
+		w.Header().Set(global.ChallengeLocationHeader, fmt.Sprintf(config.ServerHost+global.SolveChallengePath, ri.ID))
 		w.WriteHeader(http.StatusAccepted)
-		w.Header().Set("Content-Type", "text/plain")
 		fmt.Fprint(w, token)
 
 		return
@@ -205,7 +207,7 @@ func ApiRequestCertificateWithCSRHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	w.Header().Add("X-Certificate-Location", fmt.Sprintf("%s/api/certificate/%d/obtain", config.ServerHost, sn))
+	w.Header().Add(global.CertificateLocationHeader, fmt.Sprintf("%s/api/certificate/%d/obtain", config.ServerHost, sn))
 }
 
 // ApiObtainCertificateHandler allows to actually download a certificate
@@ -262,7 +264,7 @@ func ApiOcspRequestHandler(w http.ResponseWriter, r *http.Request) {
 	*/
 	var (
 		logger = logging.GetLogger().WithField("function", "handler.ApiOcspRequestHandler")
-		vars = mux.Vars(r)
+		vars   = mux.Vars(r)
 	)
 	if r.Header.Get("Content-Type") != "application/ocsp-request" {
 		logger.Debug("incorrect content type header: " + r.Header.Get("Content-Type"))
@@ -316,4 +318,209 @@ func ApiOcspRequestHandler(w http.ResponseWriter, r *http.Request) {
 	// ...
 
 	//ocspResp := ocsp.CreateResponse()
+}
+
+func ApiSolveChallengeHandler(w http.ResponseWriter, r *http.Request) {
+	var (
+		logger             = logging.GetLogger().WithField("function", "handler.ApiSolveChallengeHandler")
+		config             = global.GetConfiguration()
+		client             = global.GetClient()
+		ds                 = dbservice.New()
+		vars               = mux.Vars(r)
+		b                  bytes.Buffer
+		validationPort     string
+		fromCsr            bool
+		certificateRequest entity.SimpleRequest
+		csr                x509.CertificateRequest
+	)
+
+	validationPort = r.Header.Get("X-Validation-Port")
+	if validationPort == "" {
+		validationPort = "80"
+	}
+
+	_, err := strconv.Atoi(validationPort)
+	if err != nil {
+		logger.Debug("Port header has non-numeric value")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	ri, err := ds.GetRequestInfo(vars["id"])
+	if err != nil {
+		logger.Debugf("could not get request info for ID %v", vars["id"])
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if ri.SimpleRequestBytes != nil {
+		err = json.Unmarshal(ri.SimpleRequestBytes, &certificateRequest)
+		if err != nil {
+			logger.Errorf("could not unmarshal certificate request: %s", err.Error())
+			return
+		}
+		fromCsr = false
+	} else if ri.CsrBytes != nil {
+		err = json.Unmarshal(ri.CsrBytes, &csr)
+		if err != nil {
+			logger.Errorf("could not unmarshal csr: %s", err.Error())
+			return
+		}
+		fromCsr = true
+	}
+
+	// Domain validation
+	var domains []string
+	if !fromCsr {
+		domains = certificateRequest.Domains
+	} else {
+		domains = csr.DNSNames
+	}
+	for _, domain := range domains {
+		// skip local dns names, like localhost or 127.0.0.1
+		if helper.StringSliceContains(global.DnsNamesToSkip, domain) {
+			continue
+		}
+
+		attempts := []string{
+			fmt.Sprintf("https://%s:%s%s", domain, validationPort, global.WellKnownPath),
+			fmt.Sprintf("http://%s:%s%s", domain, validationPort, global.WellKnownPath),
+		}
+
+		for _, attempt := range attempts {
+			req, err := http.NewRequest(http.MethodGet, attempt, nil)
+			if err != nil {
+				logger.Debugf("could not create request: " + err.Error())
+				continue
+			}
+
+			resp, err := client.Do(req)
+			if err != nil {
+				logger.Debugf("could not execute request for HTTPS attempt: " + err.Error())
+				continue
+			}
+			_, err = io.Copy(&b, resp.Body)
+			if err != nil {
+				logger.Debugf("could not read request body from HTTPS attempt: " + err.Error())
+				continue
+			}
+			_ = resp.Body.Close()
+
+			// TODO check if RI is from correct user
+
+			if b.String() != ri.Token {
+				logger.Debugf("invalid token")
+				w.WriteHeader(http.StatusForbidden)
+				return
+			}
+		}
+	}
+
+	// IP validation
+	ips := make([]string, 0)
+	if !fromCsr {
+		ips = certificateRequest.IPs
+	} else {
+		for _, v := range csr.IPAddresses {
+			ips = append(ips, v.String())
+		}
+
+	}
+	for _, ip := range ips {
+		// skip local dns names, like localhost or 127.0.0.1
+		if helper.StringSliceContains(global.DnsNamesToSkip, ip) {
+			continue
+		}
+
+		attempts := []string{
+			fmt.Sprintf("https://%s:%s%s", ip, validationPort, global.WellKnownPath),
+			fmt.Sprintf("http://%s:%s%s", ip, validationPort, global.WellKnownPath),
+		}
+
+		for _, attempt := range attempts {
+			req, err := http.NewRequest(http.MethodGet, attempt, nil)
+			if err != nil {
+				logger.Debugf("could not create request: " + err.Error())
+				continue
+			}
+
+			resp, err := client.Do(req)
+			if err != nil {
+				logger.Debugf("could not execute request for HTTPS attempt: " + err.Error())
+				continue
+			}
+			_, err = io.Copy(&b, resp.Body)
+			if err != nil {
+				logger.Debugf("could not read request body from HTTPS attempt: " + err.Error())
+				continue
+			}
+			_ = resp.Body.Close()
+
+			// TODO check if RI is from correct user
+
+			if b.String() != ri.Token {
+				logger.Debugf("invalid token")
+				w.WriteHeader(http.StatusForbidden)
+				return
+			}
+		}
+	}
+
+	logger.Debug("successfully validated")
+
+	var sn int64
+	if !fromCsr {
+		sn, err = certmaker.GenerateLeafCertAndKey(certificateRequest)
+		if err != nil {
+			logger.Errorf("error generating key + certificate: %s\n", err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	} else {
+		sn, err = certmaker.GenerateCertificateByCSR(&csr)
+		if err != nil {
+			logger.Errorf("error generating key + certificate: %s\n", err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	}
+
+	userFromContext := r.Context().Value("user")
+	u := userFromContext.(entity.User)
+
+	ci := entity.CertInfo{
+		SerialNumber:   sn,
+		FromCSR:        fromCsr,
+		CreatedForUser: u.ID,
+		Revoked:        false,
+		RevokedBecause: "",
+	}
+
+	if err = ds.AddCertInfo(&ci); err != nil {
+		logger.Errorf("could not insert cert info into DB: %s", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	ri.Status = "finished"
+	err = ds.UpdateRequestInfo(&ri)
+	if err != nil {
+		logger.Errorf("could not update request info: %s", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Add(global.CertificateLocationHeader, fmt.Sprintf("%s/api/certificate/%d/obtain", config.ServerHost, sn))
+	if !fromCsr {
+		w.Header().Add(global.PrivateKeyLocationHandler, fmt.Sprintf("%s/api/privatekey/%d/obtain", config.ServerHost, sn))
+	}
+}
+
+func ApiSolveChallengeWithCsrHandler(w http.ResponseWriter, r *http.Request) {
+	//var (
+	//	logger = logging.GetLogger().WithField("function", "handler.ApiSolveChallengeWithCsrHandler")
+	//	ds = dbservice.New()
+	//	vars = mux.Vars(r)
+	//)
+
 }

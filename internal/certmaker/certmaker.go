@@ -158,7 +158,7 @@ func GenerateRootCertAndKey() error {
 
 // GenerateLeafCertAndKey generates a certificate signed by
 // the root certificate and a private key.
-func GenerateLeafCertAndKey(request entity.CertificateRequest) (int64, error) {
+func GenerateLeafCertAndKey(request entity.SimpleRequest) (int64, error) {
 	config := global.GetConfiguration()
 	caTls, err := tls.LoadX509KeyPair(filepath.Join(config.DataDir, "root-cert.pem"), filepath.Join(config.DataDir, "root-key.pem"))
 	if err != nil {

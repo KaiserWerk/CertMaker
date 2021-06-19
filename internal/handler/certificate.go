@@ -136,7 +136,7 @@ func CertificateAddHandler(w http.ResponseWriter, r *http.Request) {
 			ipList = append(ipList, strings.TrimSpace(ips))
 		}
 
-		certRequest := entity.CertificateRequest{
+		certRequest := entity.SimpleRequest{
 			Domains: domainList,
 			IPs:     ipList,
 			Subject: struct {

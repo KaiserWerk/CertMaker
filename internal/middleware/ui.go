@@ -68,7 +68,7 @@ func RequireAdmin(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var (
 			logger = logging.GetLogger().WithField("function", "middleware.RequireAdmin")
-			ds = dbservice.New()
+			ds     = dbservice.New()
 		)
 
 		if userpw := ds.GetSetting("authprovider_userpw"); userpw != "true" {
