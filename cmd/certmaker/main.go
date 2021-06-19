@@ -112,9 +112,9 @@ func main() {
 	srv := &http.Server{
 		Addr:              host,
 		Handler:           router,
-		ReadTimeout:       2 * time.Second,
-		WriteTimeout:      2 * time.Second,
-		IdleTimeout:       3 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       10 * time.Second,
 		ReadHeaderTimeout: 2 * time.Second,
 	}
 
@@ -177,6 +177,7 @@ func setupRoutes(router *mux.Router, ui bool) {
 	}
 
 	apiRouter := router.PathPrefix("/api").Subrouter()
+	apiRouter.HandleFunc("/root-certificate/obtain", middleware.WithToken(handler.ApiRootCertificateDownloadHandler)).Methods(http.MethodGet)
 	apiRouter.HandleFunc("/certificate/request", middleware.WithToken(handler.ApiRequestCertificateHandler)).Methods(http.MethodPost)
 	apiRouter.HandleFunc("/certificate/request-with-csr", middleware.WithToken(handler.ApiRequestCertificateWithCSRHandler)).Methods(http.MethodPost)
 	apiRouter.HandleFunc("/certificate/{id}/obtain", middleware.WithToken(handler.ApiObtainCertificateHandler)).Methods(http.MethodGet)
