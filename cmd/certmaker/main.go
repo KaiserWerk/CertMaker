@@ -164,6 +164,7 @@ func setupRoutes(router *mux.Router, ui bool) {
 		certRouter.HandleFunc("/revoke", middleware.WithSession(handler.RevokeCertificateHandler)).Methods(http.MethodGet, http.MethodPost)
 
 		dlRouter := router.PathPrefix("/download").Subrouter()
+		dlRouter.HandleFunc("/root-certificate", middleware.WithSession(handler.RootCertificateDownloadHandler)).Methods(http.MethodGet)
 		dlRouter.HandleFunc("/certificate/{id}", middleware.WithSession(handler.CertificateDownloadHandler)).Methods(http.MethodGet) // TODO implement
 		dlRouter.HandleFunc("/privatekey/{id}", middleware.WithSession(handler.PrivateKeyDownloadHandler)).Methods(http.MethodGet)   // TODO implement
 
@@ -180,7 +181,6 @@ func setupRoutes(router *mux.Router, ui bool) {
 	apiRouter.HandleFunc("/certificate/request-with-csr", middleware.WithToken(handler.ApiRequestCertificateWithCSRHandler)).Methods(http.MethodPost)
 	apiRouter.HandleFunc("/certificate/{id}/obtain", middleware.WithToken(handler.ApiObtainCertificateHandler)).Methods(http.MethodGet)
 	apiRouter.HandleFunc("/privatekey/{id}/obtain", middleware.WithToken(handler.ApiObtainPrivateKeyHandler)).Methods(http.MethodGet)
-	apiRouter.HandleFunc("/challenge/{id}/solve", middleware.WithToken(handler.ApiSolveChallengeHandler)).Methods(http.MethodGet)                 // TODO implement
-	apiRouter.HandleFunc("/challenge-with-csr/{id}/solve", middleware.WithToken(handler.ApiSolveChallengeWithCsrHandler)).Methods(http.MethodGet) // TODO implement
-	apiRouter.HandleFunc("/ocsp/{base64}", handler.ApiOcspRequestHandler).Methods(http.MethodGet, http.MethodPost)                                // TODO implement
+	apiRouter.HandleFunc("/challenge/{id}/solve", middleware.WithToken(handler.ApiSolveChallengeHandler)).Methods(http.MethodGet)
+	apiRouter.HandleFunc("/ocsp/{base64}", handler.ApiOcspRequestHandler).Methods(http.MethodGet, http.MethodPost) // TODO implement
 }

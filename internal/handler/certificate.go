@@ -3,6 +3,7 @@ package handler
 import (
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
 	"github.com/KaiserWerk/CertMaker/internal/certmaker"
 	"github.com/KaiserWerk/CertMaker/internal/dbservice"
 	"github.com/KaiserWerk/CertMaker/internal/entity"
@@ -10,8 +11,11 @@ import (
 	"github.com/KaiserWerk/CertMaker/internal/helper"
 	"github.com/KaiserWerk/CertMaker/internal/logging"
 	"github.com/KaiserWerk/CertMaker/internal/templateservice"
+	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -70,6 +74,32 @@ func CertificateListHandler(w http.ResponseWriter, r *http.Request) {
 	if err := templateservice.ExecuteTemplate(w, "certificate/certificate_list.gohtml", data); err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
+}
+
+func RootCertificateDownloadHandler(w http.ResponseWriter, r *http.Request) {
+	var (
+		logger = logging.GetLogger().WithField("function", "handler.RootCertificateDownloadHandler")
+		config = global.GetConfiguration()
+	)
+
+	certFile := filepath.Join(config.DataDir, global.RootCertificateFilename)
+	fh, err := os.Open(certFile)
+	if err != nil {
+		logger.Errorf("could not open root cert file for reading: %s", err.Error())
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, global.RootCertificateFilename))
+
+	_, err = io.Copy(w, fh)
+	if err != nil {
+		logger.Errorf("could not write root cert contents: %s", err.Error())
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	_ = fh.Close()
 }
 
 // CertificateDownloadHandler downloads a certificate requested via UI
