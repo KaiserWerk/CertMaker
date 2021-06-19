@@ -19,6 +19,8 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 )
 
@@ -518,3 +520,27 @@ func ApiSolveChallengeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func ApiRootCertificateDownloadHandler(w http.ResponseWriter, r *http.Request) {
+	var (
+		logger = logging.GetLogger().WithField("function", "handler.RootCertificateDownloadHandler")
+		config = global.GetConfiguration()
+	)
+
+	certFile := filepath.Join(config.DataDir, global.RootCertificateFilename)
+	fh, err := os.Open(certFile)
+	if err != nil {
+		logger.Errorf("could not open root cert file for reading: %s", err.Error())
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/plain; charset=utf8")
+	_, err = io.Copy(w, fh)
+	if err != nil {
+		logger.Errorf("could not write root cert contents: %s", err.Error())
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	_ = fh.Close()
+}
