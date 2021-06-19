@@ -74,7 +74,11 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		val := r.Context().Value("user")
+		u := val.(entity.User)
+
 		ri := entity.RequestInfo{
+			CreatedFor: u.ID,
 			SimpleRequestBytes: b.Bytes(),
 			Token:              token,
 			Status:             "accepted",
@@ -164,7 +168,11 @@ func ApiRequestCertificateWithCSRHandler(w http.ResponseWriter, r *http.Request)
 			return
 		}
 
+		val := r.Context().Value("user")
+		u := val.(entity.User)
+
 		ri := entity.RequestInfo{
+			CreatedFor: u.ID,
 			CsrBytes: csrBytes,
 			Token:    token,
 			Status:   "accepted",
@@ -336,6 +344,7 @@ func ApiSolveChallengeHandler(w http.ResponseWriter, r *http.Request) {
 		fromCsr            bool
 		certificateRequest entity.SimpleRequest
 		csr                x509.CertificateRequest
+		attemptCount = 0
 	)
 
 	validationPort = r.Header.Get("X-Validation-Port")
@@ -357,6 +366,15 @@ func ApiSolveChallengeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	contextUser := r.Context().Value("user")
+	u := contextUser.(entity.User)
+
+	if ri.CreatedFor != u.ID {
+		logger.Errorf("user tried to to solve challenge from a different user")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
 	if ri.SimpleRequestBytes != nil {
 		err = json.Unmarshal(ri.SimpleRequestBytes, &certificateRequest)
 		if err != nil {
@@ -373,54 +391,13 @@ func ApiSolveChallengeHandler(w http.ResponseWriter, r *http.Request) {
 		fromCsr = true
 	}
 
-	// Domain validation
 	var domains []string
 	if !fromCsr {
 		domains = certificateRequest.Domains
 	} else {
 		domains = csr.DNSNames
 	}
-	for _, domain := range domains {
-		// skip local dns names, like localhost or 127.0.0.1
-		if helper.StringSliceContains(global.DnsNamesToSkip, domain) {
-			continue
-		}
 
-		attempts := []string{
-			fmt.Sprintf("https://%s:%s%s", domain, validationPort, global.WellKnownPath),
-			fmt.Sprintf("http://%s:%s%s", domain, validationPort, global.WellKnownPath),
-		}
-
-		for _, attempt := range attempts {
-			req, err := http.NewRequest(http.MethodGet, attempt, nil)
-			if err != nil {
-				logger.Debugf("could not create request: " + err.Error())
-				continue
-			}
-
-			resp, err := client.Do(req)
-			if err != nil {
-				logger.Debugf("could not execute request for HTTPS attempt: " + err.Error())
-				continue
-			}
-			_, err = io.Copy(&b, resp.Body)
-			if err != nil {
-				logger.Debugf("could not read request body from HTTPS attempt: " + err.Error())
-				continue
-			}
-			_ = resp.Body.Close()
-
-			// TODO check if RI is from correct user
-
-			if b.String() != ri.Token {
-				logger.Debugf("invalid token")
-				w.WriteHeader(http.StatusForbidden)
-				return
-			}
-		}
-	}
-
-	// IP validation
 	ips := make([]string, 0)
 	if !fromCsr {
 		ips = certificateRequest.IPs
@@ -430,9 +407,71 @@ func ApiSolveChallengeHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 	}
+
+	attemptCount = len(domains) + len(ips)
+
+	// Domain validation
+	for _, domain := range domains {
+		attemptSuccessful := false
+		// skip local dns names, like localhost or 127.0.0.1
+		if helper.StringSliceContains(global.DnsNamesToSkip, domain) {
+			attemptCount--
+			continue
+		}
+
+		attempts := []string{
+			fmt.Sprintf("https://%s:%s%s", domain, validationPort, global.WellKnownPath),
+			fmt.Sprintf("http://%s:%s%s", domain, validationPort, global.WellKnownPath),
+		}
+
+		for _, attempt := range attempts {
+			attemptSuccessful = false
+			if attemptSuccessful { // no need to go on if already successful
+				continue
+			}
+
+			req, err := http.NewRequest(http.MethodGet, attempt, nil)
+			if err != nil {
+				logger.Debugf("could not create request: " + err.Error())
+				attemptSuccessful = false
+				continue
+			}
+
+			resp, err := client.Do(req)
+			if err != nil {
+				logger.Debugf("could not execute request for validation attempt: %s", err.Error())
+				attemptSuccessful = false
+				continue
+			}
+			_, err = io.Copy(&b, resp.Body)
+			if err != nil {
+				logger.Debugf("could not read request body from validation attempt: %s", err.Error())
+				attemptSuccessful = false
+				continue
+			}
+			_ = resp.Body.Close()
+
+			if b.String() != ri.Token {
+				logger.Debugf("invalid token")
+				attemptSuccessful = false
+				w.WriteHeader(http.StatusForbidden)
+				return
+			}
+
+			attemptSuccessful = true
+		}
+
+		if attemptSuccessful {
+			attemptCount--
+		}
+	}
+
+	// IP validation
 	for _, ip := range ips {
+		attemptSuccessful := false
 		// skip local dns names, like localhost or 127.0.0.1
 		if helper.StringSliceContains(global.DnsNamesToSkip, ip) {
+			attemptCount--
 			continue
 		}
 
@@ -442,32 +481,52 @@ func ApiSolveChallengeHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		for _, attempt := range attempts {
+			attemptSuccessful = false
+			if attemptSuccessful { // no need to go on if already successful
+				continue
+			}
+
 			req, err := http.NewRequest(http.MethodGet, attempt, nil)
 			if err != nil {
 				logger.Debugf("could not create request: " + err.Error())
+				attemptSuccessful = false
 				continue
 			}
 
 			resp, err := client.Do(req)
 			if err != nil {
-				logger.Debugf("could not execute request for HTTPS attempt: " + err.Error())
+				logger.Debugf("could not execute request for IP validation: " + err.Error())
+				attemptSuccessful = false
 				continue
 			}
 			_, err = io.Copy(&b, resp.Body)
 			if err != nil {
 				logger.Debugf("could not read request body from HTTPS attempt: " + err.Error())
+				attemptSuccessful = false
 				continue
 			}
 			_ = resp.Body.Close()
 
-			// TODO check if RI is from correct user
-
 			if b.String() != ri.Token {
 				logger.Debugf("invalid token")
+				attemptSuccessful = false
 				w.WriteHeader(http.StatusForbidden)
 				return
 			}
+
+			attemptSuccessful = true
 		}
+
+		if attemptSuccessful {
+			attemptCount--
+		}
+	}
+
+
+	if attemptCount > 0 {
+		logger.Debugf("%d validation attempt(s) was/were unsuccessful", attemptCount)
+		w.WriteHeader(http.StatusExpectationFailed)
+		return
 	}
 
 	logger.Debug("successfully validated")
@@ -488,6 +547,7 @@ func ApiSolveChallengeHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+
 
 	userFromContext := r.Context().Value("user")
 	u := userFromContext.(entity.User)
