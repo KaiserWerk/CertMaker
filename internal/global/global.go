@@ -22,6 +22,9 @@ const (
 
 	WellKnownPath      = "/.well-known/certmaker-challenge/token.txt"
 	SolveChallengePath = "/api/challenge/%d/solve"
+
+	RootCertificateFilename = "root-cert.pem"
+	RootPrivateKeyFilename = "root-key.pem"
 )
 
 var (

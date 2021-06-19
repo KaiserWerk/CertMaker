@@ -225,7 +225,8 @@ func ApiObtainCertificateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Disposition", "attachment; filename=\""+id+"-cert.pem\"")
+	//w.Header().Set("Content-Disposition", "attachment; filename=\""+id+"-cert.pem\"")
+	w.Header().Set("Content-Type", "text/plain; charset=utf8")
 	_, err = w.Write(certBytes)
 	if err != nil {
 		logger.Error("could not write cert bytes: " + err.Error())
@@ -247,7 +248,8 @@ func ApiObtainPrivateKeyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Disposition", "attachment; filename=\""+id+"-key.pem\"")
+	//w.Header().Set("Content-Disposition", "attachment; filename=\""+id+"-key.pem\"")
+	w.Header().Set("Content-Type", "text/plain; charset=utf8")
 	_, err = w.Write(keyBytes)
 	if err != nil {
 		logger.Error("could not write private key bytes: " + err.Error())
@@ -516,11 +518,3 @@ func ApiSolveChallengeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func ApiSolveChallengeWithCsrHandler(w http.ResponseWriter, r *http.Request) {
-	//var (
-	//	logger = logging.GetLogger().WithField("function", "handler.ApiSolveChallengeWithCsrHandler")
-	//	ds = dbservice.New()
-	//	vars = mux.Vars(r)
-	//)
-
-}

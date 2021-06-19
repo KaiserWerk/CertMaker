@@ -37,8 +37,8 @@ var (
 func SetupCA() error {
 	config := global.GetConfiguration()
 
-	certFile = filepath.Join(config.DataDir, "root-cert.pem")
-	keyFile = filepath.Join(config.DataDir, "root-key.pem")
+	certFile = filepath.Join(config.DataDir, global.RootCertificateFilename)
+	keyFile = filepath.Join(config.DataDir, global.RootPrivateKeyFilename)
 
 	// check if root certificate exists
 	if !helper.DoesFileExist(certFile) || !helper.DoesFileExist(keyFile) {
@@ -160,7 +160,7 @@ func GenerateRootCertAndKey() error {
 // the root certificate and a private key.
 func GenerateLeafCertAndKey(request entity.SimpleRequest) (int64, error) {
 	config := global.GetConfiguration()
-	caTls, err := tls.LoadX509KeyPair(filepath.Join(config.DataDir, "root-cert.pem"), filepath.Join(config.DataDir, "root-key.pem"))
+	caTls, err := tls.LoadX509KeyPair(filepath.Join(config.DataDir, global.RootCertificateFilename), filepath.Join(config.DataDir, global.RootPrivateKeyFilename))
 	if err != nil {
 		panic(err)
 	}
@@ -267,7 +267,7 @@ func GenerateLeafCertAndKey(request entity.SimpleRequest) (int64, error) {
 func GenerateCertificateByCSR(csr *x509.CertificateRequest) (int64, error) {
 	config := global.GetConfiguration()
 
-	caTls, err := tls.LoadX509KeyPair(filepath.Join(config.DataDir, "root-cert.pem"), filepath.Join(config.DataDir, "root-key.pem"))
+	caTls, err := tls.LoadX509KeyPair(filepath.Join(config.DataDir, global.RootCertificateFilename), filepath.Join(config.DataDir, global.RootCertificateFilename))
 	if err != nil {
 		panic(err)
 	}
