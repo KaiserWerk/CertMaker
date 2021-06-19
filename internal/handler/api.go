@@ -548,10 +548,6 @@ func ApiSolveChallengeHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-
-	userFromContext := r.Context().Value("user")
-	u := userFromContext.(entity.User)
-
 	ci := entity.CertInfo{
 		SerialNumber:   sn,
 		FromCSR:        fromCsr,

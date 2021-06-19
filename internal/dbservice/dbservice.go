@@ -38,7 +38,7 @@ func New() *dbservice {
 		} else if config.Database.Driver == "mssql" {
 			driver = sqlserver.Open(config.Database.DSN)
 		}
-		
+
 		db, err := gorm.Open(driver, &gorm.Config{
 			PrepareStmt: true,
 			NamingStrategy: schema.NamingStrategy{
