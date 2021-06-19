@@ -13,7 +13,8 @@ Perfect for your homelab or self-hosted infrastructure.
 * Adjustable certificate validity (1 - 182 days)
   * Default validity is 7 days
 * Certificates can be created for domains, IP addresses and email addresses
-* Manage your CertMaker instance with a simple web UI (optional)
+* Manage your CertMaker instance with a simple web UI
+* Revoke certificates programmatically (coming [M5](https://github.com/KaiserWerk/CertMaker/milestone/3)) or manually via UI
 
 ### Documentation
 
