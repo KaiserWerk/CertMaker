@@ -11,7 +11,9 @@ the user running the binary.
 
 #### Command line flags
 
-There are a few command line flags you can modify the binary's behaviour with:
+There are a few command line flags you can modify the binary's behaviour with.
+This can be used with either one or two dashes and with or without equal sign between name
+and value.
 
 1. ``./certmaker --config="/some/path/to/configfile.yaml"`` allows you to change the path 
 to the configuration file. Make sure the user has read access.
