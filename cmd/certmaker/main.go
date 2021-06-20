@@ -176,7 +176,7 @@ func setupRoutes(router *mux.Router, ui bool) {
 		adminRouter.HandleFunc("/user/{id}/remove", middleware.WithSession(middleware.RequireAdmin(handler.AdminUserRemoveHandler))).Methods(http.MethodGet, http.MethodPost)
 	}
 
-	apiRouter := router.PathPrefix("/api").Subrouter()
+	apiRouter := router.PathPrefix("/api/v1").Subrouter()
 	apiRouter.HandleFunc("/root-certificate/obtain", middleware.WithToken(handler.ApiRootCertificateDownloadHandler)).Methods(http.MethodGet)
 	apiRouter.HandleFunc("/certificate/request", middleware.WithToken(handler.ApiRequestCertificateHandler)).Methods(http.MethodPost)
 	apiRouter.HandleFunc("/certificate/request-with-csr", middleware.WithToken(handler.ApiRequestCertificateWithCSRHandler)).Methods(http.MethodPost)
