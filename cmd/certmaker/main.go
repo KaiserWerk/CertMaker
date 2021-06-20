@@ -28,10 +28,10 @@ const (
 var (
 	port          = "8880"
 	configFilePtr = flag.String("config", "", "The configuration file to use")
+	logFilePtr    = flag.String("logfile", "certmaker.log", "The path and filename of the log file")
 	portPtr       = flag.String("port", "", "The port to run at")
 	useUiPtr      = flag.Bool("ui", true, "Adds a simple UI for certificate management")
 	debugModePtr  = flag.Bool("debug", false, "Run in debug mode")
-	logFilePtr    = flag.String("logfile", "certmaker.log", "The path and filename of the log file")
 )
 
 func main() {
