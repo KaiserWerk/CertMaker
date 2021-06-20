@@ -206,7 +206,7 @@ func GenerateLeafCertAndKey(request entity.SimpleRequest) (int64, error) {
 		ExtKeyUsage:        []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:           x509.KeyUsageDigitalSignature,
 		SignatureAlgorithm: x509.ECDSAWithSHA256,
-		OCSPServer:         []string{config.ServerHost + "/api/ocsp"}, // TODO implement/fix
+		OCSPServer:         []string{config.ServerHost + global.OcspPath}, // TODO implement/fix
 
 		DNSNames:       request.Domains,
 		IPAddresses:    ips,
@@ -290,7 +290,7 @@ func GenerateCertificateByCSR(csr *x509.CertificateRequest) (int64, error) {
 		ExtKeyUsage:        []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:           x509.KeyUsageDigitalSignature,
 		SignatureAlgorithm: x509.ECDSAWithSHA256,
-		OCSPServer:         []string{config.ServerHost + "/api/ocsp"}, // TODO implement/fix
+		OCSPServer:         []string{config.ServerHost + global.OcspPath}, // TODO implement/fix
 
 		EmailAddresses: csr.EmailAddresses,
 		DNSNames:       csr.DNSNames,
@@ -355,4 +355,35 @@ func FindLeafPrivateKey(sn string) ([]byte, error) {
 	}
 
 	return content, nil
+}
+
+func GetRootCertificate() (*x509.Certificate, error) {
+	var (
+		config = global.GetConfiguration()
+	)
+	certContent, err := ioutil.ReadFile(filepath.Join(config.DataDir, "root-cert.pem"))
+	if err != nil {
+		return nil, err
+	}
+
+	block, _ := pem.Decode(certContent)
+	return x509.ParseCertificate(block.Bytes)
+}
+
+func GetRootKeyPair() (*x509.Certificate, *ecdsa.PrivateKey, error) {
+	var (
+		config = global.GetConfiguration()
+	)
+
+	caFiles, err := tls.LoadX509KeyPair(filepath.Join(config.DataDir, "root-cert.pem"), filepath.Join(config.DataDir, "root-key.pem"))
+	if err != nil {
+		return nil, nil, err
+	}
+	// parse the content
+	cert, err := x509.ParseCertificate(caFiles.Certificate[0])
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return cert, caFiles.PrivateKey.(*ecdsa.PrivateKey), nil
 }

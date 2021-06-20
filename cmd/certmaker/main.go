@@ -183,5 +183,6 @@ func setupRoutes(router *mux.Router, ui bool) {
 	apiRouter.HandleFunc("/certificate/{id}/obtain", middleware.WithToken(handler.ApiObtainCertificateHandler)).Methods(http.MethodGet)
 	apiRouter.HandleFunc("/privatekey/{id}/obtain", middleware.WithToken(handler.ApiObtainPrivateKeyHandler)).Methods(http.MethodGet)
 	apiRouter.HandleFunc("/challenge/{id}/solve", middleware.WithToken(handler.ApiSolveChallengeHandler)).Methods(http.MethodGet)
-	apiRouter.HandleFunc("/ocsp/{base64}", handler.ApiOcspRequestHandler).Methods(http.MethodGet, http.MethodPost) // TODO implement
+	apiRouter.HandleFunc("/ocsp/{base64}", handler.ApiOcspRequestHandler).Methods(http.MethodGet, http.MethodPost)
+	apiRouter.HandleFunc("/ocsp", handler.ApiOcspRequestHandler).Methods(http.MethodGet, http.MethodPost)
 }

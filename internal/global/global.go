@@ -20,6 +20,8 @@ const (
 	PrivateKeyLocationHandler = "X-Privatekey-Location"
 	ChallengeLocationHeader   = "X-Challenge-Location"
 
+	OcspPath = "/api/v1/ocsp"
+
 	WellKnownPath      = "/.well-known/certmaker-challenge/token.txt"
 	SolveChallengePath = "/api/challenge/%d/solve"
 

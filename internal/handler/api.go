@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"crypto"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -22,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 )
 
 // ApiRequestCertificateHandler handles a client's request,
@@ -269,26 +271,25 @@ func ApiObtainPrivateKeyHandler(w http.ResponseWriter, r *http.Request) {
 // ApiOcspRequestHandler responds to OCSP requests with whether the certificate
 // in question is revoked or not
 func ApiOcspRequestHandler(w http.ResponseWriter, r *http.Request) {
-	/*
-		httpReq.Header.Add("Content-Type", "application/ocsp-request")
-					httpReq.Header.Add("Accept", "application/ocsp-response")
-					httpReq.Header.Add("Host", ocspUrl.Host)
-	*/
 	var (
+		err error
+		ds = dbservice.New()
+		config = global.GetConfiguration()
 		logger = logging.GetLogger().WithField("function", "handler.ApiOcspRequestHandler")
 		vars   = mux.Vars(r)
 	)
+
 	if r.Header.Get("Content-Type") != "application/ocsp-request" {
 		logger.Debug("incorrect content type header: " + r.Header.Get("Content-Type"))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	if r.Header.Get("Accept") != "application/ocsp-response" {
-		logger.Debug("incorrect Accept header: " + r.Header.Get("Accept"))
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
+	//if r.Header.Get("Accept") != "application/ocsp-response" {
+	//	logger.Debug("incorrect Accept header: " + r.Header.Get("Accept"))
+	//	w.WriteHeader(http.StatusBadRequest)
+	//	return
+	//}
 
 	//if r.Header.Get("Host") == "" {
 	//	logger.Debug("incorrect Host header: empty")
@@ -296,40 +297,103 @@ func ApiOcspRequestHandler(w http.ResponseWriter, r *http.Request) {
 	//	return
 	//}
 
-	b64 := vars["base64"]
-
 	w.Header().Set("Content-Type", "application/ocsp-response")
 
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		logger.Debug("could not read request body: " + err.Error())
-		w.WriteHeader(http.StatusBadRequest)
-		return
+	b64 := vars["base64"]
+
+	var request []byte
+	switch r.Method {
+	case http.MethodPost:
+		logger.Debug("POST request")
+		request, err = ioutil.ReadAll(r.Body)
+		if err != nil {
+			logger.Debugf("could not read request body: %s", err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		_ = r.Body.Close()
+	case http.MethodGet:
+		logger.Debug("GET request")
+		request, err = base64.StdEncoding.DecodeString(b64)
+		if err != nil {
+			logger.Debugf("could not base64 decode: %s", err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 	}
 
-	logger.Debugf("Request body length: %d", len(reqBody))
-
-	b64dec, err := base64.StdEncoding.DecodeString(b64)
-	if err != nil {
-		logger.Debug("could not decode base64 request variable: " + err.Error())
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	_ = r.Body.Close()
-	ocspReq, err := ocsp.ParseRequest(b64dec)
+	ocspReq, err := ocsp.ParseRequest(request)
 	if err != nil {
 		logger.Debug("could not parse OCSP Request: " + err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	logger.Debug(ocspReq.SerialNumber)
+	status := ocsp.Good
 
-	// hier prüfen, ob das Cert wirklich revoked ist
-	// ...
+	ci, err := ds.FindCertInfo("serial_number = ?", ocspReq.SerialNumber.Int64()) // geht das?
+	if err != nil {
+		logger.Debug("could not find cert info: " + err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 
-	//ocspResp := ocsp.CreateResponse()
+	if ci.Revoked {
+		status = ocsp.Revoked
+	}
+
+	certContent, err := ioutil.ReadFile(filepath.Join(config.DataDir, "leafcerts", fmt.Sprintf("%d-cert.pem", ci.SerialNumber)))
+	if err != nil {
+		logger.Debug("could not read certificate file: " + err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	block, _ := pem.Decode(certContent)
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		logger.Debug("could not parse certificate: " + err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	responseTemplate := ocsp.Response{
+		Status:           status,
+		SerialNumber:     ocspReq.SerialNumber,
+		Certificate:      cert,
+		RevocationReason: ocsp.Unspecified, // TODO change
+		IssuerHash:       crypto.SHA512,
+		RevokedAt:        time.Now(), // TODO set to proper value
+		ThisUpdate:       time.Now().AddDate(0, 0, -1).UTC(),
+		//adding 1 day after the current date. This ocsp library sets the default date to epoch which makes ocsp clients freak out.
+		NextUpdate: time.Now().AddDate(0, 0, 1).UTC(),
+		//Extensions: ocspReq.,
+	}
+
+	rootCert, rootKey, err := certmaker.GetRootKeyPair()
+	if err != nil {
+		logger.Errorf("could not retrieve root certificate: %s", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	//signer, ok := rootKey.(crypto.Signer)
+	//if !ok {
+	//	logger.Error("could not cast key to signer")
+	//	w.WriteHeader(http.StatusInternalServerError)
+	//	return
+	//}
+
+
+	resp, err := ocsp.CreateResponse(rootCert, rootCert, responseTemplate, rootKey)
+	if err != nil {
+		logger.Errorf("could not create and sign OCSP response: %s", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(resp)
 }
 
 func ApiSolveChallengeHandler(w http.ResponseWriter, r *http.Request) {
