@@ -41,6 +41,11 @@
                     <div class="col-md-10"><input type="checkbox" id="admin" name="admin" value="true"{{ if eq .User.Admin true }} checked{{ end }}></div>
                 </div>
 
+                <div class="row" style="margin-top: 20px;margin-bottom: 20px;">
+                    <div class="col-md-2 label-row"><label for="admin">API Token</label></div>
+                    <div class="col-md-10">{{ .User.ApiKey }}</div>
+                </div>
+
                 <button type="submit" class="primary">Save changes</button>
 
             </form>
