@@ -155,8 +155,8 @@ func ApiRequestCertificateWithCSRHandler(w http.ResponseWriter, r *http.Request)
 
 	csr, err := x509.ParseCertificateRequest(p.Bytes)
 	if err != nil {
-		logger.Debugf("could not parse certificate singing request: %s", err.Error())
-		http.Error(w, "malformed certificate singing request", http.StatusBadRequest)
+		logger.Debugf("could not parse certificate signing request: %s", err.Error())
+		http.Error(w, "malformed certificate signing request", http.StatusBadRequest)
 		return
 	}
 
@@ -586,7 +586,7 @@ func ApiRootCertificateDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	fh, err := os.Open(certFile)
 	if err != nil {
 		logger.Errorf("could not open root cert file for reading: %s", err.Error())
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
@@ -594,7 +594,7 @@ func ApiRootCertificateDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	_, err = io.Copy(w, fh)
 	if err != nil {
 		logger.Errorf("could not write root cert contents: %s", err.Error())
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
