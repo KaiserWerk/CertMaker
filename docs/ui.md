@@ -43,7 +43,7 @@ Multiple values for domains, IPs and emails should be separated by a comma.
 ![certificate add normal mode](images/scr_certificate_add_from_csr.png)
 
 If you already have a private key, you can create a 
-[Certificate Singing Request](https://en.wikipedia.org/wiki/Certificate_signing_request) and 
+[Certificate Signing Request](https://en.wikipedia.org/wiki/Certificate_signing_request) and 
 upload it here to create a new certificate (but no private key) from it.
 
 ### System Settings
