@@ -77,26 +77,6 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 				logger.Error(err.Error())
 			}
 
-			certificateRevocationOnlyByRequester := "false"
-			if r.FormValue("certificate_revocation_only_by_requester") == "true" {
-				certificateRevocationOnlyByRequester = "true"
-			}
-			err = ds.SetSetting("certificate_revocation_only_by_requester", certificateRevocationOnlyByRequester)
-			if err != nil {
-				errors++
-				logger.Error(err.Error())
-			}
-
-			certificateRevocationRequireReasonphrase := "false"
-			if r.FormValue("certificate_revocation_require_reasonphrase") == "true" {
-				certificateRevocationRequireReasonphrase = "true"
-			}
-			err = ds.SetSetting("certificate_revocation_require_reasonphrase", certificateRevocationRequireReasonphrase)
-			if err != nil {
-				errors++
-				logger.Error(err.Error())
-			}
-
 			certificateRequestSimpleMode := "false"
 			if r.FormValue("certificate_request_simple_mode") == "true" {
 				certificateRequestSimpleMode = "true"
