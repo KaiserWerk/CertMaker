@@ -27,6 +27,8 @@ const (
 
 	RootCertificateFilename = "root-cert.pem"
 	RootPrivateKeyFilename = "root-key.pem"
+
+	PemContentType = "application/x-pem-file"
 )
 
 var (

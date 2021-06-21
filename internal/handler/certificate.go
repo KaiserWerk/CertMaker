@@ -11,6 +11,7 @@ import (
 	"github.com/KaiserWerk/CertMaker/internal/helper"
 	"github.com/KaiserWerk/CertMaker/internal/logging"
 	"github.com/KaiserWerk/CertMaker/internal/templateservice"
+	"github.com/gorilla/mux"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -104,12 +105,60 @@ func RootCertificateDownloadHandler(w http.ResponseWriter, r *http.Request) {
 
 // CertificateDownloadHandler downloads a certificate requested via UI
 func CertificateDownloadHandler(w http.ResponseWriter, r *http.Request) {
+	var (
+		logger = logging.GetLogger().WithField("function", "handler.CertificateDownloadHandler")
+		config = global.GetConfiguration()
+		ds = dbservice.New()
+		vars = mux.Vars(r)
+	)
 
+	ci, err := ds.FindCertInfo("id = ?", vars["id"])
+	if err != nil {
+		logger.Debug("could not find cert info: " + err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	filename := fmt.Sprintf("%d-cert.pem", ci.SerialNumber)
+	certContent, err := ioutil.ReadFile(filepath.Join(config.DataDir, "leafcerts", filename))
+	if err != nil {
+		logger.Debug("could not read certificate file: " + err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", global.PemContentType)
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	w.Write(certContent)
 }
 
 // PrivateKeyDownloadHandler downloads a private key requested via UI
 func PrivateKeyDownloadHandler(w http.ResponseWriter, r *http.Request) {
+	var (
+		logger = logging.GetLogger().WithField("function", "handler.PrivateKeyDownloadHandler")
+		config = global.GetConfiguration()
+		ds = dbservice.New()
+		vars = mux.Vars(r)
+	)
 
+	ci, err := ds.FindCertInfo("id = ?", vars["id"])
+	if err != nil {
+		logger.Debug("could not find cert info: " + err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	filename := fmt.Sprintf("%d-key.pem", ci.SerialNumber)
+	certContent, err := ioutil.ReadFile(filepath.Join(config.DataDir, "leafcerts", filename))
+	if err != nil {
+		logger.Debug("could not read key file: " + err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", global.PemContentType)
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	w.Write(certContent)
 }
 
 // CertificateAddHandler allows to add a new certificate + private key via UI

@@ -16,9 +16,9 @@
         <tr>
             <td>{{ .ID }}</td>
             <td>{{ .SerialNumber }}</td>
-            <td><a href="/download/certificate/{{ .ID }}" target="_blank">Download</a></td>
-            <td>{{ if eq .FromCSR false }}<a href="/download/privatekey/{{ .ID }}" target="_blank">Download</a>{{ end }}</td>
-            <td><a href="/certificate/{{ .ID }}/revoke" target="_blank">Revoke</a></td>
+            <td><a href="/certificate/{{ .ID }}/download">Download</a></td>
+            <td>{{ if eq .FromCSR false }}<a href="/privatekey/{{ .ID }}/download">Download</a>{{ end }}</td>
+            <td><a href="/certificate/{{ .ID }}/revoke">Revoke</a></td>
         </tr>
         {{ else }}
         <tr>
