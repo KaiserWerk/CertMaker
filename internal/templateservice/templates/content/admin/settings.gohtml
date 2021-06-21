@@ -63,16 +63,6 @@
                     <input type="checkbox" id="certificate_revocation_allow" name="certificate_revocation_allow" value="true"{{if eq $certificate_revocation_allow "true"}} checked{{end}}>
                     <label for="certificate_revocation_allow">Allow revocation of certificates</label><br>
 
-                    {{ $certificate_revocation_only_by_requester := index .AdminSettings "certificate_revocation_only_by_requester" }}
-                    <input type="checkbox" id="certificate_revocation_only_by_requester" name="certificate_revocation_only_by_requester" value="true"
-                           style="margin-left: 20px;"{{if eq $certificate_revocation_only_by_requester "true"}} checked{{end}}>
-                    <label for="certificate_revocation_only_by_requester">Allow only by original requester</label><br>
-
-                    {{ $certificate_revocation_require_reasonphrase := index .AdminSettings "certificate_revocation_require_reasonphrase" }}
-                    <input type="checkbox" id="certificate_revocation_require_reasonphrase" name="certificate_revocation_require_reasonphrase" value="true"
-                           style="margin-left: 20px;"{{if eq $certificate_revocation_require_reasonphrase "true"}} checked{{end}}>
-                    <label for="certificate_revocation_require_reasonphrase">Require a reason phrase</label><br>
-
                     <br>
 
                     {{ $certificate_request_simple_mode := index .AdminSettings "certificate_request_simple_mode" }}
