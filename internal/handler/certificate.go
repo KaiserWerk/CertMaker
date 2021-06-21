@@ -2,6 +2,7 @@ package handler
 
 import (
 	"crypto/x509"
+	"database/sql"
 	"encoding/pem"
 	"fmt"
 	"github.com/KaiserWerk/CertMaker/internal/certmaker"
@@ -19,14 +20,13 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // CertificateListHandler lists all available certificates and
 // private keys in the UI
 func CertificateListHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		//config = global.GetConfiguration()
-		//files  []string
 		logger = logging.GetLogger().WithField("function", "handler.CertificateListHandler")
 		ds     = dbservice.New()
 	)
@@ -51,20 +51,6 @@ func CertificateListHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		targetCertInfos = ci
 	}
-
-	//err := filepath.Walk(config.DataDir+"/leafcerts", helper.Visit(&files))
-	//if err != nil {
-	//	logger.Error("could not read files: " + err.Error())
-	//	w.WriteHeader(http.StatusInternalServerError)
-	//	return
-	//}
-
-	//var certs []string
-	//for _, file := range files {
-	//	p := strings.Split(file, "\\")
-	//	parts := strings.Split(p[len(p)-1], "-")
-	//	certs = append(certs, parts[0])
-	//}
 
 	data := struct {
 		CertInfos []entity.CertInfo
@@ -108,14 +94,21 @@ func CertificateDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		logger = logging.GetLogger().WithField("function", "handler.CertificateDownloadHandler")
 		config = global.GetConfiguration()
-		ds = dbservice.New()
-		vars = mux.Vars(r)
+		ds     = dbservice.New()
+		vars   = mux.Vars(r)
+		u      = r.Context().Value("user").(entity.User)
 	)
 
 	ci, err := ds.FindCertInfo("id = ?", vars["id"])
 	if err != nil {
 		logger.Debug("could not find cert info: " + err.Error())
 		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if ci.CreatedForUser != u.ID && !u.Admin {
+		logger.Error("This is not your private key")
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 
@@ -137,14 +130,21 @@ func PrivateKeyDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		logger = logging.GetLogger().WithField("function", "handler.PrivateKeyDownloadHandler")
 		config = global.GetConfiguration()
-		ds = dbservice.New()
-		vars = mux.Vars(r)
+		ds     = dbservice.New()
+		vars   = mux.Vars(r)
+		u      = r.Context().Value("user").(entity.User)
 	)
 
 	ci, err := ds.FindCertInfo("id = ?", vars["id"])
 	if err != nil {
 		logger.Debug("could not find cert info: " + err.Error())
 		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if ci.CreatedForUser != u.ID && !u.Admin {
+		logger.Error("This is not your private key")
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 
@@ -251,7 +251,6 @@ func CertificateAddHandler(w http.ResponseWriter, r *http.Request) {
 			FromCSR:        false,
 			CreatedForUser: u.ID,
 			Revoked:        false,
-			RevokedBecause: "",
 		}
 		err = ds.AddCertInfo(&ci)
 		if err != nil {
@@ -344,5 +343,35 @@ func AddCertificateFromCSRHandler(w http.ResponseWriter, r *http.Request) {
 
 // RevokeCertificateHandler allows the revocation of a certificate via the UI
 func RevokeCertificateHandler(w http.ResponseWriter, r *http.Request) {
+	var (
+		logger = logging.GetLogger().WithField("function", "handler.RevokeCertificateHandler")
+		ds     = dbservice.New()
+		vars   = mux.Vars(r)
+		u      = r.Context().Value("user").(entity.User)
+	)
 
+	ci, err := ds.FindCertInfo("id = ?", vars["id"])
+	if err != nil {
+		logger.Debug("could not find cert info: " + err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if ci.CreatedForUser != u.ID && !u.Admin {
+		logger.Error("This is not your private key")
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	ci.Revoked = true
+	ci.RevokedAt = sql.NullTime{Time: time.Now(), Valid: true}
+
+	err = ds.UpdateCertInfo(&ci)
+	if err != nil {
+		logger.Errorf("could not update CertInfo entry")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/certificate/list", http.StatusSeeOther)
 }

@@ -8,6 +8,7 @@
             <th>Serial Number</th>
             <th>Certificate</th>
             <th>Private Key</th>
+            <th>Status</th>
             <th>Action</th>
         </tr>
         </thead>
@@ -18,7 +19,12 @@
             <td>{{ .SerialNumber }}</td>
             <td><a href="/certificate/{{ .ID }}/download">Download</a></td>
             <td>{{ if eq .FromCSR false }}<a href="/privatekey/{{ .ID }}/download">Download</a>{{ end }}</td>
-            <td><a href="/certificate/{{ .ID }}/revoke">Revoke</a></td>
+            <td>{{ if eq .Revoked true }}<span title="{{ .RevokedAt }}">Revoked</span>{{ else }}Good{{ end }}</td>
+            <td>
+                {{ if eq .Revoked false }}
+                <a href="/certificate/{{ .ID }}/revoke" onclick="return confirm('Really revoke certificate with S/N {{ .SerialNumber }}');">Revoke</a>
+                {{ end }}
+            </td>
         </tr>
         {{ else }}
         <tr>
