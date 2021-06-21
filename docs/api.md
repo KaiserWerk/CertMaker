@@ -14,7 +14,7 @@ in case a user account corresponding to the supplied API token cannot be found.
 
 ### ``GET /root-certificate/obtain`` 
 returns a ``200 OK``. The response body contains the root 
-certificate with content type ``text/plain; charset=utf8``.
+certificate with content type ``application/x-pem-file``.
 
 ### ``POST /certificate/request`` 
 returns a ``200 OK`` and the ``X-Certificate-Location`` and

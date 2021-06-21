@@ -92,7 +92,7 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		w.Header().Set("Content-Type", "text/plain; charset=utf8")
+		w.Header().Set("Content-Type", "text/plain")
 		w.Header().Set(global.ChallengeLocationHeader, fmt.Sprintf(config.ServerHost+global.SolveChallengePath, ri.ID))
 		w.WriteHeader(http.StatusAccepted)
 		_, _ = io.WriteString(w, token)
@@ -187,7 +187,7 @@ func ApiRequestCertificateWithCSRHandler(w http.ResponseWriter, r *http.Request)
 		}
 
 
-		w.Header().Set("Content-Type", "text/plain; charset=utf8")
+		w.Header().Set("Content-Type", "text/plain")
 		w.Header().Set(global.ChallengeLocationHeader, fmt.Sprintf(config.ServerHost+global.SolveChallengePath, ri.ID))
 		w.WriteHeader(http.StatusAccepted)
 		fmt.Fprint(w, token)
@@ -238,7 +238,7 @@ func ApiObtainCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//w.Header().Set("Content-Disposition", "attachment; filename=\""+id+"-cert.pem\"")
-	w.Header().Set("Content-Type", "text/plain; charset=utf8")
+	w.Header().Set("Content-Type", global.PemContentType)
 	_, err = w.Write(certBytes)
 	if err != nil {
 		logger.Error("could not write cert bytes: " + err.Error())
@@ -261,7 +261,7 @@ func ApiObtainPrivateKeyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//w.Header().Set("Content-Disposition", "attachment; filename=\""+id+"-key.pem\"")
-	w.Header().Set("Content-Type", "text/plain; charset=utf8")
+	w.Header().Set("Content-Type", global.PemContentType)
 	_, err = w.Write(keyBytes)
 	if err != nil {
 		logger.Error("could not write private key bytes: " + err.Error())
@@ -362,9 +362,9 @@ func ApiOcspRequestHandler(w http.ResponseWriter, r *http.Request) {
 		Status:           status,
 		SerialNumber:     ocspReq.SerialNumber,
 		Certificate:      cert,
-		RevocationReason: ocsp.Unspecified, // TODO change
+		RevocationReason: ocsp.Unspecified,
 		IssuerHash:       crypto.SHA512,
-		RevokedAt:        time.Now(), // TODO set to proper value
+		RevokedAt:        time.Time{},
 		ThisUpdate:       time.Now().AddDate(0, 0, -1).UTC(),
 		//adding 1 day after the current date. This ocsp library sets the default date to epoch which makes ocsp clients freak out.
 		NextUpdate: time.Now().AddDate(0, 0, 1).UTC(),
@@ -654,7 +654,7 @@ func ApiRootCertificateDownloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/plain; charset=utf8")
+	w.Header().Set("Content-Type", global.PemContentType)
 	_, err = io.Copy(w, fh)
 	if err != nil {
 		logger.Errorf("could not write root cert contents: %s", err.Error())
