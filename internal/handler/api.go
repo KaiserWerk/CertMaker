@@ -28,7 +28,7 @@ import (
 
 // ApiRequestCertificateHandler handles a client's request,
 // generates a new certificate and private key for the client and sets appropriate
-// location headers
+// location headers or creates a challenge
 func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		ds          = dbservice.New()
@@ -80,7 +80,7 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 		u := val.(entity.User)
 
 		ri := entity.RequestInfo{
-			CreatedFor: u.ID,
+			CreatedFor:         u.ID,
 			SimpleRequestBytes: b.Bytes(),
 			Token:              token,
 			Status:             "accepted",
@@ -115,7 +115,6 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 		FromCSR:        false,
 		CreatedForUser: u.ID,
 		Revoked:        false,
-		RevokedBecause: "",
 	}
 
 	if err = ds.AddCertInfo(&ci); err != nil {
@@ -130,6 +129,7 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 
 // ApiRequestCertificateWithCSRHandler handles a client's request for a new certificate,
 // generates a new certificate for the client and sets appropriate location headers
+// or creates a challenge
 func ApiRequestCertificateWithCSRHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		logger = logging.GetLogger().WithField("function", "handler.ApiRequestCertificateWithCSRHandler")
@@ -175,9 +175,9 @@ func ApiRequestCertificateWithCSRHandler(w http.ResponseWriter, r *http.Request)
 
 		ri := entity.RequestInfo{
 			CreatedFor: u.ID,
-			CsrBytes: csrBytes,
-			Token:    token,
-			Status:   "accepted",
+			CsrBytes:   csrBytes,
+			Token:      token,
+			Status:     "accepted",
 		}
 
 		if err = ds.AddRequestInfo(&ri); err != nil {
@@ -185,7 +185,6 @@ func ApiRequestCertificateWithCSRHandler(w http.ResponseWriter, r *http.Request)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-
 
 		w.Header().Set("Content-Type", "text/plain")
 		w.Header().Set(global.ChallengeLocationHeader, fmt.Sprintf(config.ServerHost+global.SolveChallengePath, ri.ID))
@@ -210,7 +209,6 @@ func ApiRequestCertificateWithCSRHandler(w http.ResponseWriter, r *http.Request)
 		FromCSR:        true,
 		CreatedForUser: u.ID,
 		Revoked:        false,
-		RevokedBecause: "",
 	}
 	err = ds.AddCertInfo(&ci)
 	if err != nil {
@@ -272,8 +270,8 @@ func ApiObtainPrivateKeyHandler(w http.ResponseWriter, r *http.Request) {
 // in question is revoked or not
 func ApiOcspRequestHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		err error
-		ds = dbservice.New()
+		err    error
+		ds     = dbservice.New()
 		config = global.GetConfiguration()
 		logger = logging.GetLogger().WithField("function", "handler.ApiOcspRequestHandler")
 		vars   = mux.Vars(r)
@@ -330,7 +328,6 @@ func ApiOcspRequestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	status := ocsp.Good
-
 	ci, err := ds.FindCertInfo("serial_number = ?", ocspReq.SerialNumber.Int64()) // geht das?
 	if err != nil {
 		logger.Debug("could not find cert info: " + err.Error())
@@ -350,7 +347,6 @@ func ApiOcspRequestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	block, _ := pem.Decode(certContent)
-
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
 		logger.Debug("could not parse certificate: " + err.Error())
@@ -358,17 +354,21 @@ func ApiOcspRequestHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	revokedAt := time.Now()
+	if ci.Revoked && ci.RevokedAt.Valid {
+		revokedAt = ci.RevokedAt.Time
+	}
 	responseTemplate := ocsp.Response{
 		Status:           status,
 		SerialNumber:     ocspReq.SerialNumber,
 		Certificate:      cert,
 		RevocationReason: ocsp.Unspecified,
 		IssuerHash:       crypto.SHA512,
-		RevokedAt:        time.Time{},
+		RevokedAt:        revokedAt,
 		ThisUpdate:       time.Now().AddDate(0, 0, -1).UTC(),
 		//adding 1 day after the current date. This ocsp library sets the default date to epoch which makes ocsp clients freak out.
 		NextUpdate: time.Now().AddDate(0, 0, 1).UTC(),
-		//Extensions: ocspReq.,
+		//Extensions: ,
 	}
 
 	rootCert, rootKey, err := certmaker.GetRootKeyPair()
@@ -377,14 +377,6 @@ func ApiOcspRequestHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
-	//signer, ok := rootKey.(crypto.Signer)
-	//if !ok {
-	//	logger.Error("could not cast key to signer")
-	//	w.WriteHeader(http.StatusInternalServerError)
-	//	return
-	//}
-
 
 	resp, err := ocsp.CreateResponse(rootCert, rootCert, responseTemplate, rootKey)
 	if err != nil {
@@ -396,6 +388,7 @@ func ApiOcspRequestHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(resp)
 }
 
+// ApiSolveChallengeHandler handles solving the challenges created for certificate request
 func ApiSolveChallengeHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		logger             = logging.GetLogger().WithField("function", "handler.ApiSolveChallengeHandler")
@@ -408,7 +401,7 @@ func ApiSolveChallengeHandler(w http.ResponseWriter, r *http.Request) {
 		fromCsr            bool
 		certificateRequest entity.SimpleRequest
 		csr                x509.CertificateRequest
-		attemptCount = 0
+		attemptCount       = 0
 	)
 
 	validationPort = r.Header.Get("X-Validation-Port")
@@ -586,7 +579,6 @@ func ApiSolveChallengeHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-
 	if attemptCount > 0 {
 		logger.Debugf("%d validation attempt(s) was/were unsuccessful", attemptCount)
 		w.WriteHeader(http.StatusExpectationFailed)
@@ -617,7 +609,6 @@ func ApiSolveChallengeHandler(w http.ResponseWriter, r *http.Request) {
 		FromCSR:        fromCsr,
 		CreatedForUser: u.ID,
 		Revoked:        false,
-		RevokedBecause: "",
 	}
 
 	if err = ds.AddCertInfo(&ci); err != nil {
@@ -640,9 +631,10 @@ func ApiSolveChallengeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ApiRootCertificateDownloadHandler allows to programmatically obtain the root certificate
 func ApiRootCertificateDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		logger = logging.GetLogger().WithField("function", "handler.RootCertificateDownloadHandler")
+		logger = logging.GetLogger().WithField("function", "handler.ApiRootCertificateDownloadHandler")
 		config = global.GetConfiguration()
 	)
 

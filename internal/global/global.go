@@ -26,7 +26,7 @@ const (
 	SolveChallengePath = "/api/challenge/%d/solve"
 
 	RootCertificateFilename = "root-cert.pem"
-	RootPrivateKeyFilename = "root-key.pem"
+	RootPrivateKeyFilename  = "root-key.pem"
 
 	PemContentType = "application/x-pem-file"
 )

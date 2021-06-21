@@ -37,3 +37,8 @@ func (ds *dbservice) FindCertInfo(cond string, args ...interface{}) (entity.Cert
 
 	return ci, nil
 }
+
+func (ds *dbservice) UpdateCertInfo(ci *entity.CertInfo) error {
+	res := ds.db.Save(ci)
+	return res.Error
+}

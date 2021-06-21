@@ -165,7 +165,7 @@ func setupRoutes(router *mux.Router, ui bool) {
 		certRouter.HandleFunc("/{id}/download", middleware.WithSession(handler.CertificateDownloadHandler)).Methods(http.MethodGet)
 
 		router.HandleFunc("/root-certificate/download", middleware.WithSession(handler.RootCertificateDownloadHandler)).Methods(http.MethodGet)
-		router.HandleFunc("/privatekey/{id}/download", middleware.WithSession(handler.PrivateKeyDownloadHandler)).Methods(http.MethodGet)   // TODO implement
+		router.HandleFunc("/privatekey/{id}/download", middleware.WithSession(handler.PrivateKeyDownloadHandler)).Methods(http.MethodGet) // TODO implement
 
 		adminRouter := router.PathPrefix("/admin").Subrouter()
 		adminRouter.HandleFunc("/settings", middleware.WithSession(middleware.RequireAdmin(handler.AdminSettingsHandler))).Methods(http.MethodGet, http.MethodPost)
