@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/x509"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
@@ -35,6 +36,7 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 		config      = global.GetConfiguration()
 		logger      = logging.GetLogger().WithField("function", "handler.ApiRequestCertificateHandler")
 		certRequest entity.SimpleRequest
+		u = r.Context().Value("user").(entity.User)
 	)
 
 	simpleMode := ds.GetSetting("certificate_request_simple_mode")
@@ -106,9 +108,6 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
-	userFromContext := r.Context().Value("user")
-	u := userFromContext.(entity.User)
 
 	ci := entity.CertInfo{
 		SerialNumber:   sn,
@@ -655,4 +654,42 @@ func ApiRootCertificateDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_ = fh.Close()
+}
+
+func ApiRevokeCertificateHandler(w http.ResponseWriter, r *http.Request) {
+	var (
+		logger = logging.GetLogger().WithField("function", "handler.ApiRevokeCertificateHandler")
+		ds = dbservice.New()
+		u = r.Context().Value("user").(entity.User)
+		vars = mux.Vars(r)
+	)
+
+	ci, err := ds.FindCertInfo("serial_number = ?", vars["sn"])
+	if err != nil {
+		logger.Debugf("could not find certinfo: %s", err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if ci.CreatedForUser != u.ID && !u.Admin {
+		logger.Debugf("this is not your certificate")
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	if ci.Revoked {
+		logger.Debugf("certificate is already revoked")
+		w.WriteHeader(http.StatusGone)
+		return
+	}
+
+	ci.Revoked = true
+	ci.RevokedAt = sql.NullTime{Time: time.Now(), Valid: true}
+
+	err = ds.UpdateCertInfo(&ci)
+	if err != nil {
+		logger.Debugf("could not update certinfo: %s", err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 }
