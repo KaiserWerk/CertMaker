@@ -14,7 +14,7 @@ Perfect for your homelab or self-hosted infrastructure.
   * Default validity is 7 days
 * Certificates can be created for domains, IP addresses and email addresses
 * Manage your CertMaker instance with a simple web UI
-* Revoke certificates programmatically or manually via UI (coming [M5](https://github.com/KaiserWerk/CertMaker/milestone/3))
+* Revoke certificates programmatically or manually via UI
 
 ### Documentation
 
@@ -25,10 +25,12 @@ Perfect for your homelab or self-hosted infrastructure.
 * [Security](docs/security.md)
 
 ### Tools
-* [CertMaker Bot](https://github.com/KaiserWerk/CertMaker-Bot)
+* [CertMaker Bot](https://github.com/KaiserWerk/CertMaker-Bot) (Work in progress)
 
-  A simple tool to automate the certificate fetching stuff for apps which cannot handle that themselves.
-* [Go SDK](https://github.com/KaiserWerk/CertMaker-Go-SDK)
+  A simple tool to automate the certificate fetching stuff for apps which cannot handle that themselves,
+  like Nginx, Apache or Lighttpd.
+* [Go SDK](https://github.com/KaiserWerk/CertMaker-Go-SDK) (Work in progress)
   
-  The Golang software development kit for *CertMaker*. It allows you to build custom apps for your specific certificate needs.
+  The Golang software development kit for *CertMaker*. It allows you to build custom apps for your specific 
+  certificate needs without having to use the REST API directly.
 
