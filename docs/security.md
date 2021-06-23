@@ -33,5 +33,5 @@ disabled by default.
 *CertMaker* currently uses ECDSA for private key generation. That goes for the root private key 
 as well.
 
-I consider adding a system setting so you can switch the algorith via web UI, possible 
-algorithms will be RSA, ECDSA and ED25519.
+I consider adding a system setting so you can switch the algorithm via web UI, possible 
+algorithms would be RSA, ECDSA and ED25519.
