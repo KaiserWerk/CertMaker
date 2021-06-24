@@ -36,7 +36,7 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 		config      = global.GetConfiguration()
 		logger      = logging.GetLogger().WithField("function", "handler.ApiRequestCertificateHandler")
 		certRequest entity.SimpleRequest
-		u = r.Context().Value("user").(entity.User)
+		u           = r.Context().Value("user").(entity.User)
 	)
 
 	simpleMode := ds.GetSetting("certificate_request_simple_mode")
@@ -122,8 +122,8 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Add(global.CertificateLocationHeader, fmt.Sprintf("%s/api/certificate/%d/obtain", config.ServerHost, sn))
-	w.Header().Add(global.PrivateKeyLocationHandler, fmt.Sprintf("%s/api/privatekey/%d/obtain", config.ServerHost, sn))
+	w.Header().Add(global.CertificateLocationHeader, fmt.Sprintf(config.ServerHost+global.CertificateObtainPath, sn))
+	w.Header().Add(global.PrivateKeyLocationHandler, fmt.Sprintf(config.ServerHost+global.PrivateKeyObtainPath, sn))
 }
 
 // ApiRequestCertificateWithCSRHandler handles a client's request for a new certificate,
@@ -216,7 +216,7 @@ func ApiRequestCertificateWithCSRHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	w.Header().Add(global.CertificateLocationHeader, fmt.Sprintf("%s/api/certificate/%d/obtain", config.ServerHost, sn))
+	w.Header().Add(global.CertificateLocationHeader, fmt.Sprintf(config.ServerHost+global.CertificateObtainPath, sn))
 }
 
 // ApiObtainCertificateHandler allows to actually download a certificate
@@ -624,9 +624,9 @@ func ApiSolveChallengeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Add(global.CertificateLocationHeader, fmt.Sprintf("%s/api/certificate/%d/obtain", config.ServerHost, sn))
+	w.Header().Add(global.CertificateLocationHeader, fmt.Sprintf(config.ServerHost+global.CertificateObtainPath, sn))
 	if !fromCsr {
-		w.Header().Add(global.PrivateKeyLocationHandler, fmt.Sprintf("%s/api/privatekey/%d/obtain", config.ServerHost, sn))
+		w.Header().Add(global.PrivateKeyLocationHandler, fmt.Sprintf(config.ServerHost+global.PrivateKeyObtainPath, sn))
 	}
 }
 
@@ -659,9 +659,9 @@ func ApiRootCertificateDownloadHandler(w http.ResponseWriter, r *http.Request) {
 func ApiRevokeCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		logger = logging.GetLogger().WithField("function", "handler.ApiRevokeCertificateHandler")
-		ds = dbservice.New()
-		u = r.Context().Value("user").(entity.User)
-		vars = mux.Vars(r)
+		ds     = dbservice.New()
+		u      = r.Context().Value("user").(entity.User)
+		vars   = mux.Vars(r)
 	)
 
 	ci, err := ds.FindCertInfo("serial_number = ?", vars["sn"])

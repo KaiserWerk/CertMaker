@@ -20,10 +20,18 @@ const (
 	PrivateKeyLocationHandler = "X-Privatekey-Location"
 	ChallengeLocationHeader   = "X-Challenge-Location"
 
-	OcspPath = "/api/v1/ocsp"
+	ApiPrefix = "/api/v1"
 
-	WellKnownPath      = "/.well-known/certmaker-challenge/token.txt"
-	SolveChallengePath = "/api/challenge/%d/solve"
+	OcspPath                      = ApiPrefix + "/ocsp"
+	RootCertificateObtainPath     = ApiPrefix + "/root-certificate/obtain"
+	CertificateRequestPath        = ApiPrefix + "/certificate/request"
+	CertificateRequestWithCSRPath = ApiPrefix + "/certificate/request-with-csr"
+	CertificateObtainPath         = ApiPrefix + "/certificate/%d/obtain"
+	PrivateKeyObtainPath          = ApiPrefix + "/privatekey/%d/obtain"
+	SolveChallengePath            = ApiPrefix + "/challenge/%d/solve"
+	CertificateRevokePath         = ApiPrefix + "/certificate/%d/revoke"
+
+	WellKnownPath = "/.well-known/certmaker-challenge/token.txt"
 
 	RootCertificateFilename = "root-cert.pem"
 	RootPrivateKeyFilename  = "root-key.pem"
