@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 )
 
@@ -54,7 +55,7 @@ func main() {
 		baseLogger.SetOutput(io.MultiWriter(os.Stdout, logHandle))
 		baseLogger.SetLevel(log.InfoLevel)
 	}
-	logger := baseLogger.WithFields(log.Fields{"application": "certmaker", "server": "appsrv.lan", "version": Version}) // TODO make server configurable
+	logger := baseLogger.WithFields(log.Fields{"application": "certmaker", "version": Version}) // TODO make server configurable
 	logging.SetLogger(logger)
 
 	if *portPtr != "" {
@@ -75,7 +76,8 @@ func main() {
 		logger.Debugf("The configuration file was not found so it was created.\nStop execution? (y,n) ")
 		var answer string
 		_, _ = fmt.Scanln(&answer)
-		if answer == "y" {
+		answer = strings.ToLower(answer)
+		if answer == "y" || answer == "yes" {
 			logger.Debug("Okay, stopped.")
 			os.Exit(0)
 		}
