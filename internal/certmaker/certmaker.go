@@ -24,9 +24,7 @@ import (
 )
 
 var (
-	rootMutex sync.RWMutex
-	leafMutex sync.RWMutex
-	snMutex   sync.RWMutex
+	snMutex   sync.Mutex
 	certFile  string
 	keyFile   string
 )
@@ -69,7 +67,7 @@ func GetNextSerialNumber() (int64, error) {
 	snMutex.Lock()
 	defer snMutex.Unlock()
 
-	file := fmt.Sprintf("%s/sn.txt", config.DataDir)
+	file := filepath.Join(config.DataDir, "sn.txt")
 	cont, err := ioutil.ReadFile(file)
 	if err != nil {
 		return 0, err

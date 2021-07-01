@@ -346,6 +346,11 @@ func ApiOcspRequestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	block, _ := pem.Decode(certContent)
+	if block == nil {
+		logger.Debug("could not decode PEM block")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
 		logger.Debug("could not parse certificate: " + err.Error())
@@ -358,16 +363,16 @@ func ApiOcspRequestHandler(w http.ResponseWriter, r *http.Request) {
 		revokedAt = ci.RevokedAt.Time
 	}
 	responseTemplate := ocsp.Response{
-		Status:           status,
-		SerialNumber:     ocspReq.SerialNumber,
-		Certificate:      cert,
-		RevocationReason: ocsp.Unspecified,
-		IssuerHash:       crypto.SHA512,
-		RevokedAt:        revokedAt,
-		ThisUpdate:       time.Now().AddDate(0, 0, -1).UTC(),
+		Status:       status,
+		SerialNumber: ocspReq.SerialNumber,
+		ThisUpdate:   time.Now().AddDate(0, 0, -1).UTC(),
 		//adding 1 day after the current date. This ocsp library sets the default date to epoch which makes ocsp clients freak out.
-		NextUpdate: time.Now().AddDate(0, 0, 1).UTC(),
-		//Extensions: ,
+		NextUpdate:         time.Now().AddDate(0, 0, 1).UTC(),
+		RevokedAt:          revokedAt,
+		RevocationReason:   ocsp.Unspecified,
+		Certificate:        cert,
+		SignatureAlgorithm: x509.ECDSAWithSHA256,
+		IssuerHash:         crypto.SHA512,
 	}
 
 	rootCert, rootKey, err := certmaker.GetRootKeyPair()
