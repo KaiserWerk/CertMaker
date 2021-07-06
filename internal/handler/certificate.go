@@ -11,7 +11,7 @@ import (
 	"github.com/KaiserWerk/CertMaker/internal/global"
 	"github.com/KaiserWerk/CertMaker/internal/helper"
 	"github.com/KaiserWerk/CertMaker/internal/logging"
-	"github.com/KaiserWerk/CertMaker/internal/templateservice"
+	"github.com/KaiserWerk/CertMaker/internal/templates"
 	"github.com/gorilla/mux"
 	"io"
 	"io/ioutil"
@@ -58,7 +58,7 @@ func CertificateListHandler(w http.ResponseWriter, r *http.Request) {
 		CertInfos: targetCertInfos,
 	}
 
-	if err := templateservice.ExecuteTemplate(w, "certificate/certificate_list.gohtml", data); err != nil {
+	if err := templates.ExecuteTemplate(w, "certificate/certificate_list.gohtml", data); err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
@@ -269,7 +269,7 @@ func CertificateAddHandler(w http.ResponseWriter, r *http.Request) {
 		DefaultDays: global.CertificateDefaultDays,
 	}
 
-	if err := templateservice.ExecuteTemplate(w, "certificate/certificate_add.gohtml", data); err != nil {
+	if err := templates.ExecuteTemplate(w, "certificate/certificate_add.gohtml", data); err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
@@ -336,7 +336,7 @@ func AddCertificateFromCSRHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := templateservice.ExecuteTemplate(w, "certificate/certificate_add_with_csr.gohtml", nil); err != nil {
+	if err := templates.ExecuteTemplate(w, "certificate/certificate_add_with_csr.gohtml", nil); err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
 }

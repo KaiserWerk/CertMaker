@@ -7,7 +7,7 @@ import (
 	"github.com/KaiserWerk/CertMaker/internal/global"
 	"github.com/KaiserWerk/CertMaker/internal/logging"
 	"github.com/KaiserWerk/CertMaker/internal/security"
-	"github.com/KaiserWerk/CertMaker/internal/templateservice"
+	"github.com/KaiserWerk/CertMaker/internal/templates"
 	"github.com/gorilla/mux"
 	"net/http"
 )
@@ -139,7 +139,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 		AdminSettings: allSettings,
 	}
 
-	if err := templateservice.ExecuteTemplate(w, "admin/settings.gohtml", data); err != nil {
+	if err := templates.ExecuteTemplate(w, "admin/settings.gohtml", data); err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
@@ -163,7 +163,7 @@ func AdminUserListHandler(w http.ResponseWriter, r *http.Request) {
 		AllUsers: allUsers,
 	}
 
-	if err := templateservice.ExecuteTemplate(w, "admin/user_list.gohtml", data); err != nil {
+	if err := templates.ExecuteTemplate(w, "admin/user_list.gohtml", data); err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
@@ -260,7 +260,7 @@ func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	if err := templateservice.ExecuteTemplate(w, "admin/user_add.gohtml", nil); err != nil {
+	if err := templates.ExecuteTemplate(w, "admin/user_add.gohtml", nil); err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
@@ -370,7 +370,7 @@ func AdminUserEditHandler(w http.ResponseWriter, r *http.Request) {
 		Message: message,
 	}
 
-	if err := templateservice.ExecuteTemplate(w, "admin/user_edit.gohtml", data); err != nil {
+	if err := templates.ExecuteTemplate(w, "admin/user_edit.gohtml", data); err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
 }

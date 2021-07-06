@@ -24,9 +24,9 @@ import (
 )
 
 var (
-	snMutex   sync.Mutex
-	certFile  string
-	keyFile   string
+	snMutex  sync.Mutex
+	certFile string
+	keyFile  string
 )
 
 // SetupCA checks if root key and certificate exist. if not,

@@ -7,15 +7,14 @@ import (
 	"github.com/KaiserWerk/CertMaker/internal/global"
 	"github.com/KaiserWerk/CertMaker/internal/logging"
 	"github.com/KaiserWerk/CertMaker/internal/security"
-	"github.com/KaiserWerk/CertMaker/internal/templateservice"
+	"github.com/KaiserWerk/CertMaker/internal/templates"
 	"net/http"
 )
 
 // ProfileHandler displays the current user's profile
 func ProfileHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		val = r.Context().Value("user")
-		u   = val.(entity.User)
+		u   = r.Context().Value("user").(entity.User)
 	)
 
 	data := struct {
@@ -24,7 +23,7 @@ func ProfileHandler(w http.ResponseWriter, r *http.Request) {
 		User: u,
 	}
 
-	if err := templateservice.ExecuteTemplate(w, "user/profile.gohtml", data); err != nil {
+	if err := templates.ExecuteTemplate(w, "user/profile.gohtml", data); err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
@@ -34,14 +33,12 @@ func ProfileEditHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		logger  = logging.GetLogger().WithField("function", "ProfileEditHandler")
 		ds      = dbservice.New()
-		val     = r.Context().Value("user")
-		u       = val.(entity.User)
+		u       = r.Context().Value("user").(entity.User)
 		message string
 		changes uint8
 	)
 
 	if r.Method == http.MethodPost {
-
 		form := r.FormValue("form_name")
 		if form == "personal_data" {
 			username := r.FormValue("username")
@@ -98,8 +95,8 @@ func ProfileEditHandler(w http.ResponseWriter, r *http.Request) {
 				http.Redirect(w, r, "/user/profile/edit", http.StatusSeeOther)
 				return
 			}
-
 			u.Password = hash
+
 			err = ds.UpdateUser(&u)
 			if err != nil {
 				logger.Debug("could not update user: " + err.Error())
@@ -122,7 +119,7 @@ func ProfileEditHandler(w http.ResponseWriter, r *http.Request) {
 		Message: message,
 	}
 
-	if err := templateservice.ExecuteTemplate(w, "user/profile_edit.gohtml", data); err != nil {
+	if err := templates.ExecuteTemplate(w, "user/profile_edit.gohtml", data); err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
 }

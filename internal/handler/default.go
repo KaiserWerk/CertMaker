@@ -2,13 +2,13 @@ package handler
 
 import (
 	"github.com/KaiserWerk/CertMaker/internal/assets"
-	"github.com/KaiserWerk/CertMaker/internal/templateservice"
+	"github.com/KaiserWerk/CertMaker/internal/templates"
 	"net/http"
 )
 
 // IndexHandler shows, well, the index page.
 func IndexHandler(w http.ResponseWriter, r *http.Request) {
-	if err := templateservice.ExecuteTemplate(w, "index.gohtml", nil); err != nil {
+	if err := templates.ExecuteTemplate(w, "index.gohtml", nil); err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
