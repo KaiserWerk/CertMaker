@@ -25,11 +25,11 @@ Perfect for your homelab or self-hosted infrastructure.
 * [Security](docs/security.md)
 
 ### Tools
-* [CertMaker Bot](https://github.com/KaiserWerk/CertMaker-Bot) (Work in progress)
+* [CertMaker Bot](https://github.com/KaiserWerk/CertMaker-Bot)
 
   A simple tool to automate the certificate fetching stuff for apps which cannot handle that themselves,
   like Nginx, Apache or Lighttpd.
-* [Go SDK](https://github.com/KaiserWerk/CertMaker-Go-SDK) (Work in progress)
+* [Go SDK](https://github.com/KaiserWerk/CertMaker-Go-SDK)
   
   The Golang software development kit for *CertMaker*. It allows you to build custom apps for your specific 
   certificate needs without having to use the REST API directly.
