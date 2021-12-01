@@ -21,12 +21,10 @@ import (
 	"time"
 )
 
-const (
-	Version     = "0.0.0"
-	VersionDate = "0000-00-00 00:00:00.000 +00:00"
-)
-
 var (
+	Version     = "0.0.0"
+	VersionDate = "0000-00-00 00:00:00"
+
 	port          = "8880"
 	configFilePtr = flag.String("config", "", "The configuration file to use")
 	logFilePtr    = flag.String("logfile", "certmaker.log", "The path and filename of the log file")
@@ -36,6 +34,10 @@ var (
 )
 
 func main() {
+	fmt.Println("CertMaker")
+	fmt.Printf("\tVersion %s\n", Version)
+	fmt.Printf("\tVersion Date %s\n\n", VersionDate)
+
 	flag.Parse()
 
 	logHandle, err := os.OpenFile(*logFilePtr, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0755)
