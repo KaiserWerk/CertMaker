@@ -13,6 +13,10 @@ func GetConfigFS() *embed.FS {
 	return &configFS
 }
 
+func ReadConfigFile(name string) ([]byte, error) {
+	return configFS.ReadFile("config/" + name)
+}
+
 //go:embed static
 var staticFS embed.FS
 
