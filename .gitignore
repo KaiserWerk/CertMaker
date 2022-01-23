@@ -1,6 +1,7 @@
 .idea/
 build/
 data/
+.VSCodeCounter/
 
 config.yaml
 
