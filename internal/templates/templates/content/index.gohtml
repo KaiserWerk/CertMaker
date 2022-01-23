@@ -2,6 +2,23 @@
 <div class="container">
     <h1>Dashboard</h1>
 
-    <p><a href="/root-certificate/download">Download the root certificate</a> </p>
+    <p><a href="/root-certificate/download">Download the root certificate</a></p>
+
+    <table class="table table-condensed">
+        <thead>
+        <tr>
+            <th>Total number of certificates</th>
+            <th>By CSR</th>
+            <th>By SimpleRequest</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td>{{ .CertCount }}</td>
+            <td>{{ .ByCSRCount }}</td>
+            <td>{{ .BySRCount }}</td>
+        </tr>
+        </tbody>
+    </table>
 </div>
 {{ template "footer_default" . }}

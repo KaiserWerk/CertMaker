@@ -24,6 +24,26 @@ func (ds *DBService) GetAllCertInfo() ([]entity.CertInfo, error) {
 	return ci, nil
 }
 
+func (ds *DBService) GetCertInfoCount() (int64, error) {
+	var count int64
+	res := ds.db.Model(&entity.CertInfo{}).Count(&count)
+	if res.Error != nil {
+		return 0, res.Error
+	}
+
+	return count, nil
+}
+
+func (ds *DBService) GetCertInfoCountWhere(where string, cond ...interface{}) (int64, error) {
+	var count int64
+	res := ds.db.Model(&entity.CertInfo{}).Where(where, cond).Count(&count)
+	if res.Error != nil {
+		return 0, res.Error
+	}
+
+	return count, nil
+}
+
 func (ds *DBService) FindCertInfo(cond string, args ...interface{}) (entity.CertInfo, error) {
 	var ci entity.CertInfo
 	result := ds.db.Where(cond, args).Find(&ci)

@@ -8,7 +8,33 @@ import (
 
 // IndexHandler shows, well, the index page.
 func (bh *BaseHandler) IndexHandler(w http.ResponseWriter, r *http.Request) {
-	if err := templates.ExecuteTemplate(bh.Inj(), w, "index.gohtml", nil); err != nil {
+	certCount, err := bh.DBSvc.GetCertInfoCount()
+	if err != nil {
+		http.Error(w, "could not get cert count: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	byCSRCount, err := bh.DBSvc.GetCertInfoCountWhere("from_csr = ?", 1)
+	if err != nil {
+		http.Error(w, "could not get cert count: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	bySRCount, err := bh.DBSvc.GetCertInfoCountWhere("from_csr = ?", 0)
+	if err != nil {
+		http.Error(w, "could not get cert count: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	data := struct {
+		CertCount  int64
+		ByCSRCount int64
+		BySRCount  int64
+	}{
+		CertCount:  certCount,
+		ByCSRCount: byCSRCount,
+		BySRCount:  bySRCount,
+	}
+
+	if err := templates.ExecuteTemplate(bh.Inj(), w, "index.gohtml", data); err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
