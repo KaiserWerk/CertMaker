@@ -137,11 +137,12 @@ func setupRoutes(cfg *configuration.AppConfig, logger *logrus.Entry, dbSvc *dbse
 			PathPrefix(staticDir).
 			Handler(http.StripPrefix(staticDir, http.FileServer(http.FS(assets.GetStaticFS()))))
 
-		router.Use(mh.WithSession)
-		router.HandleFunc("/", bh.IndexHandler).Methods(http.MethodGet)
-		router.HandleFunc("/favicon.ico", bh.FaviconHandler)
-		router.HandleFunc("/root-certificate/download", bh.RootCertificateDownloadHandler).Methods(http.MethodGet)
-		router.HandleFunc("/privatekey/{id}/download", bh.PrivateKeyDownloadHandler).Methods(http.MethodGet)
+		defaultRouter := router.PathPrefix("/").Subrouter()
+		defaultRouter.Use(mh.WithSession)
+		defaultRouter.HandleFunc("/", bh.IndexHandler).Methods(http.MethodGet)
+		defaultRouter.HandleFunc("/favicon.ico", bh.FaviconHandler)
+		defaultRouter.HandleFunc("/root-certificate/download", bh.RootCertificateDownloadHandler).Methods(http.MethodGet)
+		defaultRouter.HandleFunc("/privatekey/{id}/download", bh.PrivateKeyDownloadHandler).Methods(http.MethodGet)
 
 		userRouter := router.PathPrefix("/user").Subrouter()
 		userRouter.Use(mh.WithSession)
