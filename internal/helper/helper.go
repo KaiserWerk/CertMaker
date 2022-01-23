@@ -1,8 +1,6 @@
 package helper
 
 import (
-	"net"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -51,31 +49,4 @@ func StringSliceContains(s []string, key string) bool {
 	}
 
 	return false
-}
-
-// GetUserIP returns the client's IP address.
-func GetUserIP(r *http.Request) string {
-	IPAddress := r.Header.Get("X-Real-Ip")
-	if IPAddress == "" {
-		IPAddress = r.Header.Get("X-Forwarded-For") // should I use that?
-	}
-	if IPAddress == "" {
-		IPAddress = r.RemoteAddr
-	}
-
-	//if strings.Contains(IPAddress, ":") {
-	//	parts := strings.Split(IPAddress, ":")
-	//	IPAddress = strings.Join(parts[:len(parts)-1], ":")
-	//}
-
-	host, _, err := net.SplitHostPort(IPAddress)
-	if err != nil {
-		return ""
-	}
-
-	if host == "::1" {
-		return "127.0.0.1"
-	}
-
-	return host
 }
