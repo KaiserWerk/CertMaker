@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"github.com/KaiserWerk/CertMaker/internal/assets"
@@ -11,13 +12,12 @@ import (
 	"github.com/KaiserWerk/CertMaker/internal/handler"
 	"github.com/KaiserWerk/CertMaker/internal/logging"
 	"github.com/KaiserWerk/CertMaker/internal/middleware"
+	"github.com/KaiserWerk/sessionstore"
 	"github.com/gorilla/mux"
-	log "github.com/sirupsen/logrus"
-	"io"
+	"github.com/sirupsen/logrus"
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"time"
 )
 
@@ -25,168 +25,165 @@ var (
 	Version     = "0.0.0"
 	VersionDate = "0000-00-00 00:00:00"
 
-	port          = "8880"
-	configFilePtr = flag.String("config", "", "The configuration file to use")
-	logFilePtr    = flag.String("logfile", "certmaker.log", "The path and filename of the log file")
-	portPtr       = flag.String("port", "", "The port to run at")
-	useUiPtr      = flag.Bool("ui", true, "Adds a simple UI for certificate management")
-	debugModePtr  = flag.Bool("debug", false, "Run in debug mode")
+	configFile = flag.String("config", "config.yaml", "The configuration file to use")
+	logPath    = flag.String("logpath", ".", "The path to place log files in")
+	port       = flag.String("port", "8880", "The port to run at")
+	useUi      = flag.Bool("ui", true, "Adds a simple UI for certificate and instance management")
 )
 
 func main() {
-	fmt.Println("CertMaker")
-	fmt.Printf("\tVersion %s\n", Version)
-	fmt.Printf("\tVersion Date %s\n\n", VersionDate)
-
 	flag.Parse()
 
-	logHandle, err := os.OpenFile(*logFilePtr, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0755)
-	if err != nil {
-		log.Fatal("cannot open or create log file!")
-	}
-	defer logHandle.Close()
+	fmt.Println("CertMaker")
+	fmt.Printf("  Version %s\n", Version)
+	fmt.Printf("  Version Date %s\n\n", VersionDate)
 
-	// set up logger stuff
-	var baseLogger = log.New()
-	if *debugModePtr {
-		baseLogger.SetFormatter(&log.TextFormatter{})
-		baseLogger.SetOutput(os.Stdout)
-		baseLogger.SetLevel(log.TraceLevel)
-	} else {
-		baseLogger.SetFormatter(&log.JSONFormatter{})
-		baseLogger.SetOutput(io.MultiWriter(os.Stdout, logHandle))
-		baseLogger.SetLevel(log.InfoLevel)
-	}
-	logger := baseLogger.WithFields(log.Fields{"application": "certmaker", "version": Version}) // TODO make server configurable
-	logging.SetLogger(logger)
+	logger, cleanup, err := logging.New(logrus.DebugLevel, *logPath, "main", logging.ModeFile|logging.ModeConsole)
+	defer func() {
+		if err := cleanup(); err != nil {
+			fmt.Println("could not execute cleanup func:", err.Error())
+		}
+	}()
 
-	if *portPtr != "" {
-		port = *portPtr
-	}
-
-	if *configFilePtr != "" {
-		configuration.SetFileSource(*configFilePtr)
-	}
+	logger.WithFields(logrus.Fields{"application": "certmaker", "version": Version, "versionDate": VersionDate}).Info("app info")
 
 	// setup configuration and serial number file, if necessary
-	createdConfig, createdSn, err := configuration.Setup()
+	config, created, err := configuration.Setup(*configFile)
 	if err != nil {
-		logger.Fatalf("could not set up configuration: %s", err.Error())
+		logger.WithField("error", err.Error()).Error("could not set up configuration")
+		return
+	}
+	if created {
+		logger.Debugf("The configuration file was not found so it was created.\nExiting...")
+		return
 	}
 
-	if createdConfig {
-		logger.Debugf("The configuration file was not found so it was created.\nStop execution? (y,n) ")
-		var answer string
-		_, _ = fmt.Scanln(&answer)
-		answer = strings.ToLower(answer)
-		if answer == "y" || answer == "yes" {
-			logger.Debug("Okay, stopped.")
-			os.Exit(0)
-		}
+	// create new session manager
+	sessMgr := sessionstore.NewManager("CM_SESS")
+	// create new certmaker instance and set up CA if necessary
+	cm := certmaker.New(config)
+	if err := cm.SetupCA(); err != nil {
+		logger.WithField("error", err.Error()).Error("could not set up CA")
+		return
 	}
-
-	if createdSn {
-		logger.Debug("The serial number file was not found so it was created.")
-	}
-
-	// create root cert and key, if non-existent
-	err = certmaker.SetupCA()
-	if err != nil {
-		logger.Fatalf("could not set up CA: %s", err.Error())
-	}
-
-	// make sure db schema exists
-	ds := dbservice.New()
+	// create database service
+	ds, err := dbservice.New(config)
 	err = ds.AutoMigrate()
 	if err != nil {
-		logger.Fatalf("could not execute auto migrations: %s", err.Error())
+		logger.WithField("error", err.Error()).Error("could not execute auto migrations")
+		return
 	}
 
-	// start with the server stuff
-	host := fmt.Sprintf(":%s", port)
-	router := mux.NewRouter().StrictSlash(true)
-
-	setupRoutes(router, *useUiPtr)
-
-	logger.Debugf("Server listening on %s...", host)
+	router := setupRoutes(config, logger, ds, sessMgr, cm, *useUi)
 
 	notify := make(chan os.Signal)
 	signal.Notify(notify, os.Interrupt)
 
+	host := fmt.Sprintf(":%s", *port)
 	srv := &http.Server{
 		Addr:              host,
 		Handler:           router,
 		ReadTimeout:       10 * time.Second,
-		WriteTimeout:      30 * time.Second,
-		IdleTimeout:       10 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       20 * time.Second,
 		ReadHeaderTimeout: 3 * time.Second,
 	}
 
 	go func() {
 		<-notify
 		logger.Debug("Initiating graceful shutdown...")
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
 		srv.SetKeepAlivesEnabled(false)
 		err := srv.Shutdown(ctx)
 		if err != nil {
-			logger.Fatal("Could not gracefully shut down server: " + err.Error())
+			logger.WithField("error", err.Error()).Error("could not gracefully shut down server")
 		}
 	}()
 
-	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		logger.Errorf("server error: %s", err.Error())
+	logger.WithField("host", host).Debugf("Server started listening...")
+	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		logger.WithField("error", err.Error()).Error("server error")
+		return
 	}
 	logger.Debug("Server shutdown complete.")
 }
 
-func setupRoutes(router *mux.Router, ui bool) {
+func setupRoutes(cfg *configuration.AppConfig, logger *logrus.Entry, dbSvc *dbservice.DBService,
+	sessMgr *sessionstore.SessionManager, cm *certmaker.CertMaker, ui bool) *mux.Router {
+
+	bh := handler.BaseHandler{
+		Config:  cfg,
+		Logger:  logger,
+		DBSvc:   dbSvc,
+		SessMgr: sessMgr,
+		CM:      cm,
+		Client:  &http.Client{Timeout: 10 * time.Second},
+	}
+
+	mh := middleware.MWHandler{
+		Config:  cfg,
+		Logger:  logger,
+		DBSvc:   dbSvc,
+		SessMgr: sessMgr,
+	}
+
+	router := mux.NewRouter().StrictSlash(true)
+
 	if ui {
 		staticDir := "/static"
 		router.
 			PathPrefix(staticDir).
 			Handler(http.StripPrefix(staticDir, http.FileServer(http.FS(assets.GetStaticFS()))))
 
-		router.HandleFunc("/", middleware.WithSession(handler.IndexHandler)).Methods(http.MethodGet)
-		router.HandleFunc("/favicon.ico", handler.FaviconHandler)
+		router.Use(mh.WithSession)
+		router.HandleFunc("/", bh.IndexHandler).Methods(http.MethodGet)
+		router.HandleFunc("/favicon.ico", bh.FaviconHandler)
+		router.HandleFunc("/root-certificate/download", bh.RootCertificateDownloadHandler).Methods(http.MethodGet)
+		router.HandleFunc("/privatekey/{id}/download", bh.PrivateKeyDownloadHandler).Methods(http.MethodGet)
 
 		userRouter := router.PathPrefix("/user").Subrouter()
-		userRouter.HandleFunc("/profile", middleware.WithSession(handler.ProfileHandler))
-		userRouter.HandleFunc("/profile/edit", middleware.WithSession(handler.ProfileEditHandler))
-		userRouter.HandleFunc("/regenerate-key", middleware.WithSession(handler.ProfileRegenerateKeyHandler))
+		userRouter.Use(mh.WithSession)
+		userRouter.HandleFunc("/profile", bh.ProfileHandler)
+		userRouter.HandleFunc("/profile/edit", bh.ProfileEditHandler)
+		userRouter.HandleFunc("/regenerate-key", bh.ProfileRegenerateKeyHandler)
 
 		authRouter := router.PathPrefix("/auth").Subrouter()
-		authRouter.HandleFunc("/login", handler.LoginHandler).Methods(http.MethodGet, http.MethodPost)
-		authRouter.HandleFunc("/logout", middleware.WithSession(handler.LogoutHandler)).Methods(http.MethodGet)
-		authRouter.HandleFunc("/register", handler.RegistrationHandler).Methods(http.MethodGet, http.MethodPost)
+		authRouter.HandleFunc("/login", bh.LoginHandler).Methods(http.MethodGet, http.MethodPost)
+		authRouter.HandleFunc("/logout", bh.LogoutHandler).Methods(http.MethodGet)
+		authRouter.HandleFunc("/register", bh.RegistrationHandler).Methods(http.MethodGet, http.MethodPost)
 
 		certRouter := router.PathPrefix("/certificate").Subrouter()
-		certRouter.HandleFunc("/list", middleware.WithSession(middleware.RequireAdmin(handler.CertificateListHandler))).Methods(http.MethodGet)
-		certRouter.HandleFunc("/add", middleware.WithSession(handler.CertificateAddHandler)).Methods(http.MethodGet, http.MethodPost)
-		certRouter.HandleFunc("/add-with-csr", middleware.WithSession(handler.AddCertificateFromCSRHandler)).Methods(http.MethodGet, http.MethodPost)
-		certRouter.HandleFunc("/{id}/revoke", middleware.WithSession(handler.RevokeCertificateHandler)).Methods(http.MethodGet, http.MethodPost)
-		certRouter.HandleFunc("/{id}/download", middleware.WithSession(handler.CertificateDownloadHandler)).Methods(http.MethodGet)
-
-		router.HandleFunc("/root-certificate/download", middleware.WithSession(handler.RootCertificateDownloadHandler)).Methods(http.MethodGet)
-		router.HandleFunc("/privatekey/{id}/download", middleware.WithSession(handler.PrivateKeyDownloadHandler)).Methods(http.MethodGet) // TODO implement
+		certRouter.Use(mh.WithSession)
+		certRouter.HandleFunc("/list", bh.CertificateListHandler).Methods(http.MethodGet)
+		certRouter.HandleFunc("/add", bh.CertificateAddHandler).Methods(http.MethodGet, http.MethodPost)
+		certRouter.HandleFunc("/add-with-csr", bh.AddCertificateFromCSRHandler).Methods(http.MethodGet, http.MethodPost)
+		certRouter.HandleFunc("/{id}/revoke", bh.RevokeCertificateHandler).Methods(http.MethodGet, http.MethodPost)
+		certRouter.HandleFunc("/{id}/download", bh.CertificateDownloadHandler).Methods(http.MethodGet)
 
 		adminRouter := router.PathPrefix("/admin").Subrouter()
-		adminRouter.HandleFunc("/settings", middleware.WithSession(middleware.RequireAdmin(handler.AdminSettingsHandler))).Methods(http.MethodGet, http.MethodPost)
-		adminRouter.HandleFunc("/user/list", middleware.WithSession(middleware.RequireAdmin(handler.AdminUserListHandler))).Methods(http.MethodGet)
-		adminRouter.HandleFunc("/user/add", middleware.WithSession(middleware.RequireAdmin(handler.AdminUserAddHandler))).Methods(http.MethodGet, http.MethodPost)
-		adminRouter.HandleFunc("/user/{id}/edit", middleware.WithSession(middleware.RequireAdmin(handler.AdminUserEditHandler))).Methods(http.MethodGet, http.MethodPost)
-		adminRouter.HandleFunc("/user/{id}/remove", middleware.WithSession(middleware.RequireAdmin(handler.AdminUserRemoveHandler))).Methods(http.MethodGet, http.MethodPost)
+		adminRouter.Use(mh.WithSession, mh.RequireAdmin)
+		adminRouter.HandleFunc("/settings", bh.AdminSettingsHandler).Methods(http.MethodGet, http.MethodPost)
+		adminRouter.HandleFunc("/user/list", bh.AdminUserListHandler).Methods(http.MethodGet)
+		adminRouter.HandleFunc("/user/add", bh.AdminUserAddHandler).Methods(http.MethodGet, http.MethodPost)
+		adminRouter.HandleFunc("/user/{id}/edit", bh.AdminUserEditHandler).Methods(http.MethodGet, http.MethodPost)
+		adminRouter.HandleFunc("/user/{id}/remove", bh.AdminUserRemoveHandler).Methods(http.MethodGet, http.MethodPost)
 	}
 
 	apiRouter := router.PathPrefix("/api/v1").Subrouter()
-	apiRouter.HandleFunc("/root-certificate/obtain", middleware.WithToken(handler.ApiRootCertificateDownloadHandler)).Methods(http.MethodGet)
-	apiRouter.HandleFunc("/certificate/request", middleware.WithToken(handler.ApiRequestCertificateHandler)).Methods(http.MethodPost)
-	apiRouter.HandleFunc("/certificate/request-with-csr", middleware.WithToken(handler.ApiRequestCertificateWithCSRHandler)).Methods(http.MethodPost)
-	apiRouter.HandleFunc("/certificate/{id}/obtain", middleware.WithToken(handler.ApiObtainCertificateHandler)).Methods(http.MethodGet)
-	apiRouter.HandleFunc("/certificate/{sn}/revoke", middleware.WithToken(handler.ApiRevokeCertificateHandler)).Methods(http.MethodGet)
-	apiRouter.HandleFunc("/privatekey/{id}/obtain", middleware.WithToken(handler.ApiObtainPrivateKeyHandler)).Methods(http.MethodGet)
-	apiRouter.HandleFunc("/challenge/{id}/solve", middleware.WithToken(handler.ApiSolveChallengeHandler)).Methods(http.MethodGet)
-	apiRouter.HandleFunc("/ocsp/{base64}", handler.ApiOcspRequestHandler).Methods(http.MethodGet, http.MethodPost)
-	apiRouter.HandleFunc("/ocsp", handler.ApiOcspRequestHandler).Methods(http.MethodGet, http.MethodPost)
+	apiRouter.Use(mh.WithToken)
+	apiRouter.HandleFunc("/root-certificate/obtain", bh.ApiRootCertificateDownloadHandler).Methods(http.MethodGet)
+	apiRouter.HandleFunc("/certificate/request", bh.ApiRequestCertificateHandler).Methods(http.MethodPost)
+	apiRouter.HandleFunc("/certificate/request-with-csr", bh.ApiRequestCertificateWithCSRHandler).Methods(http.MethodPost)
+	apiRouter.HandleFunc("/certificate/{id}/obtain", bh.ApiObtainCertificateHandler).Methods(http.MethodGet)
+	apiRouter.HandleFunc("/certificate/{sn}/revoke", bh.ApiRevokeCertificateHandler).Methods(http.MethodGet)
+	apiRouter.HandleFunc("/privatekey/{id}/obtain", bh.ApiObtainPrivateKeyHandler).Methods(http.MethodGet)
+	apiRouter.HandleFunc("/challenge/{id}/solve", bh.ApiSolveChallengeHandler).Methods(http.MethodGet)
+
+	ocspRouter := router.PathPrefix("/ocsp").Subrouter()
+	ocspRouter.HandleFunc("/ocsp/{base64}", bh.ApiOcspRequestHandler).Methods(http.MethodGet, http.MethodPost)
+	ocspRouter.HandleFunc("/ocsp", bh.ApiOcspRequestHandler).Methods(http.MethodGet, http.MethodPost)
+
+	return router
 }

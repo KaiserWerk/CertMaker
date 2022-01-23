@@ -3,39 +3,32 @@ package middleware
 import (
 	"context"
 	"errors"
-	"github.com/KaiserWerk/CertMaker/internal/dbservice"
 	"github.com/KaiserWerk/CertMaker/internal/entity"
-	"github.com/KaiserWerk/CertMaker/internal/global"
-	"github.com/KaiserWerk/CertMaker/internal/logging"
 	"gorm.io/gorm"
 	"net/http"
 )
 
 // WithSession requires the client to have a valid session
 // (to be logged in)
-func WithSession(next http.HandlerFunc) http.HandlerFunc {
+func (mh *MWHandler) WithSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var (
-			sessMgr = global.GetSessMgr()
-			logger  = logging.GetLogger().WithField("function", "middleware.RequireAdmin")
-			ds      = dbservice.New()
-		)
+		logger := mh.ContextLogger("middleware")
 
-		val := ds.GetSetting("authprovider_userpw")
+		val := mh.DBSvc.GetSetting("authprovider_userpw")
 		if val != "true" {
 			//logger.Println("authprovider userpw not enabled; redirecting")
 			next.ServeHTTP(w, r)
 			return
 		}
 
-		cv, err := sessMgr.GetCookieValue(r)
+		cv, err := mh.SessMgr.GetCookieValue(r)
 		if err != nil {
 			logger.Debug("no user-provided cookie found or not readable: " + err.Error())
 			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 			return
 		}
 
-		sess, err := sessMgr.GetSession(cv)
+		sess, err := mh.SessMgr.GetSession(cv)
 		if err != nil {
 			logger.Debug("could not get session: " + err.Error())
 			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
@@ -49,7 +42,7 @@ func WithSession(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		u, err := ds.FindUser("id = ?", userId)
+		u, err := mh.DBSvc.FindUser("id = ?", userId)
 		if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Debug("user not found: " + err.Error())
 			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
@@ -64,14 +57,11 @@ func WithSession(next http.HandlerFunc) http.HandlerFunc {
 }
 
 // RequireAdmin only continues if the logged in user is an administrator
-func RequireAdmin(next http.HandlerFunc) http.HandlerFunc {
+func (mh *MWHandler) RequireAdmin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var (
-			logger = logging.GetLogger().WithField("function", "middleware.RequireAdmin")
-			ds     = dbservice.New()
-		)
+		logger := mh.ContextLogger("middleware")
 
-		if userpw := ds.GetSetting("authprovider_userpw"); userpw != "true" {
+		if userpw := mh.DBSvc.GetSetting("authprovider_userpw"); userpw != "true" {
 			next.ServeHTTP(w, r)
 			return
 		}

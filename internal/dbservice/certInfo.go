@@ -5,7 +5,7 @@ import (
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 )
 
-func (ds *dbservice) AddCertInfo(cr *entity.CertInfo) error {
+func (ds *DBService) AddCertInfo(cr *entity.CertInfo) error {
 	res := ds.db.Create(cr)
 	if res.Error != nil {
 		return res.Error
@@ -14,7 +14,7 @@ func (ds *dbservice) AddCertInfo(cr *entity.CertInfo) error {
 	return nil
 }
 
-func (ds *dbservice) GetAllCertInfo() ([]entity.CertInfo, error) {
+func (ds *DBService) GetAllCertInfo() ([]entity.CertInfo, error) {
 	ci := make([]entity.CertInfo, 0)
 	res := ds.db.Find(&ci)
 	if res.Error != nil {
@@ -24,7 +24,7 @@ func (ds *dbservice) GetAllCertInfo() ([]entity.CertInfo, error) {
 	return ci, nil
 }
 
-func (ds *dbservice) FindCertInfo(cond string, args ...interface{}) (entity.CertInfo, error) {
+func (ds *DBService) FindCertInfo(cond string, args ...interface{}) (entity.CertInfo, error) {
 	var ci entity.CertInfo
 	result := ds.db.Where(cond, args).Find(&ci)
 	if result.Error != nil {
@@ -38,7 +38,7 @@ func (ds *dbservice) FindCertInfo(cond string, args ...interface{}) (entity.Cert
 	return ci, nil
 }
 
-func (ds *dbservice) UpdateCertInfo(ci *entity.CertInfo) error {
+func (ds *DBService) UpdateCertInfo(ci *entity.CertInfo) error {
 	res := ds.db.Save(ci)
 	return res.Error
 }

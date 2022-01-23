@@ -2,6 +2,8 @@
 server_host: http://localhost:8880
 # The data directory where certs are stored. When not absolute, it is interpreted as relative to the binary
 data_dir: data
+# The algorithm to use for creating the root private key (rsa, ecdsa, ed25519)
+root_key_algo: ed25519
 # Details for the database connection
 database:
   # The database system driver to use. Can be either sqlite, mysql or postgresql. Change the DSN accordingly

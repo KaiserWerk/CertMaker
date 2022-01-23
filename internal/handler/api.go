@@ -9,12 +9,9 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"github.com/KaiserWerk/CertMaker/internal/certmaker"
-	"github.com/KaiserWerk/CertMaker/internal/dbservice"
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 	"github.com/KaiserWerk/CertMaker/internal/global"
 	"github.com/KaiserWerk/CertMaker/internal/helper"
-	"github.com/KaiserWerk/CertMaker/internal/logging"
 	"github.com/KaiserWerk/CertMaker/internal/security"
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/ocsp"
@@ -30,16 +27,14 @@ import (
 // ApiRequestCertificateHandler handles a client's request,
 // generates a new certificate and private key for the client and sets appropriate
 // location headers or creates a challenge
-func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
+func (bh *BaseHandler) ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 	var (
-		ds          = dbservice.New()
-		config      = global.GetConfiguration()
-		logger      = logging.GetLogger().WithField("function", "handler.ApiRequestCertificateHandler")
-		certRequest entity.SimpleRequest
-		u           = r.Context().Value("user").(entity.User)
+		logger = bh.ContextLogger("api")
+		u      = r.Context().Value("user").(entity.User)
 	)
 
-	simpleMode := ds.GetSetting("certificate_request_simple_mode")
+	simpleMode := bh.DBSvc.GetSetting("certificate_request_simple_mode")
 	if simpleMode != "true" {
 		logger.Debug("simple mode is not enabled")
 		w.WriteHeader(http.StatusNotImplemented)
@@ -54,14 +49,13 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var certRequest entity.SimpleRequest
 	err = json.Unmarshal(b.Bytes(), &certRequest)
 	if err != nil {
 		logger.Infof("error parsing certificate request: %s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-
-	defer r.Body.Close()
 
 	if certRequest.Days > global.CertificateMaxDays {
 		certRequest.Days = global.CertificateMaxDays
@@ -70,7 +64,7 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 		certRequest.Days = global.CertificateMinDays
 	}
 
-	if dnsValidate := ds.GetSetting("certificate_request_require_domain_ownership"); dnsValidate == "true" {
+	if dnsValidate := bh.DBSvc.GetSetting("certificate_request_require_domain_ownership"); dnsValidate == "true" {
 		token, err := security.GenerateToken(global.ChallengeTokenLength)
 		if err != nil {
 			logger.Infof("error generating token: %s\n", err.Error())
@@ -88,21 +82,21 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 			Status:             "accepted",
 		}
 
-		if err = ds.AddRequestInfo(&ri); err != nil {
+		if err = bh.DBSvc.AddRequestInfo(&ri); err != nil {
 			logger.Infof("error inserting request info: %s\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		w.Header().Set("Content-Type", "text/plain")
-		w.Header().Set(global.ChallengeLocationHeader, fmt.Sprintf(config.ServerHost+global.SolveChallengePath, ri.ID))
+		w.Header().Set(global.ChallengeLocationHeader, fmt.Sprintf(bh.Config.ServerHost+global.SolveChallengePath, ri.ID))
 		w.WriteHeader(http.StatusAccepted)
 		_, _ = io.WriteString(w, token)
 
 		return
 	}
 
-	sn, err := certmaker.GenerateLeafCertAndKey(certRequest)
+	sn, err := bh.CM.GenerateLeafCertAndKey(certRequest)
 	if err != nil {
 		logger.Errorf("error generating key + certificate: %s\n", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -116,28 +110,27 @@ func ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 		Revoked:        false,
 	}
 
-	if err = ds.AddCertInfo(&ci); err != nil {
+	if err = bh.DBSvc.AddCertInfo(&ci); err != nil {
 		logger.Errorf("could not insert cert info into DB: %s", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Add(global.CertificateLocationHeader, fmt.Sprintf(config.ServerHost+global.CertificateObtainPath, sn))
-	w.Header().Add(global.PrivateKeyLocationHandler, fmt.Sprintf(config.ServerHost+global.PrivateKeyObtainPath, sn))
+	w.Header().Add(global.CertificateLocationHeader, fmt.Sprintf(bh.Config.ServerHost+global.CertificateObtainPath, sn))
+	w.Header().Add(global.PrivateKeyLocationHandler, fmt.Sprintf(bh.Config.ServerHost+global.PrivateKeyObtainPath, sn))
 }
 
 // ApiRequestCertificateWithCSRHandler handles a client's request for a new certificate,
 // generates a new certificate for the client and sets appropriate location headers
 // or creates a challenge
-func ApiRequestCertificateWithCSRHandler(w http.ResponseWriter, r *http.Request) {
+func (bh *BaseHandler) ApiRequestCertificateWithCSRHandler(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 	var (
-		logger = logging.GetLogger().WithField("function", "handler.ApiRequestCertificateWithCSRHandler")
-		ds     = dbservice.New()
+		logger = bh.ContextLogger("api")
 		err    error
-		config = global.GetConfiguration()
 	)
 
-	normalMode := ds.GetSetting("certificate_request_normal_mode")
+	normalMode := bh.DBSvc.GetSetting("certificate_request_normal_mode")
 	if normalMode != "true" {
 		logger.Debug("normal mode is not enabled")
 		w.WriteHeader(http.StatusNotImplemented)
@@ -150,7 +143,6 @@ func ApiRequestCertificateWithCSRHandler(w http.ResponseWriter, r *http.Request)
 		http.Error(w, "malformed http request", http.StatusBadRequest)
 		return
 	}
-	_ = r.Body.Close()
 
 	p, _ := pem.Decode(csrBytes)
 
@@ -161,7 +153,7 @@ func ApiRequestCertificateWithCSRHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if dnsValidate := ds.GetSetting("certificate_request_require_domain_ownership"); dnsValidate == "true" {
+	if dnsValidate := bh.DBSvc.GetSetting("certificate_request_require_domain_ownership"); dnsValidate == "true" {
 		token, err := security.GenerateToken(global.ChallengeTokenLength)
 		if err != nil {
 			logger.Infof("error generating token: %s\n", err.Error())
@@ -179,21 +171,21 @@ func ApiRequestCertificateWithCSRHandler(w http.ResponseWriter, r *http.Request)
 			Status:     "accepted",
 		}
 
-		if err = ds.AddRequestInfo(&ri); err != nil {
+		if err = bh.DBSvc.AddRequestInfo(&ri); err != nil {
 			logger.Infof("error inserting request info: %s\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		w.Header().Set("Content-Type", "text/plain")
-		w.Header().Set(global.ChallengeLocationHeader, fmt.Sprintf(config.ServerHost+global.SolveChallengePath, ri.ID))
+		w.Header().Set(global.ChallengeLocationHeader, fmt.Sprintf(bh.Config.ServerHost+global.SolveChallengePath, ri.ID))
 		w.WriteHeader(http.StatusAccepted)
 		fmt.Fprint(w, token)
 
 		return
 	}
 
-	sn, err := certmaker.GenerateCertificateByCSR(csr)
+	sn, err := bh.CM.GenerateCertificateByCSR(csr)
 	if err != nil {
 		logger.Errorf("error generating certificate: %s\n", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -209,25 +201,25 @@ func ApiRequestCertificateWithCSRHandler(w http.ResponseWriter, r *http.Request)
 		CreatedForUser: u.ID,
 		Revoked:        false,
 	}
-	err = ds.AddCertInfo(&ci)
+	err = bh.DBSvc.AddCertInfo(&ci)
 	if err != nil {
 		logger.Errorf("could not insert cert info into DB: %s", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Add(global.CertificateLocationHeader, fmt.Sprintf(config.ServerHost+global.CertificateObtainPath, sn))
+	w.Header().Add(global.CertificateLocationHeader, fmt.Sprintf(bh.Config.ServerHost+global.CertificateObtainPath, sn))
 }
 
 // ApiObtainCertificateHandler allows to actually download a certificate
-func ApiObtainCertificateHandler(w http.ResponseWriter, r *http.Request) {
+func (bh *BaseHandler) ApiObtainCertificateHandler(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 	var (
-		logger = logging.GetLogger().WithField("function", "handler.ApiObtainCertificateHandler")
-		vars   = mux.Vars(r)
-		id     = vars["id"]
+		logger = bh.ContextLogger("api")
+		id     = mux.Vars(r)["id"]
 	)
 
-	certBytes, err := certmaker.FindLeafCertificate(id)
+	certBytes, err := bh.CM.FindLeafCertificate(id)
 	if err != nil {
 		logger.Debugf("No certificate found for ID %s", id)
 		w.WriteHeader(http.StatusNotFound)
@@ -243,14 +235,15 @@ func ApiObtainCertificateHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // ApiObtainPrivateKeyHandler allows to actually download a private key
-func ApiObtainPrivateKeyHandler(w http.ResponseWriter, r *http.Request) {
+func (bh *BaseHandler) ApiObtainPrivateKeyHandler(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 	var (
-		logger = logging.GetLogger().WithField("function", "handler.ApiObtainPrivateKeyHandler")
+		logger = bh.ContextLogger("api")
 		vars   = mux.Vars(r)
 		id     = vars["id"]
 	)
 
-	keyBytes, err := certmaker.FindLeafPrivateKey(id)
+	keyBytes, err := bh.CM.FindLeafPrivateKey(id)
 	if err != nil {
 		logger.Debugf("No private key found for ID %s", id)
 		w.WriteHeader(http.StatusNotFound)
@@ -267,12 +260,10 @@ func ApiObtainPrivateKeyHandler(w http.ResponseWriter, r *http.Request) {
 
 // ApiOcspRequestHandler responds to OCSP requests with whether the certificate
 // in question is revoked or not
-func ApiOcspRequestHandler(w http.ResponseWriter, r *http.Request) {
+func (bh *BaseHandler) ApiOcspRequestHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		err    error
-		ds     = dbservice.New()
-		config = global.GetConfiguration()
-		logger = logging.GetLogger().WithField("function", "handler.ApiOcspRequestHandler")
+		logger = bh.ContextLogger("api")
 		vars   = mux.Vars(r)
 	)
 
@@ -327,7 +318,7 @@ func ApiOcspRequestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	status := ocsp.Good
-	ci, err := ds.FindCertInfo("serial_number = ?", ocspReq.SerialNumber.Int64()) // geht das?
+	ci, err := bh.DBSvc.FindCertInfo("serial_number = ?", ocspReq.SerialNumber.Int64()) // geht das?
 	if err != nil {
 		logger.Debug("could not find cert info: " + err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -338,7 +329,7 @@ func ApiOcspRequestHandler(w http.ResponseWriter, r *http.Request) {
 		status = ocsp.Revoked
 	}
 
-	certContent, err := ioutil.ReadFile(filepath.Join(config.DataDir, "leafcerts", fmt.Sprintf("%d-cert.pem", ci.SerialNumber)))
+	certContent, err := ioutil.ReadFile(filepath.Join(bh.Config.DataDir, "leafcerts", fmt.Sprintf("%d-cert.pem", ci.SerialNumber)))
 	if err != nil {
 		logger.Debug("could not read certificate file: " + err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -375,12 +366,14 @@ func ApiOcspRequestHandler(w http.ResponseWriter, r *http.Request) {
 		IssuerHash:         crypto.SHA512,
 	}
 
-	rootCert, rootKey, err := certmaker.GetRootKeyPair()
+	rootCert, rootKey, err := bh.CM.GetRootKeyPair()
 	if err != nil {
 		logger.Errorf("could not retrieve root certificate: %s", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
+	//if rsaKey, ok := rootKey.(*rsa.PrivateKey)
 
 	resp, err := ocsp.CreateResponse(rootCert, rootCert, responseTemplate, rootKey)
 	if err != nil {
@@ -393,12 +386,9 @@ func ApiOcspRequestHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // ApiSolveChallengeHandler handles solving the challenges created for certificate request
-func ApiSolveChallengeHandler(w http.ResponseWriter, r *http.Request) {
+func (bh *BaseHandler) ApiSolveChallengeHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		logger             = logging.GetLogger().WithField("function", "handler.ApiSolveChallengeHandler")
-		config             = global.GetConfiguration()
-		client             = global.GetClient()
-		ds                 = dbservice.New()
+		logger             = bh.ContextLogger("api")
 		vars               = mux.Vars(r)
 		b                  bytes.Buffer
 		validationPort     string
@@ -420,7 +410,7 @@ func ApiSolveChallengeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ri, err := ds.GetRequestInfo(vars["id"])
+	ri, err := bh.DBSvc.GetRequestInfo(vars["id"])
 	if err != nil {
 		logger.Debugf("could not get request info for ID %v", vars["id"])
 		w.WriteHeader(http.StatusBadRequest)
@@ -498,7 +488,7 @@ func ApiSolveChallengeHandler(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
-			resp, err := client.Do(req)
+			resp, err := bh.Client.Do(req)
 			if err != nil {
 				logger.Debugf("could not execute request for validation attempt: %s", err.Error())
 				attemptSuccessful = false
@@ -554,7 +544,7 @@ func ApiSolveChallengeHandler(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
-			resp, err := client.Do(req)
+			resp, err := bh.Client.Do(req)
 			if err != nil {
 				logger.Debugf("could not execute request for IP validation: " + err.Error())
 				attemptSuccessful = false
@@ -593,14 +583,14 @@ func ApiSolveChallengeHandler(w http.ResponseWriter, r *http.Request) {
 
 	var sn int64
 	if !fromCsr {
-		sn, err = certmaker.GenerateLeafCertAndKey(certificateRequest)
+		sn, err = bh.CM.GenerateLeafCertAndKey(certificateRequest)
 		if err != nil {
 			logger.Errorf("error generating key + certificate: %s\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 	} else {
-		sn, err = certmaker.GenerateCertificateByCSR(&csr)
+		sn, err = bh.CM.GenerateCertificateByCSR(&csr)
 		if err != nil {
 			logger.Errorf("error generating key + certificate: %s\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
@@ -615,37 +605,34 @@ func ApiSolveChallengeHandler(w http.ResponseWriter, r *http.Request) {
 		Revoked:        false,
 	}
 
-	if err = ds.AddCertInfo(&ci); err != nil {
+	if err = bh.DBSvc.AddCertInfo(&ci); err != nil {
 		logger.Errorf("could not insert cert info into DB: %s", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	ri.Status = "finished"
-	err = ds.UpdateRequestInfo(&ri)
+	err = bh.DBSvc.UpdateRequestInfo(&ri)
 	if err != nil {
 		logger.Errorf("could not update request info: %s", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Add(global.CertificateLocationHeader, fmt.Sprintf(config.ServerHost+global.CertificateObtainPath, sn))
+	w.Header().Add(global.CertificateLocationHeader, fmt.Sprintf(bh.Config.ServerHost+global.CertificateObtainPath, sn))
 	if !fromCsr {
-		w.Header().Add(global.PrivateKeyLocationHandler, fmt.Sprintf(config.ServerHost+global.PrivateKeyObtainPath, sn))
+		w.Header().Add(global.PrivateKeyLocationHandler, fmt.Sprintf(bh.Config.ServerHost+global.PrivateKeyObtainPath, sn))
 	}
 }
 
 // ApiRootCertificateDownloadHandler allows to programmatically obtain the root certificate
-func ApiRootCertificateDownloadHandler(w http.ResponseWriter, r *http.Request) {
-	var (
-		logger = logging.GetLogger().WithField("function", "handler.ApiRootCertificateDownloadHandler")
-		config = global.GetConfiguration()
-	)
+func (bh *BaseHandler) ApiRootCertificateDownloadHandler(w http.ResponseWriter, r *http.Request) {
+	logger := bh.ContextLogger("api")
 
-	certFile := filepath.Join(config.DataDir, global.RootCertificateFilename)
+	certFile := filepath.Join(bh.Config.DataDir, global.RootCertificateFilename)
 	fh, err := os.Open(certFile)
 	if err != nil {
-		logger.Errorf("could not open root cert file for reading: %s", err.Error())
+		logger.WithField("error", err.Error()).Error("could not open root cert file for reading")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -653,7 +640,7 @@ func ApiRootCertificateDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", global.PemContentType)
 	_, err = io.Copy(w, fh)
 	if err != nil {
-		logger.Errorf("could not write root cert contents: %s", err.Error())
+		logger.WithField("error", err.Error()).Error("could not write root cert contents")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -661,15 +648,14 @@ func ApiRootCertificateDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	_ = fh.Close()
 }
 
-func ApiRevokeCertificateHandler(w http.ResponseWriter, r *http.Request) {
+func (bh *BaseHandler) ApiRevokeCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		logger = logging.GetLogger().WithField("function", "handler.ApiRevokeCertificateHandler")
-		ds     = dbservice.New()
+		logger = bh.ContextLogger("api")
 		u      = r.Context().Value("user").(entity.User)
 		vars   = mux.Vars(r)
 	)
 
-	ci, err := ds.FindCertInfo("serial_number = ?", vars["sn"])
+	ci, err := bh.DBSvc.FindCertInfo("serial_number = ?", vars["sn"])
 	if err != nil {
 		logger.Debugf("could not find certinfo: %s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -691,7 +677,7 @@ func ApiRevokeCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	ci.Revoked = true
 	ci.RevokedAt = sql.NullTime{Time: time.Now(), Valid: true}
 
-	err = ds.UpdateCertInfo(&ci)
+	err = bh.DBSvc.UpdateCertInfo(&ci)
 	if err != nil {
 		logger.Debugf("could not update certinfo: %s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)

@@ -1,17 +1,17 @@
 package certmaker
 
 import (
+	"crypto"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
-	"github.com/KaiserWerk/CertMaker/internal/entity"
-	"github.com/KaiserWerk/CertMaker/internal/global"
-	"github.com/KaiserWerk/CertMaker/internal/helper"
 	"io/ioutil"
 	"math/big"
 	"net"
@@ -21,37 +21,54 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/KaiserWerk/CertMaker/internal/configuration"
+	"github.com/KaiserWerk/CertMaker/internal/entity"
+	"github.com/KaiserWerk/CertMaker/internal/global"
+	"github.com/KaiserWerk/CertMaker/internal/helper"
 )
 
-var (
-	snMutex  sync.Mutex
-	certFile string
-	keyFile  string
+var ()
+
+type (
+	Algo      string
+	CertMaker struct {
+		Config   *configuration.AppConfig
+		snMutex  sync.Mutex
+		CertFile string
+		KeyFile  string
+	}
 )
+
+const (
+	RSA     Algo = "rsa"
+	ECDSA   Algo = "ecdsa"
+	ED25519 Algo = "ed25519"
+)
+
+func New(config *configuration.AppConfig) *CertMaker {
+	return &CertMaker{
+		Config: config,
+	}
+}
 
 // SetupCA checks if root key and certificate exist. if not,
 // both are created. Also check if both files are readable and
 // parseable.
-func SetupCA() error {
-	config := global.GetConfiguration()
+func (cm *CertMaker) SetupCA() error {
+	cm.CertFile = filepath.Join(cm.Config.DataDir, global.RootCertificateFilename)
+	cm.KeyFile = filepath.Join(cm.Config.DataDir, global.RootPrivateKeyFilename)
 
-	certFile = filepath.Join(config.DataDir, global.RootCertificateFilename)
-	keyFile = filepath.Join(config.DataDir, global.RootPrivateKeyFilename)
-
-	// check if root certificate exists
-	if !helper.DoesFileExist(certFile) || !helper.DoesFileExist(keyFile) {
-		// if no, generate new one and save to file
-		if err := GenerateRootCertAndKey(); err != nil {
+	if !helper.DoesFileExist(cm.CertFile) || !helper.DoesFileExist(cm.KeyFile) {
+		if err := cm.GenerateRootCertAndKey(Algo(cm.Config.RootKeyAlgo)); err != nil {
 			return err
 		}
 	}
 
-	// if yes, try to load it. return error, if any
-	caFiles, err := tls.LoadX509KeyPair(certFile, keyFile)
+	caFiles, err := tls.LoadX509KeyPair(cm.CertFile, cm.KeyFile)
 	if err != nil {
 		return err
 	}
-	// parse the content
 	_, err = x509.ParseCertificate(caFiles.Certificate[0])
 	if err != nil {
 		return err
@@ -61,13 +78,11 @@ func SetupCA() error {
 }
 
 // GetNextSerialNumber fetches the next serial number.
-func GetNextSerialNumber() (int64, error) {
-	config := global.GetConfiguration()
+func (cm *CertMaker) GetNextSerialNumber() (int64, error) {
+	cm.snMutex.Lock()
+	defer cm.snMutex.Unlock()
 
-	snMutex.Lock()
-	defer snMutex.Unlock()
-
-	file := filepath.Join(config.DataDir, "sn.txt")
+	file := filepath.Join(cm.Config.DataDir, "sn.txt")
 	cont, err := ioutil.ReadFile(file)
 	if err != nil {
 		return 0, err
@@ -89,20 +104,41 @@ func GetNextSerialNumber() (int64, error) {
 
 // GenerateRootCertAndKey generates the root private key and with it,
 // the root certificate
-func GenerateRootCertAndKey() error {
+func (cm *CertMaker) GenerateRootCertAndKey(algo Algo) error {
 	// create folder if it does not exist
-	_ = os.Mkdir(path.Dir(certFile), 0744)
+	_ = os.Mkdir(path.Dir(cm.CertFile), 0744)
 
-	nextSn, err := GetNextSerialNumber() // read sn from file and increment it
+	nextSn, err := cm.GetNextSerialNumber() // read sn from file and increment it
 	if err != nil {
 		return err
 	}
 
-	privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return err
+	var (
+		privKey crypto.Signer
+		pubKey  crypto.PublicKey
+	)
+
+	switch Algo(cm.Config.RootKeyAlgo) {
+	case RSA:
+		rsaPrivKey, err := rsa.GenerateKey(rand.Reader, 4096)
+		if err != nil {
+			return err
+		}
+		pubKey = &rsaPrivKey.PublicKey
+	case ECDSA:
+		ecdsaPrivKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			return err
+		}
+		pubKey = &ecdsaPrivKey.PublicKey
+	case ED25519:
+		edPubKey, edPrivKey, err := ed25519.GenerateKey(rand.Reader)
+		if err != nil {
+			return err
+		}
+		privKey = edPrivKey
+		pubKey = edPubKey
 	}
-	pubKey := &privKey.PublicKey
 
 	ca := &x509.Certificate{
 		SerialNumber: big.NewInt(nextSn),
@@ -127,7 +163,7 @@ func GenerateRootCertAndKey() error {
 		return err
 	}
 
-	fh, err := os.OpenFile(certFile, os.O_CREATE|os.O_WRONLY, 0744)
+	fh, err := os.OpenFile(cm.CertFile, os.O_CREATE|os.O_WRONLY, 0744)
 	if err != nil {
 		return err
 	}
@@ -137,15 +173,15 @@ func GenerateRootCertAndKey() error {
 	}
 	_ = fh.Close()
 
-	fh, err = os.OpenFile(keyFile, os.O_CREATE|os.O_WRONLY, 0700)
+	fh, err = os.OpenFile(cm.KeyFile, os.O_CREATE|os.O_WRONLY, 0700)
 	if err != nil {
 		return err
 	}
-	privKeyBytes, err := x509.MarshalECPrivateKey(privKey)
+	privKeyBytes, err := x509.MarshalPKCS8PrivateKey(privKey)
 	if err != nil {
 		return err
 	}
-	err = pem.Encode(fh, &pem.Block{Type: "EC PRIVATE KEY", Bytes: privKeyBytes})
+	err = pem.Encode(fh, &pem.Block{Type: "PRIVATE KEY", Bytes: privKeyBytes})
 	if err != nil {
 		return err
 	}
@@ -156,9 +192,8 @@ func GenerateRootCertAndKey() error {
 
 // GenerateLeafCertAndKey generates a certificate signed by
 // the root certificate and a private key.
-func GenerateLeafCertAndKey(request entity.SimpleRequest) (int64, error) {
-	config := global.GetConfiguration()
-	caTls, err := tls.LoadX509KeyPair(filepath.Join(config.DataDir, global.RootCertificateFilename), filepath.Join(config.DataDir, global.RootPrivateKeyFilename))
+func (cm *CertMaker) GenerateLeafCertAndKey(request entity.SimpleRequest) (int64, error) {
+	caTls, err := tls.LoadX509KeyPair(filepath.Join(cm.Config.DataDir, global.RootCertificateFilename), filepath.Join(cm.Config.DataDir, global.RootPrivateKeyFilename))
 	if err != nil {
 		panic(err)
 	}
@@ -183,7 +218,7 @@ func GenerateLeafCertAndKey(request entity.SimpleRequest) (int64, error) {
 		}
 	}
 
-	nextSn, err := GetNextSerialNumber()
+	nextSn, err := cm.GetNextSerialNumber()
 	if err != nil {
 		return 0, err
 	}
@@ -204,22 +239,21 @@ func GenerateLeafCertAndKey(request entity.SimpleRequest) (int64, error) {
 		ExtKeyUsage:        []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:           x509.KeyUsageDigitalSignature,
 		SignatureAlgorithm: x509.ECDSAWithSHA256,
-		OCSPServer:         []string{config.ServerHost + global.OcspPath}, // TODO implement/fix
+		OCSPServer:         []string{cm.Config.ServerHost + global.OcspPath}, // TODO implement/fix
 
 		DNSNames:       request.Domains,
 		IPAddresses:    ips,
 		EmailAddresses: request.EmailAddresses,
 	}
 
-	_ = os.MkdirAll(fmt.Sprintf("%s/leafcerts", config.DataDir), 0744)
-	outCertFilename := fmt.Sprintf("%s/leafcerts/%s-cert.pem", config.DataDir, strconv.FormatInt(nextSn, 10))
-	outKeyFilename := fmt.Sprintf("%s/leafcerts/%s-key.pem", config.DataDir, strconv.FormatInt(nextSn, 10))
+	_ = os.MkdirAll(fmt.Sprintf("%s/leafcerts", cm.Config.DataDir), 0744)
+	outCertFilename := fmt.Sprintf("%s/leafcerts/%s-cert.pem", cm.Config.DataDir, strconv.FormatInt(nextSn, 10))
+	outKeyFilename := fmt.Sprintf("%s/leafcerts/%s-key.pem", cm.Config.DataDir, strconv.FormatInt(nextSn, 10))
 
-	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	priv, pub, err := ed25519.GenerateKey(rand.Reader) // TODO: if ed25519 doesn't work out with browsers, return to ecdsa
 	if err != nil {
 		return 0, err
 	}
-	pub := &priv.PublicKey
 
 	// Sign the certificate
 	certBytes, err := x509.CreateCertificate(rand.Reader, cert, ca, pub, caTls.PrivateKey)
@@ -246,11 +280,11 @@ func GenerateLeafCertAndKey(request entity.SimpleRequest) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	privKeyBytes, err := x509.MarshalECPrivateKey(priv)
+	privKeyBytes, err := x509.MarshalPKCS8PrivateKey(priv)
 	if err != nil {
 		return 0, err
 	}
-	err = pem.Encode(keyOut, &pem.Block{Type: "EC PRIVATE KEY", Bytes: privKeyBytes})
+	err = pem.Encode(keyOut, &pem.Block{Type: "PRIVATE KEY", Bytes: privKeyBytes})
 	if err != nil {
 		return 0, err
 	}
@@ -262,10 +296,8 @@ func GenerateLeafCertAndKey(request entity.SimpleRequest) (int64, error) {
 	return nextSn, nil
 }
 
-func GenerateCertificateByCSR(csr *x509.CertificateRequest) (int64, error) {
-	config := global.GetConfiguration()
-
-	caTls, err := tls.LoadX509KeyPair(filepath.Join(config.DataDir, global.RootCertificateFilename), filepath.Join(config.DataDir, global.RootCertificateFilename))
+func (cm *CertMaker) GenerateCertificateByCSR(csr *x509.CertificateRequest) (int64, error) {
+	caTls, err := tls.LoadX509KeyPair(filepath.Join(cm.Config.DataDir, global.RootCertificateFilename), filepath.Join(cm.Config.DataDir, global.RootCertificateFilename))
 	if err != nil {
 		panic(err)
 	}
@@ -274,7 +306,7 @@ func GenerateCertificateByCSR(csr *x509.CertificateRequest) (int64, error) {
 		panic(err)
 	}
 
-	nextSn, err := GetNextSerialNumber()
+	nextSn, err := cm.GetNextSerialNumber()
 	if err != nil {
 		return 0, err
 	}
@@ -288,15 +320,18 @@ func GenerateCertificateByCSR(csr *x509.CertificateRequest) (int64, error) {
 		ExtKeyUsage:        []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:           x509.KeyUsageDigitalSignature,
 		SignatureAlgorithm: x509.ECDSAWithSHA256,
-		OCSPServer:         []string{config.ServerHost + global.OcspPath}, // TODO implement/fix
+		OCSPServer:         []string{cm.Config.ServerHost + global.OcspPath}, // TODO implement/fix
 
 		EmailAddresses: csr.EmailAddresses,
 		DNSNames:       csr.DNSNames,
 		IPAddresses:    csr.IPAddresses,
 	}
 
-	_ = os.MkdirAll(fmt.Sprintf("%s/leafcerts", config.DataDir), 0744)
-	outCertFilename := fmt.Sprintf("%s/leafcerts/%s-cert.pem", config.DataDir, strconv.FormatInt(nextSn, 10))
+	err = os.MkdirAll(filepath.Join(cm.Config.DataDir, "leafcerts"), 0744)
+	if err != nil {
+		return 0, err
+	}
+	outCertFilename := filepath.Join(cm.Config.DataDir, "leafcerts", fmt.Sprintf("%s-cert.pem", strconv.FormatInt(nextSn, 10)))
 
 	// Sign the certificate
 	certBytes, err := x509.CreateCertificate(rand.Reader, template, ca, csr.PublicKey, caTls.PrivateKey)
@@ -323,9 +358,8 @@ func GenerateCertificateByCSR(csr *x509.CertificateRequest) (int64, error) {
 
 // FindLeafCertificate returns the contents of the leaf certificate
 // with the supplied serial number
-func FindLeafCertificate(sn string) ([]byte, error) {
-	config := global.GetConfiguration()
-	certFile := filepath.Join(config.DataDir, "leafcerts", fmt.Sprintf("%s-cert.pem", sn))
+func (cm *CertMaker) FindLeafCertificate(sn string) ([]byte, error) {
+	certFile := filepath.Join(cm.Config.DataDir, "leafcerts", fmt.Sprintf("%s-cert.pem", sn))
 	if !helper.DoesFileExist(certFile) {
 		return nil, fmt.Errorf("cert file with id %s not found", sn)
 	}
@@ -340,9 +374,8 @@ func FindLeafCertificate(sn string) ([]byte, error) {
 
 // FindLeafPrivateKey returns the contents of the leaf private key
 // with the supplied serial number
-func FindLeafPrivateKey(sn string) ([]byte, error) {
-	config := global.GetConfiguration()
-	keyFile := filepath.Join(config.DataDir, "leafcerts", fmt.Sprintf("%s-key.pem", sn))
+func (cm *CertMaker) FindLeafPrivateKey(sn string) ([]byte, error) {
+	keyFile := filepath.Join(cm.Config.DataDir, "leafcerts", fmt.Sprintf("%s-key.pem", sn))
 	if !helper.DoesFileExist(keyFile) {
 		return nil, fmt.Errorf("key file with id %s not found", sn)
 	}
@@ -355,11 +388,8 @@ func FindLeafPrivateKey(sn string) ([]byte, error) {
 	return content, nil
 }
 
-func GetRootCertificate() (*x509.Certificate, error) {
-	var (
-		config = global.GetConfiguration()
-	)
-	certContent, err := ioutil.ReadFile(filepath.Join(config.DataDir, "root-cert.pem"))
+func (cm *CertMaker) GetRootCertificate() (*x509.Certificate, error) {
+	certContent, err := ioutil.ReadFile(filepath.Join(cm.Config.DataDir, "root-cert.pem"))
 	if err != nil {
 		return nil, err
 	}
@@ -368,20 +398,39 @@ func GetRootCertificate() (*x509.Certificate, error) {
 	return x509.ParseCertificate(block.Bytes)
 }
 
-func GetRootKeyPair() (*x509.Certificate, *ecdsa.PrivateKey, error) {
-	var (
-		config = global.GetConfiguration()
-	)
-
-	caFiles, err := tls.LoadX509KeyPair(filepath.Join(config.DataDir, "root-cert.pem"), filepath.Join(config.DataDir, "root-key.pem"))
-	if err != nil {
-		return nil, nil, err
-	}
-	// parse the content
-	cert, err := x509.ParseCertificate(caFiles.Certificate[0])
+func (cm *CertMaker) GetRootKeyPair() (*x509.Certificate, crypto.Signer, error) {
+	// cert
+	cont, err := ioutil.ReadFile(filepath.Join(cm.Config.DataDir, "root-cert.pem"))
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return cert, caFiles.PrivateKey.(*ecdsa.PrivateKey), nil
+	block, _ := pem.Decode(cont)
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	cont, err = ioutil.ReadFile(filepath.Join(cm.Config.DataDir, "root-key.pem"))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	block, _ = pem.Decode(cont)
+	privKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if rsaKey, ok := privKey.(rsa.PrivateKey); ok {
+		return cert, &rsaKey, nil
+	}
+	if ecdsaKey, ok := privKey.(ecdsa.PrivateKey); ok {
+		return cert, &ecdsaKey, nil
+	}
+	if ed25519Key, ok := privKey.(ed25519.PrivateKey); ok {
+		return cert, &ed25519Key, nil
+	}
+
+	return nil, nil, fmt.Errorf("private key is neither of type RSA, ECDSA nor ED25519")
 }

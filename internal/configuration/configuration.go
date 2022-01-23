@@ -2,113 +2,87 @@ package configuration
 
 import (
 	"fmt"
-	"github.com/KaiserWerk/CertMaker/internal/assets"
-	"github.com/KaiserWerk/CertMaker/internal/entity"
-	"github.com/KaiserWerk/CertMaker/internal/global"
-	"github.com/KaiserWerk/CertMaker/internal/helper"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	"github.com/KaiserWerk/CertMaker/internal/assets"
+	"github.com/KaiserWerk/CertMaker/internal/helper"
+
+	"gopkg.in/yaml.v2"
 )
+
+// AppConfig represents the Go type of a configuration file
+type AppConfig struct {
+	ServerHost  string `yaml:"server_host"`
+	DataDir     string `yaml:"data_dir"`
+	RootKeyAlgo string `yaml:"root_key_algo"`
+	Database    struct {
+		Driver string `yaml:"driver"`
+		DSN    string `yaml:"dsn"`
+	} `yaml:"database"`
+}
 
 var (
-	configurationFile = "config.yaml"
-	configDistFile    = "config/config.dist.yaml"
-	snFile            = ""
-	snDistFile        = "config/sn.dist.txt"
+	configDistFile = "config/config.dist.yaml"
+	snDistFile     = "config/sn.dist.txt"
 )
-
-// GetConfigFilename returns the path + name of
-// the configuration file
-func GetConfigFilename() string {
-	return configurationFile
-}
-
-// GetSnFilename returns the path + name of
-// the serial number file
-func GetSnFilename() string {
-	return snFile
-}
-
-// SetFileSource sets the file source for the configuration
-// to be read from
-func SetFileSource(f string) {
-	configurationFile = f
-}
 
 // Setup makes sure the configuration file and serial
 // number file exist. If not, they are created with sensible defaults.
-func Setup() (bool, bool, error) {
+func Setup(file string) (*AppConfig, bool, error) {
 	var (
-		createdConfigFile = false
-		createdSnFile     = false
-		assetsFS          = assets.GetConfigFS()
+		created  = false
+		assetsFS = assets.GetConfigFS()
 	)
 
-	if !helper.DoesFileExist(configurationFile) {
+	if !helper.DoesFileExist(file) {
 		cont, err := assetsFS.ReadFile(configDistFile)
 		if err != nil {
-			return createdConfigFile, createdSnFile, fmt.Errorf("config dist file '%s' not readable in embed.FS: %s", configDistFile, err.Error())
+			return nil, created, fmt.Errorf("config dist file '%s' not readable in embed.FS: %s", configDistFile, err.Error())
 		}
 
-		targetFile, err := os.Create(configurationFile)
+		targetFile, err := os.Create(file)
 		if err != nil {
-			return createdConfigFile, createdSnFile, fmt.Errorf("could not create config file '%s': %s", configurationFile, err.Error())
+			return nil, created, fmt.Errorf("could not create config file '%s': %s", file, err.Error())
 		}
-		createdConfigFile = true
 
 		_, err = targetFile.Write(cont)
 		if err != nil {
-			return createdConfigFile, createdSnFile, fmt.Errorf("could not write dist file content to newly created config file '%s': %s", configurationFile, err.Error())
+			return nil, created, fmt.Errorf("could not write dist file content to newly created config file '%s': %s", file, err.Error())
 		}
+
+		created = true
 	}
 
-	c, err := Get()
+	cont, err := ioutil.ReadFile(file)
 	if err != nil {
-		return createdConfigFile, createdSnFile, fmt.Errorf("config from file '%s' is not parseable: %s", configurationFile, err.Error())
+		return nil, created, err
 	}
 
-	snFile = filepath.Join(c.DataDir, "sn.txt")
+	var cfg AppConfig
+	err = yaml.Unmarshal(cont, &cfg)
+	if err != nil {
+		return nil, created, err
+	}
+
+	snFile := filepath.Join(cfg.DataDir, "sn.txt")
 	if !helper.DoesFileExist(snFile) {
 		snCont, err := assetsFS.ReadFile("config/sn.dist.txt")
 		if err != nil {
-			return createdConfigFile, createdSnFile, fmt.Errorf("serial number dist file '%s' not readable in embed.FS: %s", snDistFile, err.Error())
+			return nil, created, fmt.Errorf("serial number dist file '%s' not readable in embed.FS: %s", snDistFile, err.Error())
 		}
 
 		targetFile, err := os.Create(snFile)
 		if err != nil {
-			return createdConfigFile, createdSnFile, fmt.Errorf("could not create serial number file '%s': %s", snFile, err.Error())
+			return nil, created, fmt.Errorf("could not create serial number file '%s': %s", snFile, err.Error())
 		}
-		createdSnFile = true
 
 		_, err = targetFile.Write(snCont)
 		if err != nil {
-			return createdConfigFile, createdSnFile, fmt.Errorf("could not write dist file content to newly created serial number file '%s': %s", snFile, err.Error())
+			return nil, created, fmt.Errorf("could not write dist file content to newly created serial number file '%s': %s", snFile, err.Error())
 		}
 	}
 
-	global.SetConfiguration(c)
-
-	return createdConfigFile, createdSnFile, nil
-}
-
-// Get fetches the actual, current configuration
-func Get() (*entity.Configuration, error) {
-	if !helper.DoesFileExist(configurationFile) {
-		return nil, fmt.Errorf("config file '%s' not found", configurationFile)
-	}
-
-	content, err := ioutil.ReadFile(configurationFile)
-	if err != nil {
-		return nil, err
-	}
-
-	var s *entity.Configuration
-	err = yaml.Unmarshal(content, &s)
-	if err != nil {
-		return nil, err
-	}
-
-	return s, nil
+	return &cfg, created, nil
 }

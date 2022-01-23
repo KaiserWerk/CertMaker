@@ -2,10 +2,8 @@ package handler
 
 import (
 	"fmt"
-	"github.com/KaiserWerk/CertMaker/internal/dbservice"
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 	"github.com/KaiserWerk/CertMaker/internal/global"
-	"github.com/KaiserWerk/CertMaker/internal/logging"
 	"github.com/KaiserWerk/CertMaker/internal/security"
 	"github.com/KaiserWerk/CertMaker/internal/templates"
 	"github.com/gorilla/mux"
@@ -14,11 +12,10 @@ import (
 
 // AdminSettingsHandler takes care of checking and write system-wide settings
 // to the database
-func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
+func (bh *BaseHandler) AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		err    error
-		logger = logging.GetLogger().WithField("function", "handler.AdminSettingsHandler")
-		ds     = dbservice.New()
+		logger = bh.ContextLogger("admin")
 	)
 
 	if r.Method == http.MethodPost {
@@ -31,7 +28,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 			if r.FormValue("authprovider_userpw") == "true" {
 				authprovUserpw = "true"
 			}
-			err = ds.SetSetting("authprovider_userpw", authprovUserpw)
+			err = bh.DBSvc.SetSetting("authprovider_userpw", authprovUserpw)
 			if err != nil {
 				errors++
 				logger.Error(err.Error())
@@ -41,7 +38,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 			if r.FormValue("authprovider_bearer") == "true" {
 				authprovBearer = "true"
 			}
-			err = ds.SetSetting("authprovider_bearer", authprovBearer)
+			err = bh.DBSvc.SetSetting("authprovider_bearer", authprovBearer)
 			if err != nil {
 				errors++
 				logger.Error(err.Error())
@@ -51,7 +48,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 			if r.FormValue("registration_enabled") == "true" {
 				registrationEnabled = "true"
 			}
-			err = ds.SetSetting("registration_enabled", registrationEnabled)
+			err = bh.DBSvc.SetSetting("registration_enabled", registrationEnabled)
 			if err != nil {
 				errors++
 				logger.Error(err.Error())
@@ -61,7 +58,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 			if r.FormValue("registration_require_email_confirmation") == "true" {
 				registrationRequireEmailConfirmation = "true"
 			}
-			err = ds.SetSetting("registration_require_email_confirmation", registrationRequireEmailConfirmation)
+			err = bh.DBSvc.SetSetting("registration_require_email_confirmation", registrationRequireEmailConfirmation)
 			if err != nil {
 				errors++
 				logger.Error(err.Error())
@@ -71,7 +68,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 			if r.FormValue("certificate_revocation_allow") == "true" {
 				certificateRevocationAllow = "true"
 			}
-			err = ds.SetSetting("certificate_revocation_allow", certificateRevocationAllow)
+			err = bh.DBSvc.SetSetting("certificate_revocation_allow", certificateRevocationAllow)
 			if err != nil {
 				errors++
 				logger.Error(err.Error())
@@ -81,7 +78,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 			if r.FormValue("certificate_request_simple_mode") == "true" {
 				certificateRequestSimpleMode = "true"
 			}
-			err = ds.SetSetting("certificate_request_simple_mode", certificateRequestSimpleMode)
+			err = bh.DBSvc.SetSetting("certificate_request_simple_mode", certificateRequestSimpleMode)
 			if err != nil {
 				errors++
 				logger.Error(err.Error())
@@ -91,7 +88,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 			if r.FormValue("certificate_request_normal_mode") == "true" {
 				certificateRequestNormalMode = "true"
 			}
-			err = ds.SetSetting("certificate_request_normal_mode", certificateRequestNormalMode)
+			err = bh.DBSvc.SetSetting("certificate_request_normal_mode", certificateRequestNormalMode)
 			if err != nil {
 				errors++
 				logger.Error(err.Error())
@@ -101,7 +98,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 			if r.FormValue("certificate_request_keepnocopy") == "true" {
 				certificateRequestKeepnocopy = "true"
 			}
-			err = ds.SetSetting("certificate_request_keepnocopy", certificateRequestKeepnocopy)
+			err = bh.DBSvc.SetSetting("certificate_request_keepnocopy", certificateRequestKeepnocopy)
 			if err != nil {
 				errors++
 				logger.Error(err.Error())
@@ -111,7 +108,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 			if r.FormValue("certificate_request_require_domain_ownership") == "true" {
 				certificateRequestRequireDomainOwnership = "true"
 			}
-			err = ds.SetSetting("certificate_request_require_domain_ownership", certificateRequestRequireDomainOwnership)
+			err = bh.DBSvc.SetSetting("certificate_request_require_domain_ownership", certificateRequestRequireDomainOwnership)
 			if err != nil {
 				errors++
 				logger.Error(err.Error())
@@ -128,7 +125,7 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	allSettings, err := ds.GetAllSettings()
+	allSettings, err := bh.DBSvc.GetAllSettings()
 	if err != nil {
 		logger.Error("could not get all settings: " + err.Error())
 	}
@@ -139,18 +136,17 @@ func AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 		AdminSettings: allSettings,
 	}
 
-	if err := templates.ExecuteTemplate(w, "admin/settings.gohtml", data); err != nil {
+	if err := templates.ExecuteTemplate(bh.Inj(), w, "admin/settings.gohtml", data); err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
 
 // AdminUserListHandler lists all existing user
-func AdminUserListHandler(w http.ResponseWriter, r *http.Request) {
+func (bh *BaseHandler) AdminUserListHandler(w http.ResponseWriter, _ *http.Request) {
 	var (
-		ds     = dbservice.New()
-		logger = logging.GetLogger().WithField("function", "handler.AdminUserListHandler")
+		logger = bh.ContextLogger("admin")
 	)
-	allUsers, err := ds.GetAllUsers()
+	allUsers, err := bh.DBSvc.GetAllUsers()
 	if err != nil {
 		logger.Error("could not get all users: " + err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -163,16 +159,16 @@ func AdminUserListHandler(w http.ResponseWriter, r *http.Request) {
 		AllUsers: allUsers,
 	}
 
-	if err := templates.ExecuteTemplate(w, "admin/user_list.gohtml", data); err != nil {
+	if err := templates.ExecuteTemplate(bh.Inj(), w, "admin/user_list.gohtml", data); err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
 
 // AdminUserAddHandler takes form values and creates a new user account
-func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
+func (bh *BaseHandler) AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		err    error
-		logger = logging.GetLogger().WithField("function", "handler.AdminUserAddHandler")
+		logger = bh.ContextLogger("admin")
 	)
 	if r.Method == http.MethodPost {
 
@@ -193,8 +189,7 @@ func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		ds := dbservice.New()
-		_, err = ds.FindUser("username = ?", username)
+		_, err = bh.DBSvc.FindUser("username = ?", username)
 		if err == nil {
 			logger.Debug("username already taken")
 			http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
@@ -202,7 +197,7 @@ func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if email != "" {
-			_, err = ds.FindUser("email = ?", email)
+			_, err = bh.DBSvc.FindUser("email = ?", email)
 			if err == nil {
 				logger.Debug("email already taken")
 				http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
@@ -249,7 +244,7 @@ func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 			Admin:    admin,
 		}
 
-		err = ds.AddUser(&u)
+		err = bh.DBSvc.AddUser(&u)
 		if err != nil {
 			logger.Error("could not create user: " + err.Error())
 			http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
@@ -260,23 +255,22 @@ func AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	if err := templates.ExecuteTemplate(w, "admin/user_add.gohtml", nil); err != nil {
+	if err := templates.ExecuteTemplate(bh.Inj(), w, "admin/user_add.gohtml", nil); err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
 
 // AdminUserEditHandler allows changing values for a given user account
-func AdminUserEditHandler(w http.ResponseWriter, r *http.Request) {
+func (bh *BaseHandler) AdminUserEditHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		vars    = mux.Vars(r)
 		err     error
-		logger        = logging.GetLogger().WithField("function", "handler.AdminUserEditHandler")
+		logger        = bh.ContextLogger("admin")
 		changes uint8 = 0
-		ds            = dbservice.New()
 		message string
 	)
 
-	userToEdit, err := ds.FindUser("id = ?", vars["id"])
+	userToEdit, err := bh.DBSvc.FindUser("id = ?", vars["id"])
 	if err != nil {
 		logger.Debug("could not find user with ID '%s': %s\n", vars["id"], err.Error())
 		http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
@@ -289,7 +283,7 @@ func AdminUserEditHandler(w http.ResponseWriter, r *http.Request) {
 		password := r.FormValue("password")
 
 		if username != "" {
-			_, err = ds.FindUser("username = ? && id != ?", username, userToEdit.ID)
+			_, err = bh.DBSvc.FindUser("username = ? && id != ?", username, userToEdit.ID)
 			if err == nil {
 				logger.Debug("username already taken")
 				http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
@@ -300,7 +294,7 @@ func AdminUserEditHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if email != "" {
-			_, err = ds.FindUser("email = ? && id != ?", email, userToEdit.ID)
+			_, err = bh.DBSvc.FindUser("email = ? && id != ?", email, userToEdit.ID)
 			if err == nil {
 				logger.Debug("email already taken")
 				http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
@@ -354,7 +348,7 @@ func AdminUserEditHandler(w http.ResponseWriter, r *http.Request) {
 			message = fmt.Sprintf("%d changes were saved!", changes)
 		}
 
-		err = ds.UpdateUser(&userToEdit)
+		err = bh.DBSvc.UpdateUser(&userToEdit)
 		if err != nil {
 			logger.Error("user data could not be updated")
 			http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
@@ -370,19 +364,17 @@ func AdminUserEditHandler(w http.ResponseWriter, r *http.Request) {
 		Message: message,
 	}
 
-	if err := templates.ExecuteTemplate(w, "admin/user_edit.gohtml", data); err != nil {
+	if err := templates.ExecuteTemplate(bh.Inj(), w, "admin/user_edit.gohtml", data); err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
 
 // AdminUserRemoveHandler allows removing a given user account
-func AdminUserRemoveHandler(w http.ResponseWriter, r *http.Request) {
+func (bh *BaseHandler) AdminUserRemoveHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		val    = r.Context().Value("user")
-		u      = val.(entity.User)
+		u      = r.Context().Value("user").(entity.User)
 		vars   = mux.Vars(r)
-		logger = logging.GetLogger().WithField("function", "handler.AdminUserRemoveHandler")
-		ds     = dbservice.New()
+		logger = bh.ContextLogger("admin")
 	)
 
 	if fmt.Sprintf("%s", u.ID) == vars["id"] {
@@ -391,14 +383,14 @@ func AdminUserRemoveHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := ds.FindUser("id = ?", vars["id"])
+	user, err := bh.DBSvc.FindUser("id = ?", vars["id"])
 	if err != nil {
 		logger.Trace("User could not be found")
 		http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
 		return
 	}
 
-	err = ds.DeleteUser(&user)
+	err = bh.DBSvc.DeleteUser(&user)
 	if err != nil {
 		logger.Error("User could not be deleted: " + err.Error())
 		http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)

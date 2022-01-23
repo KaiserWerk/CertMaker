@@ -9,8 +9,7 @@
     <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
     <!-- other browsers -->
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-    <link rel="stylesheet" href="/static/static/css/mini-default.min.css" type="text/css" />
-    <link rel="stylesheet" href="/static/static/css/custom.css" type="text/css" />
+    <link rel="stylesheet" href="/static/static/css/bootstrap.min.css" type="text/css" />
 </head>
 <body>
 
@@ -18,34 +17,89 @@
 
     <div class="container">
 
-        <div class="row">
-            <div class="col-md-3">
-                <h1>CertMaker <small>Your local CA</small></h1>
-                <nav>
-                    <a href="/">Dashboard</a>
-                    <span>Certificates</span>
-                        <a href="/certificate/list" class="sublink-1">Certificate List</a>
-                        <a href="/certificate/add" class="sublink-1">Generate Certificate</a>
-                        <a href="/certificate/add-with-csr" class="sublink-1">Generate Certificate with CSR</a>
-                    <span>Administration</span>
-                        <a href="/admin/settings" class="sublink-1">System Settings</a>
-                        <span class="sublink-1">Users</span>
-                            <a class="sublink-2" href="/admin/user/list">All User Accounts</a>
-                            <a class="sublink-2" href="/admin/user/add">Add Account</a>
-                    <span>Personal</span>
-                        <a href="/user/profile" class="sublink-1">My Profile</a>
-                        <a href="/auth/logout" class="sublink-1">Logout</a>
-                </nav>
-            </div>
-            <div class="col-md-9">
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="#">Navbar</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                <li class="nav-item">
+                    <a class="nav-link active" aria-current="page" href="/">Dashboard</a>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown1" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Certificates
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="navbarDropdown1">
+                        <li><a class="dropdown-item" href="#">Action</a></li>
+                        <li><a class="dropdown-item" href="#">Another action</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#">Something else here</a></li>
+                    </ul>
+                </li>
+
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown2" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Administration
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="navbarDropdown2">
+                        <li><a class="dropdown-item" href="#">Action</a></li>
+                        <li><a class="dropdown-item" href="#">Another action</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#">Something else here</a></li>
+                    </ul>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown3" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Personal
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="navbarDropdown3">
+                        <li><a class="dropdown-item" href="#">Action</a></li>
+                        <li><a class="dropdown-item" href="#">Another action</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#">Something else here</a></li>
+                    </ul>
+                </li>
+            </ul>
+            <form class="d-flex">
+                <input class="form-control me-2" type="search" placeholder="Search" aria-label="Search">
+                <button class="btn btn-outline-success" type="submit">Search</button>
+            </form>
+        </div>
+    </div>
+</nav>
+
+{{/*        <div class="row">*/}}
+{{/*            <div class="col-md-3">*/}}
+{{/*                <h1>CertMaker <small>Your local CA</small></h1>*/}}
+{{/*                <nav>*/}}
+{{/*                    <a href="/">Dashboard</a>*/}}
+{{/*                    <span>Certificates</span>*/}}
+{{/*                        <a href="/certificate/list" class="sublink-1">Certificate List</a>*/}}
+{{/*                        <a href="/certificate/add" class="sublink-1">Generate Certificate</a>*/}}
+{{/*                        <a href="/certificate/add-with-csr" class="sublink-1">Generate Certificate with CSR</a>*/}}
+{{/*                    <span>Administration</span>*/}}
+{{/*                        <a href="/admin/settings" class="sublink-1">System Settings</a>*/}}
+{{/*                        <span class="sublink-1">Users</span>*/}}
+{{/*                            <a class="sublink-2" href="/admin/user/list">All User Accounts</a>*/}}
+{{/*                            <a class="sublink-2" href="/admin/user/add">Add Account</a>*/}}
+{{/*                    <span>Personal</span>*/}}
+{{/*                        <a href="/user/profile" class="sublink-1">My Profile</a>*/}}
+{{/*                        <a href="/auth/logout" class="sublink-1">Logout</a>*/}}
+{{/*                </nav>*/}}
+{{/*            </div>*/}}
+{{/*            <div class="col-md-9">*/}}
 {{ end }}
 
 {{ define "footer_default" }}
 
-            </div>
-        </div>
+{{/*            </div>*/}}
+{{/*        </div>*/}}
     </div>
 </div>
+<script src="/static/static/js/bootstrap.min.js"></script>
 </body>
 </html>
 {{ end }}
@@ -61,8 +115,7 @@
     <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
     <!-- other browsers -->
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-    <link rel="stylesheet" href="/static/static/css/mini-default.min.css" type="text/css" />
-    <link rel="stylesheet" href="/static/static/css/custom.css" type="text/css" />
+    <link rel="stylesheet" href="/static/static/css/bootstrap.min.css" type="text/css" />
 </head>
 <body>
 
@@ -79,6 +132,7 @@
         </div>
     </div>
 </div>
+<script src="/static/static/js/bootstrap.min.js"></script>
 </body>
 </html>
 {{ end }}

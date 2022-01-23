@@ -7,14 +7,14 @@ import (
 )
 
 // IndexHandler shows, well, the index page.
-func IndexHandler(w http.ResponseWriter, r *http.Request) {
-	if err := templates.ExecuteTemplate(w, "index.gohtml", nil); err != nil {
+func (bh *BaseHandler) IndexHandler(w http.ResponseWriter, r *http.Request) {
+	if err := templates.ExecuteTemplate(bh.Inj(), w, "index.gohtml", nil); err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
 
 // FaviconHandler returns just the favicon.
-func FaviconHandler(w http.ResponseWriter, r *http.Request) {
+func (bh *BaseHandler) FaviconHandler(w http.ResponseWriter, r *http.Request) {
 	icon, err := assets.GetStaticFS().ReadFile("static/favicon.ico")
 	if err != nil {
 		http.Error(w, "Not found", http.StatusNotFound)

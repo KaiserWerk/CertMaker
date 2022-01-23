@@ -2,11 +2,12 @@ package dbservice
 
 import (
 	"fmt"
+
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 )
 
 // GetAllUsers just fetches all users
-func (ds *dbservice) GetAllUsers() ([]entity.User, error) {
+func (ds *DBService) GetAllUsers() ([]entity.User, error) {
 	users := make([]entity.User, 0)
 	result := ds.db.Find(&users)
 	if result.Error != nil {
@@ -17,7 +18,7 @@ func (ds *dbservice) GetAllUsers() ([]entity.User, error) {
 }
 
 // FindUser finds a user by the supplied criteria
-func (ds *dbservice) FindUser(cond string, args ...interface{}) (entity.User, error) {
+func (ds *DBService) FindUser(cond string, args ...interface{}) (entity.User, error) {
 	var user entity.User
 	result := ds.db.Where(cond, args).Find(&user)
 	if result.Error != nil {
@@ -32,7 +33,7 @@ func (ds *dbservice) FindUser(cond string, args ...interface{}) (entity.User, er
 }
 
 // AddUser creates a new user entry in the database
-func (ds *dbservice) AddUser(u *entity.User) error {
+func (ds *DBService) AddUser(u *entity.User) error {
 	res := ds.db.Create(u)
 	if res.Error != nil {
 		return res.Error
@@ -43,7 +44,7 @@ func (ds *dbservice) AddUser(u *entity.User) error {
 
 // UpdateUser updates a user with the ID from the struct with the values
 // from the struct
-func (ds *dbservice) UpdateUser(u *entity.User) error {
+func (ds *DBService) UpdateUser(u *entity.User) error {
 	res := ds.db.Save(u)
 	if res.Error != nil {
 		return res.Error
@@ -53,7 +54,7 @@ func (ds *dbservice) UpdateUser(u *entity.User) error {
 }
 
 // DeleteUser deletes a given user from the database
-func (ds *dbservice) DeleteUser(u *entity.User) error {
+func (ds *DBService) DeleteUser(u *entity.User) error {
 	res := ds.db.Unscoped().Delete(u)
 	if res.Error != nil {
 		return res.Error

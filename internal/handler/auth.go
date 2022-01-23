@@ -2,10 +2,8 @@ package handler
 
 import (
 	"fmt"
-	"github.com/KaiserWerk/CertMaker/internal/dbservice"
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 	"github.com/KaiserWerk/CertMaker/internal/global"
-	"github.com/KaiserWerk/CertMaker/internal/logging"
 	"github.com/KaiserWerk/CertMaker/internal/security"
 	"github.com/KaiserWerk/CertMaker/internal/templates"
 	"html/template"
@@ -15,14 +13,11 @@ import (
 
 // LoginHandler authenticates the user against the database, created
 // a session and associates it with the user
-func LoginHandler(w http.ResponseWriter, r *http.Request) {
-	var (
-		logger  = logging.GetLogger().WithField("function", "handler.LoginHandler")
-		ds      = dbservice.New()
-		sessMgr = global.GetSessMgr()
-	)
+func (bh *BaseHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	logger := bh.ContextLogger("auth")
 
-	if val := ds.GetSetting("authprovider_userpw"); val != "true" {
+	if val := bh.DBSvc.GetSetting("authprovider_userpw"); val != "true" {
 		logger.Debug("authprovider userpw not enabled; redirecting")
 		templates.SetMessage(r, templates.MsgInfo, "AuthProvider 'userpw' not enabled; redirecting...")
 		http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -40,7 +35,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		user, err := ds.FindUser("username = ?", username)
+		user, err := bh.DBSvc.FindUser("username = ?", username)
 		if err != nil {
 			logger.Debug("could not find user: " + err.Error())
 			templates.SetMessage(r, templates.MsgError, "Incorrect credentials!")
@@ -62,7 +57,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		sess, err := sessMgr.CreateSession(time.Now().AddDate(0, 0, 7))
+		sess, err := bh.SessMgr.CreateSession(time.Now().AddDate(0, 0, 7))
 		if err != nil {
 			logger.Error("could not create session: " + err.Error())
 			templates.SetMessage(r, templates.MsgError, "Session could not be created!")
@@ -71,7 +66,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		sess.SetVar("user_id", fmt.Sprintf("%d", user.ID))
-		err = sessMgr.SetCookie(w, sess.Id)
+		err = bh.SessMgr.SetCookie(w, sess.Id)
 		if err != nil {
 			logger.Error("could not set cookie: " + err.Error())
 			templates.SetMessage(r, templates.MsgError, "Cookie could not be set!")
@@ -91,39 +86,38 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		Message: msg,
 	}
 
-	if err := templates.ExecuteTemplate(w, "auth/login.gohtml", data); err != nil {
+	if err := templates.ExecuteTemplate(bh.Inj(), w, "auth/login.gohtml", data); err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
 
 // LogoutHandler makes sure the user session is invalidated and
 // the session cookie is removed
-func LogoutHandler(w http.ResponseWriter, r *http.Request) {
-	var (
-		sessMgr = global.GetSessMgr()
-		logger  = logging.GetLogger().WithField("function", "handler.LogoutHandler")
-	)
-	cv, err := sessMgr.GetCookieValue(r)
+func (bh *BaseHandler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	logger := bh.ContextLogger("auth")
+
+	cv, err := bh.SessMgr.GetCookieValue(r)
 	if err != nil {
 		logger.Debug("no user-provided cookie found")
 		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 		return
 	}
 
-	sess, err := sessMgr.GetSession(cv)
+	sess, err := bh.SessMgr.GetSession(cv)
 	if err != nil {
 		logger.Error("could not get session: " + err.Error())
 		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 		return
 	}
 
-	err = sessMgr.RemoveSession(sess.Id)
+	err = bh.SessMgr.RemoveSession(sess.Id)
 	if err != nil {
 		logger.Error("could not remove session: " + err.Error())
 		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 		return
 	}
-	err = sessMgr.RemoveCookie(w)
+	err = bh.SessMgr.RemoveCookie(w)
 	if err != nil {
 		logger.Error("could not remove cookie: " + err.Error())
 		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
@@ -135,14 +129,13 @@ func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 
 // RegistrationHandler handles form values, check for validity, adds the new user
 // account and optionally sends out a confirmation email
-func RegistrationHandler(w http.ResponseWriter, r *http.Request) {
+func (bh *BaseHandler) RegistrationHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		err    error
-		logger = logging.GetLogger().WithField("function", "handler.RegistrationHandler")
-		ds     = dbservice.New()
+		logger = bh.ContextLogger("auth")
 	)
 
-	if val := ds.GetSetting("registration_enabled"); val != "true" {
+	if val := bh.DBSvc.GetSetting("registration_enabled"); val != "true" {
 		logger.Trace("registration is not enabled")
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
@@ -166,14 +159,14 @@ func RegistrationHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		_, err = ds.FindUser("username = ?", username)
+		_, err = bh.DBSvc.FindUser("username = ?", username)
 		if err == nil {
 			logger.Debug("username already in use")
 			http.Redirect(w, r, "/auth/register", http.StatusSeeOther)
 			return
 		}
 
-		_, err = ds.FindUser("email = ?", email)
+		_, err = bh.DBSvc.FindUser("email = ?", email)
 		if err == nil {
 			logger.Debug("email already in use")
 			http.Redirect(w, r, "/auth/register", http.StatusSeeOther)
@@ -204,7 +197,7 @@ func RegistrationHandler(w http.ResponseWriter, r *http.Request) {
 			Admin:    false,
 		}
 
-		err = ds.AddUser(&u)
+		err = bh.DBSvc.AddUser(&u)
 		if err != nil {
 			logger.Error("could not insert user: " + err.Error())
 			http.Redirect(w, r, "/auth/register", http.StatusSeeOther)
@@ -215,7 +208,7 @@ func RegistrationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := templates.ExecuteTemplate(w, "auth/registration.gohtml", nil); err != nil {
+	if err := templates.ExecuteTemplate(bh.Inj(), w, "auth/registration.gohtml", nil); err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
 }

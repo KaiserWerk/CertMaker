@@ -3,7 +3,7 @@ package templates
 import (
 	"embed"
 	"fmt"
-	"github.com/KaiserWerk/CertMaker/internal/logging"
+	"github.com/sirupsen/logrus"
 	"html/template"
 	"io"
 	"net/http"
@@ -25,11 +25,15 @@ const (
 //go:embed templates/*
 var templateFS embed.FS
 
-func ExecuteTemplate(w io.Writer, file string, data interface{}) error {
+type TplInjector struct {
+	Logger *logrus.Entry
+}
+
+func ExecuteTemplate(inj *TplInjector, w io.Writer, file string, data interface{}) error {
 	var funcMap = template.FuncMap{
 		//"getFlashbag":        GetFlashbag,
 	}
-	logger := logging.GetLogger().WithField("function", "templateservice.ExecuteTemplate")
+	logger := inj.Logger.WithField("context", "templates")
 	var err error
 	layoutContent, err := templateFS.ReadFile("templates/_layout.gohtml")
 	if err != nil {
@@ -72,7 +76,7 @@ func GetMessage(r *http.Request, at MessageType, am string) template.HTML {
 	var (
 		msgType MessageType
 		message string
-		source string
+		source  string
 	)
 
 	tp := MessageType(r.Header.Get(typeHeader))

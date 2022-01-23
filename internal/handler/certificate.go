@@ -5,14 +5,6 @@ import (
 	"database/sql"
 	"encoding/pem"
 	"fmt"
-	"github.com/KaiserWerk/CertMaker/internal/certmaker"
-	"github.com/KaiserWerk/CertMaker/internal/dbservice"
-	"github.com/KaiserWerk/CertMaker/internal/entity"
-	"github.com/KaiserWerk/CertMaker/internal/global"
-	"github.com/KaiserWerk/CertMaker/internal/helper"
-	"github.com/KaiserWerk/CertMaker/internal/logging"
-	"github.com/KaiserWerk/CertMaker/internal/templates"
-	"github.com/gorilla/mux"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -21,17 +13,23 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/KaiserWerk/CertMaker/internal/entity"
+	"github.com/KaiserWerk/CertMaker/internal/global"
+	"github.com/KaiserWerk/CertMaker/internal/helper"
+	"github.com/KaiserWerk/CertMaker/internal/templates"
+
+	"github.com/gorilla/mux"
 )
 
 // CertificateListHandler lists all available certificates and
 // private keys in the UI
-func CertificateListHandler(w http.ResponseWriter, r *http.Request) {
-	var (
-		logger = logging.GetLogger().WithField("function", "handler.CertificateListHandler")
-		ds     = dbservice.New()
-	)
+func (bh *BaseHandler) CertificateListHandler(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	logger := bh.ContextLogger("certificate")
+
 	// read certificates from db
-	ci, err := ds.GetAllCertInfo()
+	ci, err := bh.DBSvc.GetAllCertInfo()
 	if err != nil {
 		logger.Errorf("could not fetch cert info entries")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -58,18 +56,16 @@ func CertificateListHandler(w http.ResponseWriter, r *http.Request) {
 		CertInfos: targetCertInfos,
 	}
 
-	if err := templates.ExecuteTemplate(w, "certificate/certificate_list.gohtml", data); err != nil {
+	if err := templates.ExecuteTemplate(bh.Inj(), w, "certificate/certificate_list.gohtml", data); err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
 
-func RootCertificateDownloadHandler(w http.ResponseWriter, r *http.Request) {
-	var (
-		logger = logging.GetLogger().WithField("function", "handler.RootCertificateDownloadHandler")
-		config = global.GetConfiguration()
-	)
+func (bh *BaseHandler) RootCertificateDownloadHandler(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	logger := bh.ContextLogger("certificate")
 
-	certFile := filepath.Join(config.DataDir, global.RootCertificateFilename)
+	certFile := filepath.Join(bh.Config.DataDir, global.RootCertificateFilename)
 	fh, err := os.Open(certFile)
 	if err != nil {
 		logger.Errorf("could not open root cert file for reading: %s", err.Error())
@@ -90,16 +86,15 @@ func RootCertificateDownloadHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // CertificateDownloadHandler downloads a certificate requested via UI
-func CertificateDownloadHandler(w http.ResponseWriter, r *http.Request) {
+func (bh *BaseHandler) CertificateDownloadHandler(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 	var (
-		logger = logging.GetLogger().WithField("function", "handler.CertificateDownloadHandler")
-		config = global.GetConfiguration()
-		ds     = dbservice.New()
+		logger = bh.ContextLogger("certificate")
 		vars   = mux.Vars(r)
 		u      = r.Context().Value("user").(entity.User)
 	)
 
-	ci, err := ds.FindCertInfo("id = ?", vars["id"])
+	ci, err := bh.DBSvc.FindCertInfo("id = ?", vars["id"])
 	if err != nil {
 		logger.Debug("could not find cert info: " + err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -113,7 +108,7 @@ func CertificateDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filename := fmt.Sprintf("%d-cert.pem", ci.SerialNumber)
-	certContent, err := ioutil.ReadFile(filepath.Join(config.DataDir, "leafcerts", filename))
+	certContent, err := ioutil.ReadFile(filepath.Join(bh.Config.DataDir, "leafcerts", filename))
 	if err != nil {
 		logger.Debug("could not read certificate file: " + err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -126,16 +121,15 @@ func CertificateDownloadHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // PrivateKeyDownloadHandler downloads a private key requested via UI
-func PrivateKeyDownloadHandler(w http.ResponseWriter, r *http.Request) {
+func (bh *BaseHandler) PrivateKeyDownloadHandler(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 	var (
-		logger = logging.GetLogger().WithField("function", "handler.PrivateKeyDownloadHandler")
-		config = global.GetConfiguration()
-		ds     = dbservice.New()
+		logger = bh.ContextLogger("certificate")
 		vars   = mux.Vars(r)
 		u      = r.Context().Value("user").(entity.User)
 	)
 
-	ci, err := ds.FindCertInfo("id = ?", vars["id"])
+	ci, err := bh.DBSvc.FindCertInfo("id = ?", vars["id"])
 	if err != nil {
 		logger.Debug("could not find cert info: " + err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -149,7 +143,7 @@ func PrivateKeyDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filename := fmt.Sprintf("%d-key.pem", ci.SerialNumber)
-	certContent, err := ioutil.ReadFile(filepath.Join(config.DataDir, "leafcerts", filename))
+	certContent, err := ioutil.ReadFile(filepath.Join(bh.Config.DataDir, "leafcerts", filename))
 	if err != nil {
 		logger.Debug("could not read key file: " + err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -162,13 +156,11 @@ func PrivateKeyDownloadHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // CertificateAddHandler allows to add a new certificate + private key via UI
-func CertificateAddHandler(w http.ResponseWriter, r *http.Request) {
-	var (
-		logger = logging.GetLogger().WithField("function", "handler.CertificateAddHandler")
-		ds     = dbservice.New()
-	)
+func (bh *BaseHandler) CertificateAddHandler(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	logger := bh.ContextLogger("certificate")
 
-	if simpleMode := ds.GetSetting("certificate_request_simple_mode"); simpleMode != "true" {
+	if simpleMode := bh.DBSvc.GetSetting("certificate_request_simple_mode"); simpleMode != "true" {
 		logger.Debug("simple mode is not enabled")
 		http.Redirect(w, r, "/certificate/list", http.StatusSeeOther)
 		return
@@ -236,7 +228,7 @@ func CertificateAddHandler(w http.ResponseWriter, r *http.Request) {
 			Days: daysVal,
 		}
 
-		sn, err := certmaker.GenerateLeafCertAndKey(certRequest)
+		sn, err := bh.CM.GenerateLeafCertAndKey(certRequest)
 		if err != nil {
 			logger.Error("could not generate leaf cert and key: " + err.Error())
 			http.Redirect(w, r, "/add", http.StatusSeeOther)
@@ -252,7 +244,7 @@ func CertificateAddHandler(w http.ResponseWriter, r *http.Request) {
 			CreatedForUser: u.ID,
 			Revoked:        false,
 		}
-		err = ds.AddCertInfo(&ci)
+		err = bh.DBSvc.AddCertInfo(&ci)
 		if err != nil {
 			logger.Errorf("could not insert cert info into DB: %s", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
@@ -269,18 +261,15 @@ func CertificateAddHandler(w http.ResponseWriter, r *http.Request) {
 		DefaultDays: global.CertificateDefaultDays,
 	}
 
-	if err := templates.ExecuteTemplate(w, "certificate/certificate_add.gohtml", data); err != nil {
+	if err := templates.ExecuteTemplate(bh.Inj(), w, "certificate/certificate_add.gohtml", data); err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
 
 // AddCertificateFromCSRHandler enables you to upload a file containing a CSR to
 // the UI and create a certificate
-func AddCertificateFromCSRHandler(w http.ResponseWriter, r *http.Request) {
-	var (
-		logger = logging.GetLogger().WithField("function", "handler.AddCertificateFromCSRHandler")
-		ds     = dbservice.New()
-	)
+func (bh *BaseHandler) AddCertificateFromCSRHandler(w http.ResponseWriter, r *http.Request) {
+	logger := bh.ContextLogger("certificate")
 
 	if r.Method == http.MethodPost {
 
@@ -313,7 +302,7 @@ func AddCertificateFromCSRHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		sn, err := certmaker.GenerateCertificateByCSR(csr)
+		sn, err := bh.CM.GenerateCertificateByCSR(csr)
 		if err != nil {
 			logger.Debug("could not generate certificate FROM CSR: " + err.Error())
 			http.Redirect(w, r, "/certificate/list", http.StatusSeeOther)
@@ -328,7 +317,7 @@ func AddCertificateFromCSRHandler(w http.ResponseWriter, r *http.Request) {
 			FromCSR:        true,
 			CreatedForUser: u.ID,
 		}
-		err = ds.AddCertInfo(&ci)
+		err = bh.DBSvc.AddCertInfo(&ci)
 		if err != nil {
 			logger.Errorf("could not insert cert info into DB: %s", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
@@ -336,21 +325,20 @@ func AddCertificateFromCSRHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := templates.ExecuteTemplate(w, "certificate/certificate_add_with_csr.gohtml", nil); err != nil {
+	if err := templates.ExecuteTemplate(bh.Inj(), w, "certificate/certificate_add_with_csr.gohtml", nil); err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
 
 // RevokeCertificateHandler allows the revocation of a certificate via the UI
-func RevokeCertificateHandler(w http.ResponseWriter, r *http.Request) {
+func (bh *BaseHandler) RevokeCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		logger = logging.GetLogger().WithField("function", "handler.RevokeCertificateHandler")
-		ds     = dbservice.New()
+		logger = bh.ContextLogger("certificate")
 		vars   = mux.Vars(r)
 		u      = r.Context().Value("user").(entity.User)
 	)
 
-	ci, err := ds.FindCertInfo("id = ?", vars["id"])
+	ci, err := bh.DBSvc.FindCertInfo("id = ?", vars["id"])
 	if err != nil {
 		logger.Debug("could not find cert info: " + err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -366,7 +354,7 @@ func RevokeCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	ci.Revoked = true
 	ci.RevokedAt = sql.NullTime{Time: time.Now(), Valid: true}
 
-	err = ds.UpdateCertInfo(&ci)
+	err = bh.DBSvc.UpdateCertInfo(&ci)
 	if err != nil {
 		logger.Errorf("could not update CertInfo entry")
 		w.WriteHeader(http.StatusInternalServerError)

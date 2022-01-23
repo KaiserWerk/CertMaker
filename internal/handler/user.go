@@ -2,37 +2,34 @@ package handler
 
 import (
 	"fmt"
-	"github.com/KaiserWerk/CertMaker/internal/dbservice"
+	"net/http"
+
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 	"github.com/KaiserWerk/CertMaker/internal/global"
-	"github.com/KaiserWerk/CertMaker/internal/logging"
 	"github.com/KaiserWerk/CertMaker/internal/security"
 	"github.com/KaiserWerk/CertMaker/internal/templates"
-	"net/http"
 )
 
 // ProfileHandler displays the current user's profile
-func ProfileHandler(w http.ResponseWriter, r *http.Request) {
-	var (
-		u   = r.Context().Value("user").(entity.User)
-	)
+func (bh *BaseHandler) ProfileHandler(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 
 	data := struct {
 		User entity.User
 	}{
-		User: u,
+		User: r.Context().Value("user").(entity.User),
 	}
 
-	if err := templates.ExecuteTemplate(w, "user/profile.gohtml", data); err != nil {
+	if err := templates.ExecuteTemplate(bh.Inj(), w, "user/profile.gohtml", data); err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
 
 // ProfileEditHandler allows profile changes to be made
-func ProfileEditHandler(w http.ResponseWriter, r *http.Request) {
+func (bh *BaseHandler) ProfileEditHandler(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 	var (
-		logger  = logging.GetLogger().WithField("function", "ProfileEditHandler")
-		ds      = dbservice.New()
+		logger  = bh.ContextLogger("user")
 		u       = r.Context().Value("user").(entity.User)
 		message string
 		changes uint8
@@ -43,7 +40,7 @@ func ProfileEditHandler(w http.ResponseWriter, r *http.Request) {
 		if form == "personal_data" {
 			username := r.FormValue("username")
 			if username != "" {
-				_, err := ds.FindUser("username = ? AND id != ?", username, u.ID)
+				_, err := bh.DBSvc.FindUser("username = ? AND id != ?", username, u.ID)
 				if err == nil {
 					message += "Username is already in use!"
 				} else {
@@ -54,7 +51,7 @@ func ProfileEditHandler(w http.ResponseWriter, r *http.Request) {
 
 			email := r.FormValue("email")
 			if email != "" {
-				_, err := ds.FindUser("email = ? AND id != ?", email, u.ID)
+				_, err := bh.DBSvc.FindUser("email = ? AND id != ?", email, u.ID)
 				if err == nil {
 					message += "Email is already in use!"
 				} else {
@@ -97,7 +94,7 @@ func ProfileEditHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			u.Password = hash
 
-			err = ds.UpdateUser(&u)
+			err = bh.DBSvc.UpdateUser(&u)
 			if err != nil {
 				logger.Debug("could not update user: " + err.Error())
 				message = "There was an error setting your new password"
@@ -119,16 +116,16 @@ func ProfileEditHandler(w http.ResponseWriter, r *http.Request) {
 		Message: message,
 	}
 
-	if err := templates.ExecuteTemplate(w, "user/profile_edit.gohtml", data); err != nil {
+	if err := templates.ExecuteTemplate(bh.Inj(), w, "user/profile_edit.gohtml", data); err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
 
 // ProfileRegenerateKeyHandler generates a new token for the current user and saves it to the DB
-func ProfileRegenerateKeyHandler(w http.ResponseWriter, r *http.Request) {
+func (bh *BaseHandler) ProfileRegenerateKeyHandler(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 	var (
-		logger = logging.GetLogger().WithField("function", "handler.ProfileRegenerateKeyHandler")
-		ds     = dbservice.New()
+		logger = bh.ContextLogger("user")
 		val    = r.Context().Value("user")
 		u      = val.(entity.User)
 	)
@@ -142,7 +139,7 @@ func ProfileRegenerateKeyHandler(w http.ResponseWriter, r *http.Request) {
 
 	u.ApiKey = token
 
-	err = ds.UpdateUser(&u)
+	err = bh.DBSvc.UpdateUser(&u)
 	if err != nil {
 		logger.Error("could not update user: " + err.Error())
 		http.Redirect(w, r, "/user/profile", http.StatusSeeOther)
