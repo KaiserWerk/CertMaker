@@ -60,7 +60,7 @@ func (cm *CertMaker) SetupCA() error {
 	cm.KeyFile = filepath.Join(cm.Config.DataDir, global.RootPrivateKeyFilename)
 
 	if !helper.DoesFileExist(cm.CertFile) || !helper.DoesFileExist(cm.KeyFile) {
-		if err := cm.GenerateRootCertAndKey(Algo(cm.Config.RootKeyAlgo)); err != nil {
+		if err := cm.GenerateRootCertAndKey(); err != nil {
 			return err
 		}
 	}
@@ -104,9 +104,11 @@ func (cm *CertMaker) GetNextSerialNumber() (int64, error) {
 
 // GenerateRootCertAndKey generates the root private key and with it,
 // the root certificate
-func (cm *CertMaker) GenerateRootCertAndKey(algo Algo) error {
+func (cm *CertMaker) GenerateRootCertAndKey() error {
 	// create folder if it does not exist
-	_ = os.Mkdir(path.Dir(cm.CertFile), 0744)
+	if err := os.Mkdir(path.Dir(cm.CertFile), 0744); err != nil {
+		return err
+	}
 
 	nextSn, err := cm.GetNextSerialNumber() // read sn from file and increment it
 	if err != nil {
@@ -143,12 +145,12 @@ func (cm *CertMaker) GenerateRootCertAndKey(algo Algo) error {
 	ca := &x509.Certificate{
 		SerialNumber: big.NewInt(nextSn),
 		Subject: pkix.Name{
-			Organization:  []string{"KaiserWerk CA ROOT"},
-			Country:       []string{"DE"},
-			Province:      []string{"NRW"},
-			Locality:      []string{"Musterort"},
-			StreetAddress: []string{"Musterstraße 1337"},
-			PostalCode:    []string{"12345"},
+			Organization:  []string{cm.Config.RootCertSubject.Organization},
+			Country:       []string{cm.Config.RootCertSubject.Country},
+			Province:      []string{cm.Config.RootCertSubject.Province},
+			Locality:      []string{cm.Config.RootCertSubject.Locality},
+			StreetAddress: []string{cm.Config.RootCertSubject.StreetAddress},
+			PostalCode:    []string{cm.Config.RootCertSubject.PostalCode},
 		},
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().AddDate(15, 0, 0),
@@ -163,7 +165,7 @@ func (cm *CertMaker) GenerateRootCertAndKey(algo Algo) error {
 		return err
 	}
 
-	fh, err := os.OpenFile(cm.CertFile, os.O_CREATE|os.O_WRONLY, 0744)
+	fh, err := os.OpenFile(cm.CertFile, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
@@ -173,7 +175,7 @@ func (cm *CertMaker) GenerateRootCertAndKey(algo Algo) error {
 	}
 	_ = fh.Close()
 
-	fh, err = os.OpenFile(cm.KeyFile, os.O_CREATE|os.O_WRONLY, 0700)
+	fh, err = os.OpenFile(cm.KeyFile, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}
