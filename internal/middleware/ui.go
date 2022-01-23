@@ -16,7 +16,7 @@ func (mh *MWHandler) WithSession(next http.Handler) http.Handler {
 
 		val := mh.DBSvc.GetSetting("authprovider_userpw")
 		if val != "true" {
-			//logger.Println("authprovider userpw not enabled; redirecting")
+			mh.Logger.WithField("authProvider", "userPw").Trace("authprovider not enabled")
 			next.ServeHTTP(w, r)
 			return
 		}
