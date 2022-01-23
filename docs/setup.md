@@ -72,7 +72,7 @@ WantedBy=multi-user.target
 In this example the system user/group ``certmaker`` is running the *CertMaker* instance from the 
 homedir's subfolder ``bin``. Also, the service will wait for MySQL to be started first.
 Change that according to your requirements.
-``ExecStart`` is the exact path to the binary while ``WorkingDirectory`` is the exact path to the binary.
+``ExecStart`` is the exact path to the binary while ``WorkingDirectory`` is the exact path to the directory containing the binary.
 
 
 Afterwards, reload the systemctl daemon, enable and start the new service:

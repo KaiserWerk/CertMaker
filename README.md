@@ -2,7 +2,7 @@
 
 A simple, yet powerful Certificate Authority (and VA) server. It does intentionally __NOT__ 
 implement the *ACME* protocol and is intentionally kept very simple.
-It is meant to be use programmatically to automate certificate distribution.
+It is meant to be used programmatically to automate certificate distribution.
 Perfect for your homelab or self-hosted infrastructure.
 
 ### Features
