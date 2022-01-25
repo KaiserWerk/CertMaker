@@ -75,7 +75,7 @@ func (mh *MWHandler) RequireAdmin(next http.Handler) http.Handler {
 		u := val.(entity.User)
 
 		if !u.Admin {
-			logger.Debug("user " + u.Username + " is not an admin")
+			logger.Warn("user " + u.Username + " is not an admin")
 			http.Redirect(w, r, "/", http.StatusSeeOther)
 			return
 		}
