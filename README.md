@@ -31,7 +31,7 @@ Perfect for your homelab or self-hosted infrastructure.
   like Nginx, Apache or Lighttpd.
 * [certctl](https://github.com/KaiserWerk/certctl)
 
-  A command line tool to obtain certificates from a CertMaker instance. Has a neat interactive mode!
+  A command line tool to obtain certificates from one or multiple CertMaker instances. Has a neat interactive mode!
 * [Go SDK](https://github.com/KaiserWerk/CertMaker-Go-SDK)
   
   The Golang software development kit for *CertMaker*. It allows you to build custom apps for your specific 
