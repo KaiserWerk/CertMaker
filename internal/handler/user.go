@@ -13,11 +13,15 @@ import (
 // ProfileHandler displays the current user's profile
 func (bh *BaseHandler) ProfileHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
+	var user entity.User
+	if r.Context().Value("user") != nil {
+		user = r.Context().Value("user").(entity.User)
+	}
 
 	data := struct {
 		User entity.User
 	}{
-		User: r.Context().Value("user").(entity.User),
+		User: user,
 	}
 
 	if err := templates.ExecuteTemplate(bh.Inj(), w, "user/profile.gohtml", data); err != nil {
@@ -28,9 +32,12 @@ func (bh *BaseHandler) ProfileHandler(w http.ResponseWriter, r *http.Request) {
 // ProfileEditHandler allows profile changes to be made
 func (bh *BaseHandler) ProfileEditHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
+	var user entity.User
+	if r.Context().Value("user") != nil {
+		user = r.Context().Value("user").(entity.User)
+	}
 	var (
 		logger  = bh.ContextLogger("user")
-		u       = r.Context().Value("user").(entity.User)
 		message string
 		changes uint8
 	)
@@ -40,22 +47,22 @@ func (bh *BaseHandler) ProfileEditHandler(w http.ResponseWriter, r *http.Request
 		if form == "personal_data" {
 			username := r.FormValue("username")
 			if username != "" {
-				_, err := bh.DBSvc.FindUser("username = ? AND id != ?", username, u.ID)
+				_, err := bh.DBSvc.FindUser("username = ? AND id != ?", username, user.ID)
 				if err == nil {
 					message += "Username is already in use!"
 				} else {
-					u.Username = username
+					user.Username = username
 					changes++
 				}
 			}
 
 			email := r.FormValue("email")
 			if email != "" {
-				_, err := bh.DBSvc.FindUser("email = ? AND id != ?", email, u.ID)
+				_, err := bh.DBSvc.FindUser("email = ? AND id != ?", email, user.ID)
 				if err == nil {
 					message += "Email is already in use!"
 				} else {
-					u.Email = email
+					user.Email = email
 					changes++
 				}
 			}
@@ -78,7 +85,7 @@ func (bh *BaseHandler) ProfileEditHandler(w http.ResponseWriter, r *http.Request
 				return
 			}
 
-			if !security.DoesHashMatch(currentPassword, u.Password) {
+			if !security.DoesHashMatch(currentPassword, user.Password) {
 				logger.Debug("old password was incorrect")
 				message = "The current password was not correct!"
 				http.Redirect(w, r, "/user/profile/edit", http.StatusSeeOther)
@@ -92,9 +99,9 @@ func (bh *BaseHandler) ProfileEditHandler(w http.ResponseWriter, r *http.Request
 				http.Redirect(w, r, "/user/profile/edit", http.StatusSeeOther)
 				return
 			}
-			u.Password = hash
+			user.Password = hash
 
-			err = bh.DBSvc.UpdateUser(&u)
+			err = bh.DBSvc.UpdateUser(&user)
 			if err != nil {
 				logger.Debug("could not update user: " + err.Error())
 				message = "There was an error setting your new password"
@@ -112,7 +119,7 @@ func (bh *BaseHandler) ProfileEditHandler(w http.ResponseWriter, r *http.Request
 		User    entity.User
 		Message string
 	}{
-		User:    u,
+		User:    user,
 		Message: message,
 	}
 
@@ -126,9 +133,11 @@ func (bh *BaseHandler) ProfileRegenerateKeyHandler(w http.ResponseWriter, r *htt
 	defer r.Body.Close()
 	var (
 		logger = bh.ContextLogger("user")
-		val    = r.Context().Value("user")
-		u      = val.(entity.User)
+		user   entity.User
 	)
+	if r.Context().Value("user") != nil {
+		user = r.Context().Value("user").(entity.User)
+	}
 
 	token, err := security.GenerateToken(global.ApiTokenLength)
 	if err != nil {
@@ -137,9 +146,9 @@ func (bh *BaseHandler) ProfileRegenerateKeyHandler(w http.ResponseWriter, r *htt
 		return
 	}
 
-	u.ApiKey = token
+	user.ApiKey = token
 
-	err = bh.DBSvc.UpdateUser(&u)
+	err = bh.DBSvc.UpdateUser(&user)
 	if err != nil {
 		logger.Error("could not update user: " + err.Error())
 		http.Redirect(w, r, "/user/profile", http.StatusSeeOther)

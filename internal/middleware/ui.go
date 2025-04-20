@@ -3,9 +3,11 @@ package middleware
 import (
 	"context"
 	"errors"
-	"github.com/KaiserWerk/CertMaker/internal/entity"
-	"gorm.io/gorm"
 	"net/http"
+
+	"github.com/KaiserWerk/CertMaker/internal/entity"
+
+	"gorm.io/gorm"
 )
 
 // WithSession requires the client to have a valid session

@@ -27,6 +27,10 @@ import (
 func (bh *BaseHandler) CertificateListHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	logger := bh.ContextLogger("certificate")
+	var user entity.User
+	if r.Context().Value("user") != nil {
+		user = r.Context().Value("user").(entity.User)
+	}
 
 	// read certificates from db
 	ci, err := bh.DBSvc.GetAllCertInfo()
@@ -38,11 +42,9 @@ func (bh *BaseHandler) CertificateListHandler(w http.ResponseWriter, r *http.Req
 
 	var targetCertInfos []entity.CertInfo
 
-	val := r.Context().Value("user")
-	u := val.(entity.User)
-	if u.Admin == false {
+	if !user.Admin {
 		for _, v := range ci {
-			if v.CreatedForUser == u.ID {
+			if v.CreatedForUser == user.ID {
 				targetCertInfos = append(targetCertInfos, v)
 			}
 		}
@@ -88,10 +90,13 @@ func (bh *BaseHandler) RootCertificateDownloadHandler(w http.ResponseWriter, r *
 // CertificateDownloadHandler downloads a certificate requested via UI
 func (bh *BaseHandler) CertificateDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
+	var user entity.User
+	if r.Context().Value("user") != nil {
+		user = r.Context().Value("user").(entity.User)
+	}
 	var (
 		logger = bh.ContextLogger("certificate")
 		vars   = mux.Vars(r)
-		u      = r.Context().Value("user").(entity.User)
 	)
 
 	ci, err := bh.DBSvc.FindCertInfo("id = ?", vars["id"])
@@ -101,7 +106,7 @@ func (bh *BaseHandler) CertificateDownloadHandler(w http.ResponseWriter, r *http
 		return
 	}
 
-	if ci.CreatedForUser != u.ID && !u.Admin {
+	if ci.CreatedForUser != user.ID && !user.Admin {
 		logger.Error("This is not your private key")
 		w.WriteHeader(http.StatusForbidden)
 		return
@@ -123,10 +128,13 @@ func (bh *BaseHandler) CertificateDownloadHandler(w http.ResponseWriter, r *http
 // PrivateKeyDownloadHandler downloads a private key requested via UI
 func (bh *BaseHandler) PrivateKeyDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
+	var user entity.User
+	if r.Context().Value("user") != nil {
+		user = r.Context().Value("user").(entity.User)
+	}
 	var (
 		logger = bh.ContextLogger("certificate")
 		vars   = mux.Vars(r)
-		u      = r.Context().Value("user").(entity.User)
 	)
 
 	ci, err := bh.DBSvc.FindCertInfo("id = ?", vars["id"])
@@ -136,7 +144,7 @@ func (bh *BaseHandler) PrivateKeyDownloadHandler(w http.ResponseWriter, r *http.
 		return
 	}
 
-	if ci.CreatedForUser != u.ID && !u.Admin {
+	if ci.CreatedForUser != user.ID && !user.Admin {
 		logger.Error("This is not your private key")
 		w.WriteHeader(http.StatusForbidden)
 		return

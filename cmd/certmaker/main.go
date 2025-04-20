@@ -5,6 +5,11 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net/http"
+	"os"
+	"os/signal"
+	"time"
+
 	"github.com/KaiserWerk/CertMaker/internal/assets"
 	"github.com/KaiserWerk/CertMaker/internal/certmaker"
 	"github.com/KaiserWerk/CertMaker/internal/configuration"
@@ -15,10 +20,6 @@ import (
 	"github.com/KaiserWerk/sessionstore"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
-	"net/http"
-	"os"
-	"os/signal"
-	"time"
 )
 
 var (
@@ -76,8 +77,8 @@ func main() {
 
 	router := setupRoutes(config, logger, ds, sessMgr, cm, *useUi)
 
-	notify := make(chan os.Signal)
-	signal.Notify(notify, os.Interrupt)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
 
 	host := fmt.Sprintf(":%s", *port)
 	srv := &http.Server{
@@ -90,13 +91,13 @@ func main() {
 	}
 
 	go func() {
-		<-notify
+		<-ctx.Done()
 		logger.Debug("Initiating graceful shutdown...")
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer shutdownCancel()
 
 		srv.SetKeepAlivesEnabled(false)
-		err := srv.Shutdown(ctx)
+		err := srv.Shutdown(shutdownCtx)
 		if err != nil {
 			logger.WithField("error", err.Error()).Error("could not gracefully shut down server")
 		}

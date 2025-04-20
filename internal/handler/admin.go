@@ -2,12 +2,13 @@ package handler
 
 import (
 	"fmt"
+	"net/http"
+
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 	"github.com/KaiserWerk/CertMaker/internal/global"
 	"github.com/KaiserWerk/CertMaker/internal/security"
 	"github.com/KaiserWerk/CertMaker/internal/templates"
 	"github.com/gorilla/mux"
-	"net/http"
 )
 
 // AdminSettingsHandler takes care of checking and write system-wide settings
@@ -272,7 +273,7 @@ func (bh *BaseHandler) AdminUserEditHandler(w http.ResponseWriter, r *http.Reque
 
 	userToEdit, err := bh.DBSvc.FindUser("id = ?", vars["id"])
 	if err != nil {
-		logger.Debug("could not find user with ID '%s': %s\n", vars["id"], err.Error())
+		logger.Debugf("could not find user with ID '%s': %s", vars["id"], err.Error())
 		http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
 		return
 	}
@@ -371,13 +372,16 @@ func (bh *BaseHandler) AdminUserEditHandler(w http.ResponseWriter, r *http.Reque
 
 // AdminUserRemoveHandler allows removing a given user account
 func (bh *BaseHandler) AdminUserRemoveHandler(w http.ResponseWriter, r *http.Request) {
+	var user entity.User
+	if r.Context().Value("user") != nil {
+		user = r.Context().Value("user").(entity.User)
+	}
 	var (
-		u      = r.Context().Value("user").(entity.User)
 		vars   = mux.Vars(r)
 		logger = bh.ContextLogger("admin")
 	)
 
-	if fmt.Sprintf("%s", u.ID) == vars["id"] {
+	if fmt.Sprintf("%d", user.ID) == vars["id"] {
 		logger.Debug("You cannot remove your own user account!")
 		http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
 		return

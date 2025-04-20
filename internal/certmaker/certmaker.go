@@ -106,7 +106,7 @@ func (cm *CertMaker) GetNextSerialNumber() (int64, error) {
 // the root certificate
 func (cm *CertMaker) GenerateRootCertAndKey() error {
 	// create folder if it does not exist
-	if err := os.Mkdir(path.Dir(cm.CertFile), 0744); err != nil {
+	if err := os.MkdirAll(path.Dir(cm.CertFile), 0744); err != nil {
 		return err
 	}
 
@@ -121,17 +121,21 @@ func (cm *CertMaker) GenerateRootCertAndKey() error {
 	)
 
 	switch Algo(cm.Config.RootKeyAlgo) {
+	case "":
+		fallthrough
 	case RSA:
 		rsaPrivKey, err := rsa.GenerateKey(rand.Reader, 4096)
 		if err != nil {
 			return err
 		}
+		privKey = rsaPrivKey
 		pubKey = &rsaPrivKey.PublicKey
 	case ECDSA:
 		ecdsaPrivKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		if err != nil {
 			return err
 		}
+		privKey = ecdsaPrivKey
 		pubKey = &ecdsaPrivKey.PublicKey
 	case ED25519:
 		edPubKey, edPrivKey, err := ed25519.GenerateKey(rand.Reader)
