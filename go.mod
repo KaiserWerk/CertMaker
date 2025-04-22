@@ -1,6 +1,6 @@
 module github.com/KaiserWerk/CertMaker
 
-go 1.16
+go 1.24.2
 
 require (
 	github.com/KaiserWerk/go-log-rotator v0.0.0-20220120120752-c9b4f0acc247 // indirect
