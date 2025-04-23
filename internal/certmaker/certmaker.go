@@ -12,7 +12,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"net"
 	"os"
@@ -83,7 +82,7 @@ func (cm *CertMaker) GetNextSerialNumber() (int64, error) {
 	defer cm.snMutex.Unlock()
 
 	file := filepath.Join(cm.Config.DataDir, "sn.txt")
-	cont, err := ioutil.ReadFile(file)
+	cont, err := os.ReadFile(file)
 	if err != nil {
 		return 0, err
 	}
@@ -94,7 +93,7 @@ func (cm *CertMaker) GetNextSerialNumber() (int64, error) {
 	}
 	sn++
 
-	err = ioutil.WriteFile(file, []byte(strconv.FormatInt(sn, 10)), 0744)
+	err = os.WriteFile(file, []byte(strconv.FormatInt(sn, 10)), 0744)
 	if err != nil {
 		return 0, err
 	}
@@ -120,32 +119,6 @@ func (cm *CertMaker) GenerateRootCertAndKey() error {
 		pubKey  crypto.PublicKey
 	)
 
-	switch Algo(cm.Config.RootKeyAlgo) {
-	case "":
-		fallthrough
-	case RSA:
-		rsaPrivKey, err := rsa.GenerateKey(rand.Reader, 4096)
-		if err != nil {
-			return err
-		}
-		privKey = rsaPrivKey
-		pubKey = &rsaPrivKey.PublicKey
-	case ECDSA:
-		ecdsaPrivKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		if err != nil {
-			return err
-		}
-		privKey = ecdsaPrivKey
-		pubKey = &ecdsaPrivKey.PublicKey
-	case ED25519:
-		edPubKey, edPrivKey, err := ed25519.GenerateKey(rand.Reader)
-		if err != nil {
-			return err
-		}
-		privKey = edPrivKey
-		pubKey = edPubKey
-	}
-
 	ca := &x509.Certificate{
 		SerialNumber: big.NewInt(nextSn),
 		Subject: pkix.Name{
@@ -162,6 +135,35 @@ func (cm *CertMaker) GenerateRootCertAndKey() error {
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
+	}
+
+	switch Algo(cm.Config.RootKeyAlgo) {
+	case "":
+		fallthrough
+	case RSA:
+		rsaPrivKey, err := rsa.GenerateKey(rand.Reader, 4096)
+		if err != nil {
+			return err
+		}
+		privKey = rsaPrivKey
+		pubKey = &rsaPrivKey.PublicKey
+		ca.SignatureAlgorithm = x509.SHA256WithRSA
+	case ECDSA:
+		ecdsaPrivKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			return err
+		}
+		privKey = ecdsaPrivKey
+		pubKey = &ecdsaPrivKey.PublicKey
+		ca.SignatureAlgorithm = x509.ECDSAWithSHA256
+	case ED25519:
+		edPubKey, edPrivKey, err := ed25519.GenerateKey(rand.Reader)
+		if err != nil {
+			return err
+		}
+		privKey = edPrivKey
+		pubKey = edPubKey
+		ca.SignatureAlgorithm = x509.PureEd25519
 	}
 
 	certBytes, err := x509.CreateCertificate(rand.Reader, ca, ca, pubKey, privKey)
@@ -232,6 +234,7 @@ func (cm *CertMaker) GenerateLeafCertAndKey(request entity.SimpleRequest) (int64
 	cert := &x509.Certificate{
 		SerialNumber: big.NewInt(nextSn),
 		Subject: pkix.Name{
+			CommonName:    request.Subject.CommonName,
 			Country:       []string{request.Subject.Country},
 			Organization:  []string{request.Subject.Organization},
 			Locality:      []string{request.Subject.Locality},
@@ -239,13 +242,12 @@ func (cm *CertMaker) GenerateLeafCertAndKey(request entity.SimpleRequest) (int64
 			StreetAddress: []string{request.Subject.StreetAddress},
 			PostalCode:    []string{request.Subject.PostalCode},
 		},
-		NotBefore:          time.Now(),
-		NotAfter:           time.Now().AddDate(0, 0, request.Days),
-		SubjectKeyId:       []byte{1, 2, 3, 4, 6},
-		ExtKeyUsage:        []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		KeyUsage:           x509.KeyUsageDigitalSignature,
-		SignatureAlgorithm: x509.ECDSAWithSHA256,
-		OCSPServer:         []string{cm.Config.ServerHost + global.OcspPath}, // TODO implement/fix
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().AddDate(0, 0, request.Days),
+		SubjectKeyId: []byte{1, 2, 3, 4, 6},
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+		OCSPServer:   []string{cm.Config.ServerHost + global.OCSPPath},
 
 		DNSNames:       request.Domains,
 		IPAddresses:    ips,
@@ -253,16 +255,45 @@ func (cm *CertMaker) GenerateLeafCertAndKey(request entity.SimpleRequest) (int64
 	}
 
 	_ = os.MkdirAll(fmt.Sprintf("%s/leafcerts", cm.Config.DataDir), 0744)
-	outCertFilename := fmt.Sprintf("%s/leafcerts/%s-cert.pem", cm.Config.DataDir, strconv.FormatInt(nextSn, 10))
-	outKeyFilename := fmt.Sprintf("%s/leafcerts/%s-key.pem", cm.Config.DataDir, strconv.FormatInt(nextSn, 10))
+	outCertFilename := fmt.Sprintf("%s/leafcerts/%d-cert.pem", cm.Config.DataDir, nextSn)
+	outKeyFilename := fmt.Sprintf("%s/leafcerts/%d-key.pem", cm.Config.DataDir, nextSn)
 
-	priv, pub, err := ed25519.GenerateKey(rand.Reader) // TODO: if ed25519 doesn't work out with browsers, return to ecdsa
-	if err != nil {
-		return 0, err
+	var (
+		privKey any
+		pubKey  crypto.PublicKey
+	)
+
+	switch Algo(cm.Config.RootKeyAlgo) {
+	case "":
+		fallthrough
+	case RSA:
+		rsaPrivKey, err := rsa.GenerateKey(rand.Reader, 4096)
+		if err != nil {
+			return 0, err
+		}
+		privKey = rsaPrivKey
+		pubKey = &rsaPrivKey.PublicKey
+		cert.SignatureAlgorithm = x509.SHA256WithRSA
+	case ECDSA:
+		ecdsaPrivKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			return 0, err
+		}
+		privKey = ecdsaPrivKey
+		pubKey = &ecdsaPrivKey.PublicKey
+		cert.SignatureAlgorithm = x509.ECDSAWithSHA256
+	case ED25519:
+		pub, priv, err := ed25519.GenerateKey(rand.Reader)
+		if err != nil {
+			return 0, err
+		}
+		privKey = priv
+		pubKey = pub
+		cert.SignatureAlgorithm = x509.PureEd25519
 	}
 
 	// Sign the certificate
-	certBytes, err := x509.CreateCertificate(rand.Reader, cert, ca, pub, caTls.PrivateKey)
+	certBytes, err := x509.CreateCertificate(rand.Reader, cert, ca, pubKey, caTls.PrivateKey)
 	if err != nil {
 		return 0, err
 	}
@@ -286,7 +317,7 @@ func (cm *CertMaker) GenerateLeafCertAndKey(request entity.SimpleRequest) (int64
 	if err != nil {
 		return 0, err
 	}
-	privKeyBytes, err := x509.MarshalPKCS8PrivateKey(priv)
+	privKeyBytes, err := x509.MarshalPKCS8PrivateKey(privKey)
 	if err != nil {
 		return 0, err
 	}
@@ -326,7 +357,7 @@ func (cm *CertMaker) GenerateCertificateByCSR(csr *x509.CertificateRequest) (int
 		ExtKeyUsage:        []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:           x509.KeyUsageDigitalSignature,
 		SignatureAlgorithm: x509.ECDSAWithSHA256,
-		OCSPServer:         []string{cm.Config.ServerHost + global.OcspPath}, // TODO implement/fix
+		OCSPServer:         []string{cm.Config.ServerHost + global.OCSPPath}, // TODO implement/fix
 
 		EmailAddresses: csr.EmailAddresses,
 		DNSNames:       csr.DNSNames,
@@ -370,7 +401,7 @@ func (cm *CertMaker) FindLeafCertificate(sn string) ([]byte, error) {
 		return nil, fmt.Errorf("cert file with id %s not found", sn)
 	}
 
-	content, err := ioutil.ReadFile(certFile)
+	content, err := os.ReadFile(certFile)
 	if err != nil {
 		return nil, err
 	}
@@ -386,7 +417,7 @@ func (cm *CertMaker) FindLeafPrivateKey(sn string) ([]byte, error) {
 		return nil, fmt.Errorf("key file with id %s not found", sn)
 	}
 
-	content, err := ioutil.ReadFile(keyFile)
+	content, err := os.ReadFile(keyFile)
 	if err != nil {
 		return nil, err
 	}
@@ -395,7 +426,7 @@ func (cm *CertMaker) FindLeafPrivateKey(sn string) ([]byte, error) {
 }
 
 func (cm *CertMaker) GetRootCertificate() (*x509.Certificate, error) {
-	certContent, err := ioutil.ReadFile(filepath.Join(cm.Config.DataDir, "root-cert.pem"))
+	certContent, err := os.ReadFile(filepath.Join(cm.Config.DataDir, "root-cert.pem"))
 	if err != nil {
 		return nil, err
 	}
@@ -406,7 +437,7 @@ func (cm *CertMaker) GetRootCertificate() (*x509.Certificate, error) {
 
 func (cm *CertMaker) GetRootKeyPair() (*x509.Certificate, crypto.Signer, error) {
 	// cert
-	cont, err := ioutil.ReadFile(filepath.Join(cm.Config.DataDir, "root-cert.pem"))
+	cont, err := os.ReadFile(filepath.Join(cm.Config.DataDir, "root-cert.pem"))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -417,7 +448,7 @@ func (cm *CertMaker) GetRootKeyPair() (*x509.Certificate, crypto.Signer, error) 
 		return nil, nil, err
 	}
 
-	cont, err = ioutil.ReadFile(filepath.Join(cm.Config.DataDir, "root-key.pem"))
+	cont, err = os.ReadFile(filepath.Join(cm.Config.DataDir, "root-key.pem"))
 	if err != nil {
 		return nil, nil, err
 	}

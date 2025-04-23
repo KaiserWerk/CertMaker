@@ -4,34 +4,38 @@
 
     <form method="post">
         <div class="row">
-            <div class="col-md-3 label-row"><label for="organization">Organization*</label></div>
-            <div class="col-md-9"><input type="text" class="form-control" id="organization" name="organization" required></div>
+            <div class="col-md-3 label-row"><label for="organization">Organization</label></div>
+            <div class="col-md-9"><input type="text" class="form-control" id="organization" name="organization"></div>
         </div>
         <div class="row">
-            <div class="col-md-3 label-row"><label for="country">Country*</label></div>
-            <div class="col-md-9"><input type="text" class="form-control" id="country" name="country" required></div>
+            <div class="col-md-3 label-row"><label for="country">Country</label></div>
+            <div class="col-md-9"><input type="text" class="form-control" id="country" name="country"></div>
         </div>
         <div class="row">
-            <div class="col-md-3 label-row"><label for="province">Province*</label></div>
-            <div class="col-md-9"><input type="text" class="form-control" id="province" name="province" required></div>
+            <div class="col-md-3 label-row"><label for="province">Province</label></div>
+            <div class="col-md-9"><input type="text" class="form-control" id="province" name="province"></div>
         </div>
         <div class="row">
-            <div class="col-md-3 label-row"><label for="locality">Locality (e.g. City)*</label></div>
-            <div class="col-md-9"><input type="text" class="form-control" id="locality" name="locality" required></div>
+            <div class="col-md-3 label-row"><label for="locality">Locality (e.g. City)</label></div>
+            <div class="col-md-9"><input type="text" class="form-control" id="locality" name="locality"></div>
         </div>
         <div class="row">
-            <div class="col-md-3 label-row"><label for="street_address">Street Address*</label></div>
-            <div class="col-md-9"><input type="text" class="form-control" id="street_address" name="street_address" required></div>
+            <div class="col-md-3 label-row"><label for="street_address">Street Address</label></div>
+            <div class="col-md-9"><input type="text" class="form-control" id="street_address" name="street_address"></div>
         </div>
         <div class="row">
-            <div class="col-md-3 label-row"><label for="postal_code">Postal Code*</label></div>
-            <div class="col-md-9"><input type="text" class="form-control" id="postal_code" name="postal_code" required></div>
+            <div class="col-md-3 label-row"><label for="postal_code">Postal Code</label></div>
+            <div class="col-md-9"><input type="text" class="form-control" id="postal_code" name="postal_code"></div>
+        </div>
+         <div class="row">
+            <div class="col-md-3 label-row"><label for="common_name">Common Name</label></div>
+            <div class="col-md-9"><input type="text" class="form-control" id="common_name" name="common_name"></div>
         </div>
         <div class="row" style="margin-top: 30px;">
             <div class="col-md-3 label-row"><label for="days">Lifetime in days*</label></div>
             <div class="col-md-9">
-                <input type="number" min="1" max="182" value="{{ .DefaultDays }}" class="form-control" id="days" name="days" required>
-                <small class="form-text text-muted">Must be between 1 and 182; default is 7 days.</small>
+                <input type="number" min="1" max="365" value="{{ .DefaultDays }}" class="form-control" id="days" name="days" required>
+                <small class="form-text text-muted">Must be between 1 and 365; default is 7 days.</small>
             </div>
         </div>
         <div class="row" style="margin-top: 30px;">
@@ -58,7 +62,7 @@
                 <small class="form-text text-muted">When entering multiple email addresses, separate them with a comma.</small>
             </div>
         </div>
-        <button type="submit" class="btn primary">Generate certificate</button>
+        <button type="submit" class="btn btn-primary">Generate certificate</button>
     </form>
 </div>
 {{ template "footer_default" . }}

@@ -181,9 +181,9 @@ func (bh *BaseHandler) CertificateAddHandler(w http.ResponseWriter, r *http.Requ
 		locality := r.FormValue("locality")
 		streetAddress := r.FormValue("street_address")
 		postalCode := r.FormValue("postal_code")
+		commonName := r.FormValue("common_name")
 		days := r.FormValue("days")
-		if organization == "" || country == "" || province == "" || locality == "" || streetAddress == "" ||
-			postalCode == "" || days == "" {
+		if days == "" {
 			logger.Debug("please fill in all required fields, marked with *")
 			http.Redirect(w, r, "/certificate/add", http.StatusSeeOther)
 			return
@@ -218,14 +218,8 @@ func (bh *BaseHandler) CertificateAddHandler(w http.ResponseWriter, r *http.Requ
 		certRequest := entity.SimpleRequest{
 			Domains: domainList,
 			IPs:     ipList,
-			Subject: struct {
-				Organization  string `json:"organization"`
-				Country       string `json:"country"`
-				Province      string `json:"province"`
-				Locality      string `json:"locality"`
-				StreetAddress string `json:"street_address"`
-				PostalCode    string `json:"postal_code"`
-			}{
+			Subject: entity.Subject{
+				CommonName:    commonName,
 				Organization:  organization,
 				Country:       country,
 				Province:      province,
@@ -239,23 +233,22 @@ func (bh *BaseHandler) CertificateAddHandler(w http.ResponseWriter, r *http.Requ
 		sn, err := bh.CM.GenerateLeafCertAndKey(certRequest)
 		if err != nil {
 			logger.Error("could not generate leaf cert and key: " + err.Error())
-			http.Redirect(w, r, "/add", http.StatusSeeOther)
+			http.Redirect(w, r, "/certificate/add", http.StatusSeeOther)
 			return
 		}
 
-		userFromContext := r.Context().Value("user")
-		u := userFromContext.(entity.User)
+		user := r.Context().Value("user").(entity.User)
 
 		ci := entity.CertInfo{
 			SerialNumber:   sn,
 			FromCSR:        false,
-			CreatedForUser: u.ID,
+			CreatedForUser: user.ID,
 			Revoked:        false,
 		}
 		err = bh.DBSvc.AddCertInfo(&ci)
 		if err != nil {
-			logger.Errorf("could not insert cert info into DB: %s", err.Error())
-			w.WriteHeader(http.StatusInternalServerError)
+			logger.Errorf("could not insert certificate info into DB: %s", err.Error())
+			http.Redirect(w, r, "/", http.StatusSeeOther)
 			return
 		}
 

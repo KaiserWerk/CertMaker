@@ -2,7 +2,6 @@ package configuration
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -12,24 +11,28 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// AppConfig represents the Go type of a configuration file
-type AppConfig struct {
-	ServerHost string `yaml:"server_host"`
-	DataDir    string `yaml:"data_dir"`
-	Database   struct {
+type (
+	// AppConfig represents the Go type of a configuration file
+	AppConfig struct {
+		ServerHost      string      `yaml:"server_host"`
+		DataDir         string      `yaml:"data_dir"`
+		Database        DB          `yaml:"database"`
+		RootKeyAlgo     string      `yaml:"root_key_algo"`
+		RootCertSubject CertSubject `yaml:"root_cert_subject"`
+	}
+	DB struct {
 		Driver string `yaml:"driver"`
 		DSN    string `yaml:"dsn"`
-	} `yaml:"database"`
-	RootKeyAlgo     string `yaml:"root_key_algo"`
-	RootCertSubject struct {
+	}
+	CertSubject struct {
 		Organization  string `yaml:"organization"`
 		Country       string `yaml:"country"`
 		Province      string `yaml:"province"`
 		Locality      string `yaml:"locality"`
 		StreetAddress string `yaml:"street_address"`
 		PostalCode    string `yaml:"postal_code"`
-	} `yaml:"root_cert_subject"`
-}
+	}
+)
 
 var (
 	configDistFile = "config.dist.yaml"
@@ -62,7 +65,7 @@ func Setup(file string) (*AppConfig, bool, error) {
 		created = true
 	}
 
-	cont, err := ioutil.ReadFile(file)
+	cont, err := os.ReadFile(file)
 	if err != nil {
 		return nil, created, err
 	}
@@ -73,6 +76,7 @@ func Setup(file string) (*AppConfig, bool, error) {
 		return nil, created, err
 	}
 
+	_ = os.MkdirAll(cfg.DataDir, os.ModePerm)
 	snFile := filepath.Join(cfg.DataDir, "sn.txt")
 	if !helper.DoesFileExist(snFile) {
 		snCont, err := assets.ReadConfigFile(snDistFile)

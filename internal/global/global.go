@@ -15,7 +15,7 @@ const (
 
 	ApiPrefix = "/api/v1"
 
-	OcspPath                      = ApiPrefix + "/ocsp"
+	OCSPPath                      = ApiPrefix + "/ocsp"
 	RootCertificateObtainPath     = ApiPrefix + "/root-certificate/obtain"
 	CertificateRequestPath        = ApiPrefix + "/certificate/request"
 	CertificateRequestWithCSRPath = ApiPrefix + "/certificate/request-with-csr"
