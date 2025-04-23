@@ -9,12 +9,6 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"github.com/KaiserWerk/CertMaker/internal/entity"
-	"github.com/KaiserWerk/CertMaker/internal/global"
-	"github.com/KaiserWerk/CertMaker/internal/helper"
-	"github.com/KaiserWerk/CertMaker/internal/security"
-	"github.com/gorilla/mux"
-	"golang.org/x/crypto/ocsp"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -22,6 +16,14 @@ import (
 	"path/filepath"
 	"strconv"
 	"time"
+
+	"github.com/KaiserWerk/CertMaker/internal/entity"
+	"github.com/KaiserWerk/CertMaker/internal/global"
+	"github.com/KaiserWerk/CertMaker/internal/helper"
+	"github.com/KaiserWerk/CertMaker/internal/security"
+
+	"github.com/gorilla/mux"
+	"golang.org/x/crypto/ocsp"
 )
 
 // ApiRequestCertificateHandler handles a client's request,
@@ -483,7 +485,7 @@ func (bh *BaseHandler) ApiSolveChallengeHandler(w http.ResponseWriter, r *http.R
 
 			req, err := http.NewRequest(http.MethodGet, attempt, nil)
 			if err != nil {
-				logger.Debugf("could not create request: " + err.Error())
+				logger.Debugf("could not create request: %s", err.Error())
 				attemptSuccessful = false
 				continue
 			}
@@ -539,20 +541,20 @@ func (bh *BaseHandler) ApiSolveChallengeHandler(w http.ResponseWriter, r *http.R
 
 			req, err := http.NewRequest(http.MethodGet, attempt, nil)
 			if err != nil {
-				logger.Debugf("could not create request: " + err.Error())
+				logger.Debugf("could not create request: %s", err.Error())
 				attemptSuccessful = false
 				continue
 			}
 
 			resp, err := bh.Client.Do(req)
 			if err != nil {
-				logger.Debugf("could not execute request for IP validation: " + err.Error())
+				logger.Debugf("could not execute request for IP validation: %s", err.Error())
 				attemptSuccessful = false
 				continue
 			}
 			_, err = io.Copy(&b, resp.Body)
 			if err != nil {
-				logger.Debugf("could not read request body from HTTPS attempt: " + err.Error())
+				logger.Debugf("could not read request body from HTTPS attempt: %s", err.Error())
 				attemptSuccessful = false
 				continue
 			}
