@@ -34,7 +34,7 @@ func New(lvl logrus.Level, path, initialContext string, mode LogMode) (*logrus.E
 	case mode&ModeDiscard != 0:
 		w = io.Discard
 	case mode&ModeConsole != 0 && mode&ModeFile != 0:
-		rotator, err := logRotator.New(path, "tbs.log", 3<<20, 0644, 10, false)
+		rotator, err := logRotator.New(path, "certmaker.log", 3<<20, 0644, 10, false)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -43,7 +43,7 @@ func New(lvl logrus.Level, path, initialContext string, mode LogMode) (*logrus.E
 		}
 		w = io.MultiWriter(rotator, os.Stdout)
 	case mode&ModeFile != 0 && mode&ModeConsole == 0:
-		rotator, err := logRotator.New(path, "tbs.log", 3<<20, 0644, 10, false)
+		rotator, err := logRotator.New(path, "certmaker.log", 3<<20, 0644, 10, false)
 		if err != nil {
 			return nil, nil, err
 		}
