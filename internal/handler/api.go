@@ -31,9 +31,14 @@ import (
 // location headers or creates a challenge
 func (bh *BaseHandler) ApiRequestCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
+	if r.Context().Value("user") == nil {
+		bh.ContextLogger("api").Debug("user not found in context")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 	var (
 		logger = bh.ContextLogger("api")
-		u      = r.Context().Value("user").(entity.User)
+		user   = r.Context().Value("user").(entity.User)
 	)
 
 	simpleMode := bh.DBSvc.GetSetting("certificate_request_simple_mode")
@@ -74,11 +79,8 @@ func (bh *BaseHandler) ApiRequestCertificateHandler(w http.ResponseWriter, r *ht
 			return
 		}
 
-		val := r.Context().Value("user")
-		u := val.(entity.User)
-
 		ri := entity.RequestInfo{
-			CreatedFor:         u.ID,
+			CreatedFor:         user.ID,
 			SimpleRequestBytes: b.Bytes(),
 			Token:              token,
 			Status:             "accepted",
@@ -108,7 +110,7 @@ func (bh *BaseHandler) ApiRequestCertificateHandler(w http.ResponseWriter, r *ht
 	ci := entity.CertInfo{
 		SerialNumber:   sn,
 		FromCSR:        false,
-		CreatedForUser: u.ID,
+		CreatedForUser: user.ID,
 		Revoked:        false,
 	}
 
@@ -127,9 +129,15 @@ func (bh *BaseHandler) ApiRequestCertificateHandler(w http.ResponseWriter, r *ht
 // or creates a challenge
 func (bh *BaseHandler) ApiRequestCertificateWithCSRHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
+	if r.Context().Value("user") == nil {
+		bh.ContextLogger("api").Debug("user not found in context")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 	var (
 		logger = bh.ContextLogger("api")
 		err    error
+		user   = r.Context().Value("user").(entity.User)
 	)
 
 	normalMode := bh.DBSvc.GetSetting("certificate_request_normal_mode")
@@ -194,13 +202,10 @@ func (bh *BaseHandler) ApiRequestCertificateWithCSRHandler(w http.ResponseWriter
 		return
 	}
 
-	userFromContext := r.Context().Value("user")
-	u := userFromContext.(entity.User)
-
 	ci := entity.CertInfo{
 		SerialNumber:   sn,
 		FromCSR:        true,
-		CreatedForUser: u.ID,
+		CreatedForUser: user.ID,
 		Revoked:        false,
 	}
 	err = bh.DBSvc.AddCertInfo(&ci)
@@ -211,6 +216,7 @@ func (bh *BaseHandler) ApiRequestCertificateWithCSRHandler(w http.ResponseWriter
 	}
 
 	w.Header().Add(global.CertificateLocationHeader, fmt.Sprintf(bh.Config.ServerHost+global.CertificateObtainPath, sn))
+	w.WriteHeader(http.StatusCreated)
 }
 
 // ApiObtainCertificateHandler allows to actually download a certificate
