@@ -301,7 +301,7 @@ func (bh *BaseHandler) ApiOcspRequestHandler(w http.ResponseWriter, r *http.Requ
 	switch r.Method {
 	case http.MethodPost:
 		logger.Debug("POST request")
-		request, err = ioutil.ReadAll(r.Body)
+		request, err = io.ReadAll(r.Body)
 		if err != nil {
 			logger.Debugf("could not read request body: %s", err.Error())
 			w.WriteHeader(http.StatusBadRequest)
@@ -337,7 +337,7 @@ func (bh *BaseHandler) ApiOcspRequestHandler(w http.ResponseWriter, r *http.Requ
 		status = ocsp.Revoked
 	}
 
-	certContent, err := ioutil.ReadFile(filepath.Join(bh.Config.DataDir, "leafcerts", fmt.Sprintf("%d-cert.pem", ci.SerialNumber)))
+	certContent, err := os.ReadFile(filepath.Join(bh.Config.DataDir, "leafcerts", fmt.Sprintf("%d-cert.pem", ci.SerialNumber)))
 	if err != nil {
 		logger.Debug("could not read certificate file: " + err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -380,8 +380,6 @@ func (bh *BaseHandler) ApiOcspRequestHandler(w http.ResponseWriter, r *http.Requ
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
-	//if rsaKey, ok := rootKey.(*rsa.PrivateKey)
 
 	resp, err := ocsp.CreateResponse(rootCert, rootCert, responseTemplate, rootKey)
 	if err != nil {
