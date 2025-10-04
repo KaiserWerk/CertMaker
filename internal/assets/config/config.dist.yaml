@@ -22,3 +22,8 @@ root_cert_subject:
   locality: Some Location
   street_address: Some Address
   postal_code: Some ZIP
+
+storagebox:
+  username: username
+  password: changeme
+  host: hostname:port # no wrapper needed

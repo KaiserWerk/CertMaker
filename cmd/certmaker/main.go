@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/KaiserWerk/CertMaker/internal/assets"
+	"github.com/KaiserWerk/CertMaker/internal/backup"
 	"github.com/KaiserWerk/CertMaker/internal/certmaker"
 	"github.com/KaiserWerk/CertMaker/internal/configuration"
 	"github.com/KaiserWerk/CertMaker/internal/dbservice"
@@ -27,7 +28,7 @@ var (
 	VersionDate = "0000-00-00 00:00:00"
 
 	configFile = flag.String("config", "config.yaml", "The configuration file to use")
-	logPath    = flag.String("logpath", ".", "The path to place log files in")
+	logPath    = flag.String("logpath", ".", "The path to place log files at")
 	port       = flag.String("port", "8880", "The port to run at")
 	useUi      = flag.Bool("ui", true, "Adds a simple UI for certificate and instance management")
 )
@@ -59,6 +60,10 @@ func main() {
 		return
 	}
 
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+	go backup.StartMakingBackups(ctx, config)
+
 	// create new session manager
 	sessMgr := sessionstore.NewManager("CM_SESS")
 	// create new certmaker instance and set up CA if necessary
@@ -76,9 +81,6 @@ func main() {
 	}
 
 	router := setupRoutes(config, logger, ds, sessMgr, cm, *useUi)
-
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer cancel()
 
 	host := fmt.Sprintf(":%s", *port)
 	srv := &http.Server{

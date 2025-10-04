@@ -14,11 +14,12 @@ import (
 type (
 	// AppConfig represents the Go type of a configuration file
 	AppConfig struct {
-		ServerHost      string      `yaml:"server_host"`
-		DataDir         string      `yaml:"data_dir"`
-		Database        DB          `yaml:"database"`
-		RootKeyAlgo     string      `yaml:"root_key_algo"`
-		RootCertSubject CertSubject `yaml:"root_cert_subject"`
+		ServerHost      string           `yaml:"server_host"`
+		DataDir         string           `yaml:"data_dir"`
+		Database        DB               `yaml:"database"`
+		RootKeyAlgo     string           `yaml:"root_key_algo"`
+		RootCertSubject CertSubject      `yaml:"root_cert_subject"`
+		StorageBox      StorageBoxConfig `yaml:"storagebox"`
 	}
 	DB struct {
 		Driver string `yaml:"driver"`
@@ -31,6 +32,11 @@ type (
 		Locality      string `yaml:"locality"`
 		StreetAddress string `yaml:"street_address"`
 		PostalCode    string `yaml:"postal_code"`
+	}
+	StorageBoxConfig struct {
+		Username string `yaml:"username"`
+		Password string `yaml:"password"`
+		Host     string `yaml:"host"`
 	}
 )
 
