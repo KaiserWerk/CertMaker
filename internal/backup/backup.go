@@ -20,7 +20,7 @@ func StartMakingBackups(ctx context.Context, appConfig *configuration.AppConfig)
 		sqldump.GetMySQLBackupFileByDSN(appConfig.Database.DSN, "certmaker"),
 		true,
 		".",
-		3*time.Minute,
-		7,
+		30*time.Minute,
+		3,
 	)
 }
