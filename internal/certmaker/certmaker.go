@@ -334,13 +334,13 @@ func (cm *CertMaker) GenerateLeafCertAndKey(request entity.SimpleRequest) (int64
 }
 
 func (cm *CertMaker) GenerateCertificateByCSR(csr *x509.CertificateRequest) (int64, error) {
-	caTls, err := tls.LoadX509KeyPair(filepath.Join(cm.Config.DataDir, global.RootCertificateFilename), filepath.Join(cm.Config.DataDir, global.RootCertificateFilename))
+	caTls, err := tls.LoadX509KeyPair(filepath.Join(cm.Config.DataDir, global.RootCertificateFilename), filepath.Join(cm.Config.DataDir, global.RootPrivateKeyFilename))
 	if err != nil {
-		panic(err)
+		return 0, err
 	}
 	ca, err := x509.ParseCertificate(caTls.Certificate[0])
 	if err != nil {
-		panic(err)
+		return 0, err
 	}
 
 	nextSn, err := cm.GetNextSerialNumber()
@@ -356,7 +356,7 @@ func (cm *CertMaker) GenerateCertificateByCSR(csr *x509.CertificateRequest) (int
 		SubjectKeyId:       []byte{1, 2, 3, 4, 6},
 		ExtKeyUsage:        []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:           x509.KeyUsageDigitalSignature,
-		SignatureAlgorithm: x509.ECDSAWithSHA256,
+		SignatureAlgorithm: csr.SignatureAlgorithm,
 		OCSPServer:         []string{cm.Config.ServerHost + global.OCSPPath}, // TODO implement/fix
 
 		EmailAddresses: csr.EmailAddresses,

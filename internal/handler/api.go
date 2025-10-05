@@ -10,7 +10,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -122,6 +121,7 @@ func (bh *BaseHandler) ApiRequestCertificateHandler(w http.ResponseWriter, r *ht
 
 	w.Header().Add(global.CertificateLocationHeader, fmt.Sprintf(bh.Config.ServerHost+global.CertificateObtainPath, sn))
 	w.Header().Add(global.PrivateKeyLocationHandler, fmt.Sprintf(bh.Config.ServerHost+global.PrivateKeyObtainPath, sn))
+	w.WriteHeader(http.StatusCreated)
 }
 
 // ApiRequestCertificateWithCSRHandler handles a client's request for a new certificate,
@@ -147,16 +147,14 @@ func (bh *BaseHandler) ApiRequestCertificateWithCSRHandler(w http.ResponseWriter
 		return
 	}
 
-	csrBytes, err := ioutil.ReadAll(r.Body)
+	csrBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		logger.Debugf("could not read request body: %s", err.Error())
 		http.Error(w, "malformed http request", http.StatusBadRequest)
 		return
 	}
 
-	p, _ := pem.Decode(csrBytes)
-
-	csr, err := x509.ParseCertificateRequest(p.Bytes)
+	csr, err := x509.ParseCertificateRequest(csrBytes)
 	if err != nil {
 		logger.Debugf("could not parse certificate signing request: %s", err.Error())
 		http.Error(w, "malformed certificate signing request", http.StatusBadRequest)
@@ -216,6 +214,8 @@ func (bh *BaseHandler) ApiRequestCertificateWithCSRHandler(w http.ResponseWriter
 	}
 
 	w.Header().Add(global.CertificateLocationHeader, fmt.Sprintf(bh.Config.ServerHost+global.CertificateObtainPath, sn))
+	// private key location header intentionally omitted because it's not needed
+
 	w.WriteHeader(http.StatusCreated)
 }
 
