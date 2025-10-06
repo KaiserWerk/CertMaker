@@ -56,7 +56,7 @@
 
                     {{ $disableFileRetention := index .AdminSettings .SettingDisableFileRetention }}
                     <input type="checkbox" id="{{ .SettingDisableFileRetention }}" name="{{ .SettingDisableFileRetention }}" value="true"{{if eq $disableFileRetention "true"}} checked{{end}}>
-                    <label for="{{ .SettingDisableFileRetention }}">Do not retain a file copy of all generated certificates and private keys</label><br>
+                    <label for="{{ .SettingDisableFileRetention }}">Disable retention of generated certificates (and private keys)</label><br>
 
                     {{ $enableHttp01Challenge := index .AdminSettings .SettingEnableHTTP01Challenge }}
                     <input type="checkbox" id="{{ .SettingEnableHTTP01Challenge }}" name="{{ .SettingEnableHTTP01Challenge }}" value="true"{{if eq $enableHttp01Challenge "true"}} checked{{end}}>

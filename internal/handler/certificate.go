@@ -85,6 +85,7 @@ func (bh *BaseHandler) RootCertificateDownloadHandler(w http.ResponseWriter, r *
 		return
 	}
 
+	w.Header().Set("Content-Type", global.PemContentType)
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, global.RootCertificateFilename))
 
 	_, err = io.Copy(w, fh)
@@ -179,8 +180,8 @@ func (bh *BaseHandler) CertificateAddHandler(w http.ResponseWriter, r *http.Requ
 	const template = "certificate_add.html"
 	logger := bh.ContextLogger("certificate")
 
-	if simpleMode := bh.DBSvc.GetSetting("certificate_request_simple_mode"); simpleMode != "true" {
-		logger.Debug("simple mode is not enabled")
+	if simpleMode := bh.DBSvc.GetSetting(global.SettingEnableSimpleRequestMode); simpleMode != "true" {
+		templating.SetErrorMessage(w, "Simple Request Mode is not enabled.")
 		http.Redirect(w, r, "/certificate/list", http.StatusSeeOther)
 		return
 	}
@@ -297,6 +298,12 @@ func (bh *BaseHandler) CertificateAddHandler(w http.ResponseWriter, r *http.Requ
 func (bh *BaseHandler) AddCertificateFromCSRHandler(w http.ResponseWriter, r *http.Request) {
 	logger := bh.ContextLogger("certificate")
 	const template = "certificate_add_with_csr.html"
+
+	if csrMode := bh.DBSvc.GetSetting(global.SettingEnableCSRRequestMode); csrMode != "true" {
+		templating.SetErrorMessage(w, "CSR Request Mode is not enabled.")
+		http.Redirect(w, r, "/certificate/list", http.StatusSeeOther)
+		return
+	}
 
 	data := struct {
 		Error   string
