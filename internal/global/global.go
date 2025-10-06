@@ -4,8 +4,8 @@ const (
 	CertificateMinDays     = 1
 	CertificateMaxDays     = 182
 	CertificateDefaultDays = 7
-	CsrUploadMaxBytes      = 5 << 10
-	ApiTokenLength         = 40
+	CSRUploadMaxBytes      = 50 << 10
+	APITokenLength         = 40
 	ChallengeTokenLength   = 80
 
 	TokenHeader               = "X-Api-Token"
@@ -13,25 +13,25 @@ const (
 	PrivateKeyLocationHandler = "X-Privatekey-Location"
 	ChallengeLocationHeader   = "X-Challenge-Location"
 
-	ApiPrefix = "/api/v1"
+	APIPrefix = "/api/v1"
 
-	OCSPPath                      = ApiPrefix + "/ocsp"
-	RootCertificateObtainPath     = ApiPrefix + "/root-certificate/obtain"
-	CertificateRequestPath        = ApiPrefix + "/certificate/request"
-	CertificateRequestWithCSRPath = ApiPrefix + "/certificate/request-with-csr"
-	CertificateObtainPath         = ApiPrefix + "/certificate/%d/obtain"
-	PrivateKeyObtainPath          = ApiPrefix + "/privatekey/%d/obtain"
-	SolveChallengePath            = ApiPrefix + "/challenge/%d/solve"
-	CertificateRevokePath         = ApiPrefix + "/certificate/%d/revoke"
+	OCSPPath                      = APIPrefix + "/ocsp"
+	RootCertificateObtainPath     = APIPrefix + "/root-certificate/obtain"
+	CertificateRequestPath        = APIPrefix + "/certificate/request"
+	CertificateRequestWithCSRPath = APIPrefix + "/certificate/request-with-csr"
+	CertificateObtainPath         = APIPrefix + "/certificate/%d/obtain"
+	PrivateKeyObtainPath          = APIPrefix + "/privatekey/%d/obtain"
+	SolveChallengePath            = APIPrefix + "/challenge/%d/solve"
+	CertificateRevokePath         = APIPrefix + "/certificate/%d/revoke"
 
-	WellKnownPath = "/.well-known/certmaker-challenge/token.txt"
+	WellKnownPath = "/.well-known/certmaker-challenge/token"
 
 	RootCertificateFilename = "root-cert.pem"
 	RootPrivateKeyFilename  = "root-key.pem"
 
-	PemContentType = "application/x-pem-file"
+	PEMContentType = "application/x-pem-file"
 )
 
 var (
-	DnsNamesToSkip = []string{"localhost", "127.0.0.1", "::1", "[::1]"}
+	DNSNamesToSkip = []string{"localhost", "127.0.0.1", "::1", "[::1]"}
 )

@@ -40,8 +40,8 @@ func (bh *BaseHandler) ApiRequestCertificateHandler(w http.ResponseWriter, r *ht
 		user   = r.Context().Value("user").(entity.User)
 	)
 
-	simpleMode := bh.DBSvc.GetSetting("certificate_request_simple_mode")
-	if simpleMode != "true" {
+	srMode := bh.DBSvc.GetSetting(global.SettingEnableSimpleRequestMode)
+	if srMode != "true" {
 		logger.Debug("simple mode is not enabled")
 		w.WriteHeader(http.StatusNotImplemented)
 		return
@@ -70,7 +70,7 @@ func (bh *BaseHandler) ApiRequestCertificateHandler(w http.ResponseWriter, r *ht
 		certRequest.Days = global.CertificateMinDays
 	}
 
-	if dnsValidate := bh.DBSvc.GetSetting("certificate_request_require_domain_ownership"); dnsValidate == "true" {
+	if dnsValidate := bh.DBSvc.GetSetting(global.SettingEnableHTTP01Challenge); dnsValidate == "true" {
 		token, err := security.GenerateToken(global.ChallengeTokenLength)
 		if err != nil {
 			logger.Infof("error generating token: %s\n", err.Error())
@@ -140,9 +140,8 @@ func (bh *BaseHandler) ApiRequestCertificateWithCSRHandler(w http.ResponseWriter
 		user   = r.Context().Value("user").(entity.User)
 	)
 
-	normalMode := bh.DBSvc.GetSetting("certificate_request_normal_mode")
-	if normalMode != "true" {
-		logger.Debug("normal mode is not enabled")
+	csrMode := bh.DBSvc.GetSetting(global.SettingEnableCSRRequestMode)
+	if csrMode != "true" {
 		w.WriteHeader(http.StatusNotImplemented)
 		return
 	}
@@ -161,7 +160,7 @@ func (bh *BaseHandler) ApiRequestCertificateWithCSRHandler(w http.ResponseWriter
 		return
 	}
 
-	if dnsValidate := bh.DBSvc.GetSetting("certificate_request_require_domain_ownership"); dnsValidate == "true" {
+	if httpChallengeEnabled := bh.DBSvc.GetSetting(global.SettingEnableHTTP01Challenge); httpChallengeEnabled == "true" {
 		token, err := security.GenerateToken(global.ChallengeTokenLength)
 		if err != nil {
 			logger.Infof("error generating token: %s\n", err.Error())
@@ -188,7 +187,7 @@ func (bh *BaseHandler) ApiRequestCertificateWithCSRHandler(w http.ResponseWriter
 		w.Header().Set("Content-Type", "text/plain")
 		w.Header().Set(global.ChallengeLocationHeader, fmt.Sprintf(bh.Config.ServerHost+global.SolveChallengePath, ri.ID))
 		w.WriteHeader(http.StatusAccepted)
-		fmt.Fprint(w, token)
+		_, _ = fmt.Fprint(w, token)
 
 		return
 	}
@@ -235,7 +234,7 @@ func (bh *BaseHandler) ApiObtainCertificateHandler(w http.ResponseWriter, r *htt
 	}
 
 	//w.Header().Set("Content-Disposition", "attachment; filename=\""+id+"-cert.pem\"")
-	w.Header().Set("Content-Type", global.PemContentType)
+	w.Header().Set("Content-Type", global.PEMContentType)
 	_, err = w.Write(certBytes)
 	if err != nil {
 		logger.Error("could not write cert bytes: " + err.Error())
@@ -259,7 +258,7 @@ func (bh *BaseHandler) ApiObtainPrivateKeyHandler(w http.ResponseWriter, r *http
 	}
 
 	//w.Header().Set("Content-Disposition", "attachment; filename=\""+id+"-key.pem\"")
-	w.Header().Set("Content-Type", global.PemContentType)
+	w.Header().Set("Content-Type", global.PEMContentType)
 	_, err = w.Write(keyBytes)
 	if err != nil {
 		logger.Error("could not write private key bytes: " + err.Error())
@@ -471,7 +470,7 @@ func (bh *BaseHandler) ApiSolveChallengeHandler(w http.ResponseWriter, r *http.R
 	for _, domain := range domains {
 		attemptSuccessful := false
 		// skip local dns names, like localhost or 127.0.0.1
-		if helper.StringSliceContains(global.DnsNamesToSkip, domain) {
+		if helper.StringSliceContains(global.DNSNamesToSkip, domain) {
 			attemptCount--
 			continue
 		}
@@ -527,7 +526,7 @@ func (bh *BaseHandler) ApiSolveChallengeHandler(w http.ResponseWriter, r *http.R
 	for _, ip := range ips {
 		attemptSuccessful := false
 		// skip local dns names, like localhost or 127.0.0.1
-		if helper.StringSliceContains(global.DnsNamesToSkip, ip) {
+		if helper.StringSliceContains(global.DNSNamesToSkip, ip) {
 			attemptCount--
 			continue
 		}
@@ -643,7 +642,7 @@ func (bh *BaseHandler) ApiRootCertificateDownloadHandler(w http.ResponseWriter, 
 		return
 	}
 
-	w.Header().Set("Content-Type", global.PemContentType)
+	w.Header().Set("Content-Type", global.PEMContentType)
 	_, err = io.Copy(w, fh)
 	if err != nil {
 		logger.WithField("error", err.Error()).Error("could not write root cert contents")

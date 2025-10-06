@@ -309,7 +309,7 @@ func (bh *BaseHandler) AdminUserAddHandler(w http.ResponseWriter, r *http.Reques
 			admin = true
 		}
 
-		apikey, err := security.GenerateToken(global.ApiTokenLength)
+		apikey, err := security.GenerateToken(global.APITokenLength)
 		if err != nil {
 
 			templating.SetErrorMessage(w, "Could not generate API token.")

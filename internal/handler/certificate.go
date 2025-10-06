@@ -85,7 +85,7 @@ func (bh *BaseHandler) RootCertificateDownloadHandler(w http.ResponseWriter, r *
 		return
 	}
 
-	w.Header().Set("Content-Type", global.PemContentType)
+	w.Header().Set("Content-Type", global.PEMContentType)
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, global.RootCertificateFilename))
 
 	_, err = io.Copy(w, fh)
@@ -131,7 +131,7 @@ func (bh *BaseHandler) CertificateDownloadHandler(w http.ResponseWriter, r *http
 		return
 	}
 
-	w.Header().Set("Content-Type", global.PemContentType)
+	w.Header().Set("Content-Type", global.PEMContentType)
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
 	w.Write(certContent)
 }
@@ -169,7 +169,7 @@ func (bh *BaseHandler) PrivateKeyDownloadHandler(w http.ResponseWriter, r *http.
 		return
 	}
 
-	w.Header().Set("Content-Type", global.PemContentType)
+	w.Header().Set("Content-Type", global.PEMContentType)
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
 	w.Write(certContent)
 }

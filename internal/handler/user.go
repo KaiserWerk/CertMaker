@@ -159,7 +159,7 @@ func (bh *BaseHandler) ProfileRegenerateKeyHandler(w http.ResponseWriter, r *htt
 		return
 	}
 
-	token, err := security.GenerateToken(global.ApiTokenLength)
+	token, err := security.GenerateToken(global.APITokenLength)
 	if err != nil {
 		logger.Error("could not generate token: " + err.Error())
 		templating.SetErrorMessage(w, "Could not generate new API token.")

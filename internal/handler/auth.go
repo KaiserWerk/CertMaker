@@ -132,7 +132,7 @@ func (bh *BaseHandler) RegistrationHandler(w http.ResponseWriter, r *http.Reques
 		logger   = bh.ContextLogger("auth")
 	)
 
-	if val := bh.DBSvc.GetSetting("registration_enabled"); val != "true" {
+	if val := bh.DBSvc.GetSetting(global.SettingDisableRegistration); val == "true" {
 		logger.Trace("registration is not enabled")
 		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 		return
@@ -187,7 +187,7 @@ func (bh *BaseHandler) RegistrationHandler(w http.ResponseWriter, r *http.Reques
 			return
 		}
 
-		key, err := security.GenerateToken(global.ApiTokenLength)
+		key, err := security.GenerateToken(global.APITokenLength)
 		if err != nil {
 			templating.SetErrorMessage(w, "Could not generate API token.")
 			http.Redirect(w, r, "/auth/register", http.StatusSeeOther)
