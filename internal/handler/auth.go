@@ -28,13 +28,6 @@ func (bh *BaseHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		Info:    templating.GetInfoMessage(w, r),
 	}
 
-	if val := bh.DBSvc.GetSetting("authprovider_userpw"); val != "true" {
-		logger.Debug("authprovider userpw not enabled; redirecting")
-		templating.SetInfoMessage(w, "Username/password authentication is disabled!")
-		http.Redirect(w, r, "/", http.StatusSeeOther)
-		return
-	}
-
 	if r.Method == http.MethodPost {
 		username := r.FormValue("username")
 		password := r.FormValue("password")

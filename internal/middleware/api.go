@@ -11,13 +11,6 @@ func (mh *MWHandler) WithToken(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := mh.ContextLogger("middleware")
 
-		val := mh.DBSvc.GetSetting("authprovider_bearer")
-		if val != "true" {
-			logger.Debug("authprovider userpw not enabled; redirecting")
-			next.ServeHTTP(w, r)
-			return
-		}
-
 		token := r.Header.Get("X-Auth-Token")
 		if token == "" {
 			logger.Print("missing auth header")

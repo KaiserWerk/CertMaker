@@ -88,6 +88,14 @@ func (bh *BaseHandler) ProfileEditHandler(w http.ResponseWriter, r *http.Request
 					changes++
 				}
 			}
+
+			if changes == 0 {
+				data.Info = "No changes were made."
+			} else if changes == 1 {
+				data.Info = "One change was made."
+			} else {
+				data.Info = fmt.Sprintf("%d changes were made.", changes)
+			}
 		} else if form == "change_password" {
 			newPassword1 := r.FormValue("new_password")
 			newPassword2 := r.FormValue("new_password2")
@@ -133,14 +141,6 @@ func (bh *BaseHandler) ProfileEditHandler(w http.ResponseWriter, r *http.Request
 
 			data.Success = "Password changed successfully!"
 		}
-	}
-
-	if changes == 0 {
-		data.Info = "No changes were made."
-	} else if changes == 1 {
-		data.Info = "One change was made."
-	} else {
-		data.Info = fmt.Sprintf("%d changes were made.", changes)
 	}
 
 	if err := templating.ExecuteTemplate(w, template, data); err != nil {

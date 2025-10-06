@@ -27,10 +27,26 @@ func (bh *BaseHandler) AdminSettingsHandler(w http.ResponseWriter, r *http.Reque
 		Info          string
 		User          *entity.User
 		AdminSettings map[string]string
+
+		SettingDisableRegistration                    string
+		SettingRequireEmailConfirmationOnRegistration string
+		SettingEnableSimpleRequestMode                string
+		SettingEnableCSRRequestMode                   string
+		SettingDisableFileRetention                   string
+		SettingEnableHTTP01Challenge                  string
+		SettingEnableDNS01Challenge                   string
 	}{
 		Error:   templating.GetErrorMessage(w, r),
 		Success: templating.GetSuccessMessage(w, r),
 		Info:    templating.GetInfoMessage(w, r),
+
+		SettingDisableRegistration:                    global.SettingDisableRegistration,
+		SettingRequireEmailConfirmationOnRegistration: global.SettingRequireEmailConfirmationOnRegistration,
+		SettingEnableSimpleRequestMode:                global.SettingEnableSimpleRequestMode,
+		SettingEnableCSRRequestMode:                   global.SettingEnableCSRRequestMode,
+		SettingDisableFileRetention:                   global.SettingDisableFileRetention,
+		SettingEnableHTTP01Challenge:                  global.SettingEnableHTTP01Challenge,
+		SettingEnableDNS01Challenge:                   global.SettingEnableDNS01Challenge,
 	}
 
 	user, ok := r.Context().Value("user").(*entity.User)
@@ -42,106 +58,129 @@ func (bh *BaseHandler) AdminSettingsHandler(w http.ResponseWriter, r *http.Reque
 
 	var err error
 	if r.Method == http.MethodPost {
-
-		var errors uint8 = 0
+		var changes uint8
 		form := r.FormValue("form")
+		var infoMessage, errorMessage string
 
-		if form == "authentication_provider" {
-			authprovUserpw := "false"
-			if r.FormValue("authprovider_userpw") == "true" {
-				authprovUserpw = "true"
+		if form == "authentication" {
+			registrationDisabled := global.ValueFalse
+			if r.FormValue(global.SettingDisableRegistration) == global.ValueTrue {
+				registrationDisabled = global.ValueTrue
 			}
-			err = bh.DBSvc.SetSetting("authprovider_userpw", authprovUserpw)
-			if err != nil {
-				errors++
-				logger.Error(err.Error())
-			}
-
-			authprovBearer := "false"
-			if r.FormValue("authprovider_bearer") == "true" {
-				authprovBearer = "true"
-			}
-			err = bh.DBSvc.SetSetting("authprovider_bearer", authprovBearer)
-			if err != nil {
-				errors++
-				logger.Error(err.Error())
-			}
-		} else if form == "authentication" {
-			registrationEnabled := "registration_enabled"
-			if r.FormValue("registration_enabled") == "true" {
-				registrationEnabled = "true"
-			}
-			err = bh.DBSvc.SetSetting("registration_enabled", registrationEnabled)
-			if err != nil {
-				errors++
-				logger.Error(err.Error())
+			// only update when changed
+			if bh.DBSvc.GetSetting(global.SettingDisableRegistration) != registrationDisabled {
+				changes++
+				err = bh.DBSvc.SetSetting(global.SettingDisableRegistration, registrationDisabled)
+				if err != nil {
+					errorMessage += "Could not update 'Disable user account registration' setting. "
+				} else {
+					infoMessage += "'Disable user account registration' setting updated. "
+				}
 			}
 
-			registrationRequireEmailConfirmation := "false"
-			if r.FormValue("registration_require_email_confirmation") == "true" {
-				registrationRequireEmailConfirmation = "true"
+			registrationRequireEmailConfirmation := global.ValueFalse
+			if r.FormValue(global.SettingRequireEmailConfirmationOnRegistration) == global.ValueTrue {
+				registrationRequireEmailConfirmation = global.ValueTrue
 			}
-			err = bh.DBSvc.SetSetting("registration_require_email_confirmation", registrationRequireEmailConfirmation)
-			if err != nil {
-				errors++
-				logger.Error(err.Error())
+			// only update when changed
+			if bh.DBSvc.GetSetting(global.SettingRequireEmailConfirmationOnRegistration) != registrationRequireEmailConfirmation {
+				changes++
+				err = bh.DBSvc.SetSetting(global.SettingRequireEmailConfirmationOnRegistration, registrationRequireEmailConfirmation)
+				if err != nil {
+					errorMessage += "Could not update 'Require email confirmation for registration' setting. "
+				} else {
+					infoMessage += "'Require email confirmation for registration' setting updated. "
+				}
 			}
 		} else if form == "certificates_and_requests" {
-			certificateRevocationAllow := "false"
-			if r.FormValue("certificate_revocation_allow") == "true" {
-				certificateRevocationAllow = "true"
+
+			certificateRequestSimpleMode := global.ValueFalse
+			if r.FormValue(global.SettingEnableSimpleRequestMode) == global.ValueTrue {
+				certificateRequestSimpleMode = global.ValueTrue
 			}
-			err = bh.DBSvc.SetSetting("certificate_revocation_allow", certificateRevocationAllow)
-			if err != nil {
-				errors++
-				logger.Error(err.Error())
+			// only update when changed
+			if bh.DBSvc.GetSetting(global.SettingEnableSimpleRequestMode) != certificateRequestSimpleMode {
+				changes++
+				err = bh.DBSvc.SetSetting(global.SettingEnableSimpleRequestMode, certificateRequestSimpleMode)
+				if err != nil {
+					errorMessage += "Could not update 'Simple Request Mode' setting. "
+				} else {
+					infoMessage += "'Simple Request Mode' setting updated. "
+				}
 			}
 
-			certificateRequestSimpleMode := "false"
-			if r.FormValue("certificate_request_simple_mode") == "true" {
-				certificateRequestSimpleMode = "true"
+			certificateRequestNormalMode := global.ValueFalse
+			if r.FormValue(global.SettingEnableCSRRequestMode) == global.ValueTrue {
+				certificateRequestNormalMode = global.ValueTrue
 			}
-			err = bh.DBSvc.SetSetting("certificate_request_simple_mode", certificateRequestSimpleMode)
-			if err != nil {
-				errors++
-				logger.Error(err.Error())
-			}
-
-			certificateRequestNormalMode := "false"
-			if r.FormValue("certificate_request_normal_mode") == "true" {
-				certificateRequestNormalMode = "true"
-			}
-			err = bh.DBSvc.SetSetting("certificate_request_normal_mode", certificateRequestNormalMode)
-			if err != nil {
-				errors++
-				logger.Error(err.Error())
+			// only update when changed
+			if bh.DBSvc.GetSetting(global.SettingEnableCSRRequestMode) != certificateRequestNormalMode {
+				changes++
+				err = bh.DBSvc.SetSetting(global.SettingEnableCSRRequestMode, certificateRequestNormalMode)
+				if err != nil {
+					errorMessage += "Could not update 'CSR Mode' setting. "
+				} else {
+					infoMessage += "'CSR Mode' setting updated. "
+				}
 			}
 
-			certificateRequestKeepnocopy := "false"
-			if r.FormValue("certificate_request_keepnocopy") == "true" {
-				certificateRequestKeepnocopy = "true"
+			certificateRequestKeepnocopy := global.ValueFalse
+			if r.FormValue(global.SettingDisableFileRetention) == global.ValueTrue {
+				certificateRequestKeepnocopy = global.ValueTrue
 			}
-			err = bh.DBSvc.SetSetting("certificate_request_keepnocopy", certificateRequestKeepnocopy)
-			if err != nil {
-				errors++
-				logger.Error(err.Error())
+			// only update when changed
+			if bh.DBSvc.GetSetting(global.SettingDisableFileRetention) != certificateRequestKeepnocopy {
+				changes++
+				err = bh.DBSvc.SetSetting(global.SettingDisableFileRetention, certificateRequestKeepnocopy)
+				if err != nil {
+					errorMessage += "Could not update 'Disable file retention' setting. "
+				} else {
+					infoMessage += "'Disable file retention' setting updated. "
+				}
 			}
 
-			certificateRequestRequireDomainOwnership := "false"
-			if r.FormValue("certificate_request_require_domain_ownership") == "true" {
-				certificateRequestRequireDomainOwnership = "true"
+			enableHTTP01Challenge := global.ValueFalse
+			if r.FormValue(global.SettingEnableHTTP01Challenge) == global.ValueTrue {
+				enableHTTP01Challenge = global.ValueTrue
 			}
-			err = bh.DBSvc.SetSetting("certificate_request_require_domain_ownership", certificateRequestRequireDomainOwnership)
-			if err != nil {
-				errors++
-				logger.Error(err.Error())
+
+			// only update when changed
+			if bh.DBSvc.GetSetting(global.SettingEnableHTTP01Challenge) != enableHTTP01Challenge {
+				changes++
+				err = bh.DBSvc.SetSetting(global.SettingEnableHTTP01Challenge, enableHTTP01Challenge)
+				if err != nil {
+					errorMessage += "Could not update 'Enable HTTP-01 challenge' setting. "
+				} else {
+					infoMessage += "'Enable HTTP-01 challenge' setting updated. "
+				}
+			}
+
+			enableDNS01Challenge := global.ValueFalse
+			if r.FormValue(global.SettingEnableDNS01Challenge) == global.ValueTrue {
+				enableDNS01Challenge = global.ValueTrue
+			}
+
+			// only update when changed
+			if bh.DBSvc.GetSetting(global.SettingEnableDNS01Challenge) != enableDNS01Challenge {
+				changes++
+				err = bh.DBSvc.SetSetting(global.SettingEnableDNS01Challenge, enableDNS01Challenge)
+				if err != nil {
+					errorMessage += "Could not update 'Enable DNS-01 challenge' setting. "
+				} else {
+					infoMessage += "'Enable DNS-01 challenge' setting updated. "
+				}
 			}
 		}
 
-		if errors > 0 {
-			logger.Errorf("When trying to save admin settings, %d error(s) occurred", errors)
-		} else {
-			logger.Trace("admin settings saved")
+		if errorMessage != "" {
+			templating.SetErrorMessage(w, errorMessage)
+		}
+		if infoMessage != "" {
+			templating.SetInfoMessage(w, infoMessage)
+		}
+
+		if errorMessage == "" && infoMessage == "" && changes == 0 {
+			templating.SetInfoMessage(w, "No changes were made.")
 		}
 
 		http.Redirect(w, r, "/admin/settings", http.StatusSeeOther)

@@ -17,23 +17,16 @@ func (mh *MWHandler) WithSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := mh.ContextLogger("middleware")
 
-		val := mh.DBSvc.GetSetting("authprovider_userpw")
-		if val != "true" {
-			mh.Logger.WithField("authProvider", "userPw").Trace("authprovider not enabled")
-			next.ServeHTTP(w, r)
-			return
-		}
-
 		cv, err := mh.SessMgr.GetCookieValue(r)
 		if err != nil {
-			logger.Debug("no user-provided cookie found or not readable: " + err.Error())
+			//logger.Debug("no user-provided cookie found or not readable: " + err.Error())
 			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 			return
 		}
 
 		sess, err := mh.SessMgr.GetSession(cv)
 		if err != nil {
-			logger.Debug("could not get session: " + err.Error())
+			//logger.Debug("could not get session: " + err.Error())
 			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 			return
 		}
@@ -63,11 +56,6 @@ func (mh *MWHandler) WithSession(next http.Handler) http.Handler {
 func (mh *MWHandler) RequireAdmin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := mh.ContextLogger("middleware")
-
-		if userpw := mh.DBSvc.GetSetting("authprovider_userpw"); userpw != "true" {
-			next.ServeHTTP(w, r)
-			return
-		}
 
 		user, ok := r.Context().Value("user").(*entity.User)
 		if !ok || user == nil {

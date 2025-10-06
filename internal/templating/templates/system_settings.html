@@ -1,6 +1,6 @@
 {{ template "header_default" . }}
 <div class="container">
-    <h1>Change System Settings</h1>
+    <h3>Change System Settings</h3>
 
     {{ if .Error }}
         {{ template "error_alert" .Error }}
@@ -15,88 +15,60 @@
     <div class="row">
         <div class="col-md-12">
             <form method="post">
-                <input type="hidden" name="form" value="authentication_provider">
-                <fieldset>
-                    <legend>Authentication Providers</legend>
-
-                    <p>If no authentication provider is enabled, there is no authentication. Anyone can access these pages,
-                    which is the initial default.<br>
-                    Multiple authentication providers can be enabled at the same time. When deciding to enable an authentication provider,
-                    make sure you <u>don't lock yourself out</u>.</p>
-
-                    {{ $authprovider_userpw := index .AdminSettings "authprovider_userpw" }}
-                    <input type="checkbox" id="authprovider_userpw" name="authprovider_userpw" value="true"{{if eq $authprovider_userpw "true"}} checked{{end}}>
-                    <label for="authprovider_userpw">Username and Password (UI)</label><br>
-
-                    {{ $authprovider_bearer := index .AdminSettings "authprovider_bearer" }}
-                    <input type="checkbox" id="authprovider_bearer" name="authprovider_bearer" value="true"{{if eq $authprovider_bearer "true"}} checked{{end}}>
-                    <label for="authprovider_bearer">API Token (API)</label><br>
-
-
-
-                    <br><button type="submit" class="primary">Save</button>
-                </fieldset>
-            </form>
-        </div>
-    </div>
-
-    <div class="row">
-        <div class="col-md-12">
-            <form method="post">
                 <input type="hidden" name="form" value="authentication">
                 <fieldset>
                     <legend>Authentication</legend>
 
-                    {{ $registration_enabled := index .AdminSettings "registration_enabled" }}
-                    <input type="checkbox" id="registration_enabled" name="registration_enabled" value="true"{{if eq $registration_enabled "true"}} checked{{end}}>
-                    <label for="registration_enabled">Enable user account registration</label><br>
+                    {{ $disableRegistration := index .AdminSettings .SettingDisableRegistration }}
+                    <input type="checkbox" id="{{ .SettingDisableRegistration }}" name="{{ .SettingDisableRegistration }}" value="true"{{if eq $disableRegistration "true"}} checked{{end}}>
+                    <label for="{{ .SettingDisableRegistration }}">Disable user account registration</label><br>
 
-                    {{ $registration_require_email_confirmation := index .AdminSettings "registration_require_email_confirmation" }}
-                    <input type="checkbox" id="registration_require_email_confirmation" name="registration_require_email_confirmation" value="true"{{if eq $registration_require_email_confirmation "true"}} checked{{end}}>
-                    <label for="registration_require_email_confirmation">Require email confirmation for registration</label><br>
+                    {{ $requireEmailConfirmationOnRegistration := index .AdminSettings .SettingRequireEmailConfirmationOnRegistration }}
+                    <input type="checkbox" id="{{ .SettingRequireEmailConfirmationOnRegistration }}" name="{{ .SettingRequireEmailConfirmationOnRegistration }}" value="true"{{if eq $requireEmailConfirmationOnRegistration "true"}} checked{{end}}>
+                    <label for="{{ .SettingRequireEmailConfirmationOnRegistration }}">Require email confirmation for registration</label><br>
 
 
 
-                    <br><button type="submit" class="primary">Save</button>
+                    <br><button type="submit" class="btn btn-primary">Save changes</button>
                 </fieldset>
             </form>
         </div>
     </div>
 
-    <div class="row">
+    <div class="row mt-4">
         <div class="col-md-12">
             <form method="post">
                 <input type="hidden" name="form" value="certificates_and_requests">
                 <fieldset>
                     <legend>Certificates &amp; Requests</legend>
 
-                    {{ $certificate_revocation_allow := index .AdminSettings "certificate_revocation_allow" }}
-                    <input type="checkbox" id="certificate_revocation_allow" name="certificate_revocation_allow" value="true"{{if eq $certificate_revocation_allow "true"}} checked{{end}}>
-                    <label for="certificate_revocation_allow">Allow revocation of certificates</label><br>
+                    {{ $enableSimpleRequestMode := index .AdminSettings .SettingEnableSimpleRequestMode }}
+                    <input type="checkbox" id="{{ .SettingEnableSimpleRequestMode }}" name="{{ .SettingEnableSimpleRequestMode }}" value="true"{{if eq $enableSimpleRequestMode "true"}} checked{{end}}>
+                    <label for="{{ .SettingEnableSimpleRequestMode }}">Simple Mode</label><br>
+                    <small style="margin-left: 30px;">CertMaker generates both a private key and a certificate for the requester</small><br>
+
+                    {{ $enableCSRRequestMode := index .AdminSettings .SettingEnableCSRRequestMode }}
+                    <input type="checkbox" id="{{ .SettingEnableCSRRequestMode }}" name="{{ .SettingEnableCSRRequestMode }}" value="true"{{if eq $enableCSRRequestMode "true"}} checked{{end}}>
+                    <label for="{{ .SettingEnableCSRRequestMode }}">CSR Mode</label><br>
+                    <small style="margin-left: 30px;">CertMaker generates a certificate by the requester's provided certificate signing request (CSR)</small><br>
 
                     <br>
 
-                    {{ $certificate_request_simple_mode := index .AdminSettings "certificate_request_simple_mode" }}
-                    <input type="checkbox" id="certificate_request_simple_mode" name="certificate_request_simple_mode" value="true"{{if eq $certificate_request_simple_mode "true"}} checked{{end}}>
-                    <label for="certificate_request_simple_mode">Simple Mode</label><br>
-                    <small style="margin-left: 41px;">CertMaker generates both a private key and a certificate for the requester</small><br>
+                    {{ $disableFileRetention := index .AdminSettings .SettingDisableFileRetention }}
+                    <input type="checkbox" id="{{ .SettingDisableFileRetention }}" name="{{ .SettingDisableFileRetention }}" value="true"{{if eq $disableFileRetention "true"}} checked{{end}}>
+                    <label for="{{ .SettingDisableFileRetention }}">Do not retain a file copy of all generated certificates and private keys</label><br>
 
-                    {{ $certificate_request_normal_mode := index .AdminSettings "certificate_request_normal_mode" }}
-                    <input type="checkbox" id="certificate_request_normal_mode" name="certificate_request_normal_mode" value="true"{{if eq $certificate_request_normal_mode "true"}} checked{{end}}>
-                    <label for="certificate_request_normal_mode">Normal Mode</label><br>
-                    <small style="margin-left: 41px;">CertMaker generates a certificate by the requester's provided certificate signing request (CSR)</small><br>
+                    {{ $enableHttp01Challenge := index .AdminSettings .SettingEnableHTTP01Challenge }}
+                    <input type="checkbox" id="{{ .SettingEnableHTTP01Challenge }}" name="{{ .SettingEnableHTTP01Challenge }}" value="true"{{if eq $enableHttp01Challenge "true"}} checked{{end}}>
+                    <label for="{{ .SettingEnableHTTP01Challenge }}">Enable HTTP-01 challenge</label><br>
+                    <small style="margin-left: 30px;">The requester must place the challenge token at a .well-known location reachable via HTTP. Read more (TODO)</small><br>
 
-                    <br>
+                    {{ $enableDns01Challenge := index .AdminSettings .SettingEnableDNS01Challenge }}
+                    <input type="checkbox" id="{{ .SettingEnableDNS01Challenge }}" name="{{ .SettingEnableDNS01Challenge }}" value="true"{{if eq $enableDns01Challenge "true"}} checked{{end}}>
+                    <label for="{{ .SettingEnableDNS01Challenge }}">Enable DNS-01 challenge</label><br>
+                    <small style="margin-left: 30px;">The requester must set a TXT record containing the challenge token. Read more (TODO)</small><br>
 
-                    {{ $certificate_request_keepnocopy := index .AdminSettings "certificate_request_keepnocopy" }}
-                    <input type="checkbox" id="certificate_request_keepnocopy" name="certificate_request_keepnocopy" value="true"{{if eq $certificate_request_keepnocopy "true"}} checked{{end}}>
-                    <label for="certificate_request_keepnocopy">Do not retain a file copy of all generated certificates and private keys</label><br>
-
-                    {{ $certificate_request_require_domain_ownership := index .AdminSettings "certificate_request_require_domain_ownership" }}
-                    <input type="checkbox" id="certificate_request_require_domain_ownership" name="certificate_request_require_domain_ownership" value="true"{{if eq $certificate_request_require_domain_ownership "true"}} checked{{end}}>
-                    <label for="certificate_request_require_domain_ownership">Enable Domain/IP verification</label><br>
-
-                    <br><button type="submit" class="primary">Save</button>
+                    <br><button type="submit" class="btn btn-primary">Save changes</button>
                 </fieldset>
             </form>
 
