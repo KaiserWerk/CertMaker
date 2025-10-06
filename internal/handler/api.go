@@ -70,7 +70,7 @@ func (bh *BaseHandler) ApiRequestCertificateHandler(w http.ResponseWriter, r *ht
 		certRequest.Days = global.CertificateMinDays
 	}
 
-	if dnsValidate := bh.DBSvc.GetSetting(global.SettingEnableHTTP01Challenge); dnsValidate == "true" {
+	if httpChallengeEnabled := bh.DBSvc.GetSetting(global.SettingEnableHTTP01Challenge); httpChallengeEnabled == "true" {
 		token, err := security.GenerateToken(global.ChallengeTokenLength)
 		if err != nil {
 			logger.Infof("error generating token: %s\n", err.Error())
@@ -92,7 +92,7 @@ func (bh *BaseHandler) ApiRequestCertificateHandler(w http.ResponseWriter, r *ht
 		}
 
 		w.Header().Set("Content-Type", "text/plain")
-		w.Header().Set(global.ChallengeLocationHeader, fmt.Sprintf(bh.Config.ServerHost+global.SolveChallengePath, ri.ID))
+		w.Header().Set(global.ChallengeLocationHeader, fmt.Sprintf(bh.Config.ServerHost+global.SolveHTTP01ChallengePath, ri.ID))
 		w.WriteHeader(http.StatusAccepted)
 		_, _ = io.WriteString(w, token)
 
@@ -185,7 +185,7 @@ func (bh *BaseHandler) ApiRequestCertificateWithCSRHandler(w http.ResponseWriter
 		}
 
 		w.Header().Set("Content-Type", "text/plain")
-		w.Header().Set(global.ChallengeLocationHeader, fmt.Sprintf(bh.Config.ServerHost+global.SolveChallengePath, ri.ID))
+		w.Header().Set(global.ChallengeLocationHeader, fmt.Sprintf(bh.Config.ServerHost+global.SolveHTTP01ChallengePath, ri.ID))
 		w.WriteHeader(http.StatusAccepted)
 		_, _ = fmt.Fprint(w, token)
 

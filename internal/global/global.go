@@ -13,16 +13,17 @@ const (
 	PrivateKeyLocationHandler = "X-Privatekey-Location"
 	ChallengeLocationHeader   = "X-Challenge-Location"
 
-	APIPrefix = "/api/v1"
+	APIPrefixV1 = "/api/v1"
 
-	OCSPPath                      = APIPrefix + "/ocsp"
-	RootCertificateObtainPath     = APIPrefix + "/root-certificate/obtain"
-	CertificateRequestPath        = APIPrefix + "/certificate/request"
-	CertificateRequestWithCSRPath = APIPrefix + "/certificate/request-with-csr"
-	CertificateObtainPath         = APIPrefix + "/certificate/%d/obtain"
-	PrivateKeyObtainPath          = APIPrefix + "/privatekey/%d/obtain"
-	SolveChallengePath            = APIPrefix + "/challenge/%d/solve"
-	CertificateRevokePath         = APIPrefix + "/certificate/%d/revoke"
+	OCSPPath                      = APIPrefixV1 + "/ocsp"
+	RootCertificateObtainPath     = APIPrefixV1 + "/root-certificate/obtain"
+	CertificateRequestPath        = APIPrefixV1 + "/certificate/request"
+	CertificateRequestWithCSRPath = APIPrefixV1 + "/certificate/request-with-csr"
+	CertificateObtainPath         = APIPrefixV1 + "/certificate/%d/obtain"
+	PrivateKeyObtainPath          = APIPrefixV1 + "/privatekey/%d/obtain"
+	SolveHTTP01ChallengePath      = APIPrefixV1 + "/http-01/%d/solve"
+	SolvDNS01ChallengePath        = APIPrefixV1 + "/dns-01/%d/solve"
+	CertificateRevokePath         = APIPrefixV1 + "/certificate/%d/revoke"
 
 	WellKnownPath = "/.well-known/certmaker-challenge/token"
 
