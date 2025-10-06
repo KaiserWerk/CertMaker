@@ -1,6 +1,6 @@
 {{ template "header_default" . }}
 <div class="container">
-    
+
     <h1>{{ if .Edit }}Edit user account{{ else }}Add new user account{{ end }}</h1>
     
     {{ if .Error }}
@@ -9,38 +9,37 @@
     {{ if .Success }}
         {{ template "success_alert" .Success }}
     {{ end }}
- 
-    {{ end }}
-    
+
     <form method="post">
-
-        <p>Empty fields will be ignored.</p>
-
         <div class="mb-3">
             <label for="username" class="form-label">Username</label>
-            <input type="text" class="form-control" id="username" name="username" placeholder="{{ if .User }}{{ .User.Username }}{{ end }}" required>
+            <input type="text" class="form-control" id="username" name="username" placeholder="Username" required>
         </div>
         <div class="mb-3">
             <label for="email" class="form-label">Email <small>(optional)</small></label>
-            <input type="email" class="form-control" id="email" name="email" placeholder="{{ if .User }}{{ .User.Email }}{{ end }}">
+            <input type="email" class="form-control" id="email" name="email" placeholder="Email">
         </div>
         <div class="mb-3">
             <label for="password" class="form-label">Password</label>
             <input type="password" class="form-control" id="password" name="password" placeholder="Password" required>
         </div>
+        <div class="mb-3">
+            <label for="password2" class="form-label">Repeat Password</label>
+            <input type="password" class="form-control" id="password2" name="password2" placeholder="Password" required>
+        </div>
         <div class="mb-3 form-check">
             <label for="nologin" class="form-check-label">Disallow login</label>
-            <input type="checkbox" class="form-check-input" id="nologin" name="nologin" value="true"{{ if .User }}{{ if eq .User.NoLogin true }} checked{{ end }}{{ end }}>
+            <input type="checkbox" class="form-check-input" id="nologin" name="nologin" value="true">
         </div>
         <div class="mb-3 form-check">
             <label for="locked" class="form-check-label">Disable account</label>
-            <input type="checkbox" class="form-check-input" id="locked" name="locked" value="true"{{ if .User }}{{ if eq .User.Locked true }} checked{{ end }}{{ end }}>
+            <input type="checkbox" class="form-check-input" id="locked" name="locked" value="true">
         </div>
         <div class="mb-3 form-check">
             <label for="admin" class="form-check-label">Is Admin</label>
-            <input type="checkbox" class="form-check-input" id="admin" name="admin" value="true"{{ if .User }}{{ if eq .User.Admin true }} checked{{ end }}{{ end }}>
+            <input type="checkbox" class="form-check-input" id="admin" name="admin" value="true">
         </div>
-                
+
         {{ if .Edit }}
         <button type="submit" class="btn btn-primary">Save changes</button>
         {{ else }}
@@ -48,6 +47,7 @@
         {{ end }}
 
     </form>
+
 </div>
 
 {{ template "footer_default" . }}

@@ -2,13 +2,13 @@ package handler
 
 import (
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 	"github.com/KaiserWerk/CertMaker/internal/global"
 	"github.com/KaiserWerk/CertMaker/internal/security"
 	"github.com/KaiserWerk/CertMaker/internal/templates"
-	"html/template"
-	"net/http"
-	"time"
 )
 
 // LoginHandler authenticates the user against the database, created
@@ -19,7 +19,7 @@ func (bh *BaseHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	if val := bh.DBSvc.GetSetting("authprovider_userpw"); val != "true" {
 		logger.Debug("authprovider userpw not enabled; redirecting")
-		templates.SetMessage(r, templates.MsgInfo, "AuthProvider 'userpw' not enabled; redirecting...")
+		//templates.SetMessage(r, templates.MsgInfo, "AuthProvider 'userpw' not enabled; redirecting...")
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
@@ -30,7 +30,7 @@ func (bh *BaseHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 		if username == "" || password == "" {
 			logger.Debug("username and password are required")
-			templates.SetMessage(r, templates.MsgInfo, "Please enter username and password!")
+			//templates.SetMessage(r, templates.MsgInfo, "Please enter username and password!")
 			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 			return
 		}
@@ -38,21 +38,21 @@ func (bh *BaseHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		user, err := bh.DBSvc.FindUser("username = ?", username)
 		if err != nil {
 			logger.Debug("could not find user: " + err.Error())
-			templates.SetMessage(r, templates.MsgError, "Incorrect credentials!")
+			//templates.SetMessage(r, templates.MsgError, "Incorrect credentials!")
 			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 			return
 		}
 
 		if !security.DoesHashMatch(password, user.Password) {
 			logger.Debug("password did not match")
-			templates.SetMessage(r, templates.MsgError, "Incorrect credentials!")
+			//templates.SetMessage(r, templates.MsgError, "Incorrect credentials!")
 			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 			return
 		}
 
 		if user.NoLogin {
 			logger.Info("user logged in correctly, but was cancelled due to nologin setting")
-			templates.SetMessage(r, templates.MsgError, "No login possible due to 'nologin' setting!")
+			//templates.SetMessage(r, templates.MsgError, "No login possible due to 'nologin' setting!")
 			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 			return
 		}
@@ -60,7 +60,7 @@ func (bh *BaseHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		sess, err := bh.SessMgr.CreateSession(time.Now().AddDate(0, 0, 7))
 		if err != nil {
 			logger.Error("could not create session: " + err.Error())
-			templates.SetMessage(r, templates.MsgError, "Session could not be created!")
+			//templates.SetMessage(r, templates.MsgError, "Session could not be created!")
 			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 			return
 		}
@@ -69,7 +69,7 @@ func (bh *BaseHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		err = bh.SessMgr.SetCookie(w, sess.Id)
 		if err != nil {
 			logger.Error("could not set cookie: " + err.Error())
-			templates.SetMessage(r, templates.MsgError, "Cookie could not be set!")
+			//templates.SetMessage(r, templates.MsgError, "Cookie could not be set!")
 			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 			return
 		}
@@ -78,15 +78,9 @@ func (bh *BaseHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msg := templates.GetMessage(r, templates.MsgError, "ERROR!!!")
-	logger.Trace("Message: ", msg)
-	data := struct {
-		Message template.HTML
-	}{
-		Message: msg,
-	}
+	//msg := templates.GetMessage(r, templates.MsgError, "ERROR!!!")
 
-	if err := templates.ExecuteTemplate(bh.Inj(), w, "auth/login.gohtml", data); err != nil {
+	if err := templates.ExecuteTemplate(bh.Inj(), w, "auth/login.gohtml", nil); err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
