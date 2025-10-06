@@ -18,18 +18,18 @@ func (ds *DBService) GetAllUsers() ([]entity.User, error) {
 }
 
 // FindUser finds a user by the supplied criteria
-func (ds *DBService) FindUser(cond string, args ...interface{}) (entity.User, error) {
+func (ds *DBService) FindUser(cond string, args ...interface{}) (*entity.User, error) {
 	var user entity.User
 	result := ds.db.Where(cond, args).Find(&user)
 	if result.Error != nil {
-		return entity.User{}, result.Error
+		return nil, result.Error
 	}
 
 	if result.RowsAffected == 0 {
-		return entity.User{}, fmt.Errorf("no user found")
+		return nil, fmt.Errorf("no user found")
 	}
 
-	return user, nil
+	return &user, nil
 }
 
 // AddUser creates a new user entry in the database

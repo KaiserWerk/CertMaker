@@ -1,6 +1,17 @@
 {{ template "header_default" . }}
 <div class="container">
     <h1>Change System Settings</h1>
+
+    {{ if .Error }}
+        {{ template "error_alert" .Error }}
+    {{ end }}
+    {{ if .Success }}
+        {{ template "success_alert" .Success }}
+    {{ end }}
+    {{ if .Info }}
+        {{ template "info_alert" .Info }}
+    {{ end }}
+
     <div class="row">
         <div class="col-md-12">
             <form method="post">

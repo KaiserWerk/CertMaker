@@ -1,4 +1,4 @@
-package templates
+package templating
 
 import (
 	"encoding/base64"
@@ -6,13 +6,34 @@ import (
 	"time"
 )
 
+const (
+	successCookieName = "cm_success_message"
+	errorCookieName   = "cm_error_message"
+	infoCookieName    = "cm_info_message"
+)
+
+func GetInfoMessage(w http.ResponseWriter, r *http.Request) string {
+	return getMessageFromCookie(w, r, infoCookieName)
+}
+
+func SetInfoMessage(w http.ResponseWriter, message string) {
+	c := &http.Cookie{
+		Name:     infoCookieName,
+		Value:    base64.RawURLEncoding.EncodeToString([]byte(message)),
+		HttpOnly: true,
+		Expires:  time.Now().Add(24 * time.Hour),
+		Path:     "/",
+	}
+	http.SetCookie(w, c)
+}
+
 func GetSuccessMessage(w http.ResponseWriter, r *http.Request) string {
-	return getMessageFromCookie(w, r, global.SuccessCookieName)
+	return getMessageFromCookie(w, r, successCookieName)
 }
 
 func SetSuccessMessage(w http.ResponseWriter, message string) {
 	c := &http.Cookie{
-		Name:     global.SuccessCookieName,
+		Name:     successCookieName,
 		Value:    base64.RawURLEncoding.EncodeToString([]byte(message)),
 		HttpOnly: true,
 		Expires:  time.Now().Add(24 * time.Hour),
@@ -22,12 +43,12 @@ func SetSuccessMessage(w http.ResponseWriter, message string) {
 }
 
 func GetErrorMessage(w http.ResponseWriter, r *http.Request) string {
-	return getMessageFromCookie(w, r, global.ErrorCookieName)
+	return getMessageFromCookie(w, r, errorCookieName)
 }
 
 func SetErrorMessage(w http.ResponseWriter, message string) {
 	c := &http.Cookie{
-		Name:     global.ErrorCookieName,
+		Name:     errorCookieName,
 		Value:    base64.RawURLEncoding.EncodeToString([]byte(message)),
 		HttpOnly: true,
 		Expires:  time.Now().Add(24 * time.Hour),

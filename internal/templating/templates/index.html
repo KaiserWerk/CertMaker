@@ -1,6 +1,16 @@
 {{ template "header_default" . }}
 <div class="container">
-    <h1>Dashboard</h1>
+    <h2>Dashboard</h2>
+
+    {{ if .Error }}
+        {{ template "error_alert" .Error }}
+    {{ end }}
+    {{ if .Success }}
+        {{ template "success_alert" .Success }}
+    {{ end }}
+    {{ if .Info }}
+        {{ template "info_alert" .Info }}
+    {{ end }}
 
     <p><a href="/root-certificate/download">Download the root certificate</a></p>
 

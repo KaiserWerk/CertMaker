@@ -6,7 +6,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -17,7 +16,7 @@ import (
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 	"github.com/KaiserWerk/CertMaker/internal/global"
 	"github.com/KaiserWerk/CertMaker/internal/helper"
-	"github.com/KaiserWerk/CertMaker/internal/templates"
+	"github.com/KaiserWerk/CertMaker/internal/templating"
 
 	"github.com/gorilla/mux"
 )
@@ -26,11 +25,27 @@ import (
 // private keys in the UI
 func (bh *BaseHandler) CertificateListHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
+	const template = "certificate_list.html"
 	logger := bh.ContextLogger("certificate")
-	var user entity.User
-	if r.Context().Value("user") != nil {
-		user = r.Context().Value("user").(entity.User)
+
+	data := struct {
+		Error     string
+		Success   string
+		Info      string
+		User      *entity.User
+		CertInfos []entity.CertInfo
+	}{
+		Error:   templating.GetErrorMessage(w, r),
+		Success: templating.GetSuccessMessage(w, r),
+		Info:    templating.GetInfoMessage(w, r),
 	}
+
+	user, ok := r.Context().Value("user").(*entity.User)
+	if !ok || user == nil {
+		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
+		return
+	}
+	data.User = user
 
 	// read certificates from db
 	ci, err := bh.DBSvc.GetAllCertInfo()
@@ -51,15 +66,10 @@ func (bh *BaseHandler) CertificateListHandler(w http.ResponseWriter, r *http.Req
 	} else {
 		targetCertInfos = ci
 	}
+	data.CertInfos = targetCertInfos
 
-	data := struct {
-		CertInfos []entity.CertInfo
-	}{
-		CertInfos: targetCertInfos,
-	}
-
-	if err := templates.ExecuteTemplate(bh.Inj(), w, "certificate/certificate_list.gohtml", data); err != nil {
-		w.WriteHeader(http.StatusNotFound)
+	if err := templating.ExecuteTemplate(w, template, data); err != nil {
+		logger.Errorf("could not execute template: %s", err.Error())
 	}
 }
 
@@ -113,7 +123,7 @@ func (bh *BaseHandler) CertificateDownloadHandler(w http.ResponseWriter, r *http
 	}
 
 	filename := fmt.Sprintf("%d-cert.pem", ci.SerialNumber)
-	certContent, err := ioutil.ReadFile(filepath.Join(bh.Config.DataDir, "leafcerts", filename))
+	certContent, err := os.ReadFile(filepath.Join(bh.Config.DataDir, "leafcerts", filename))
 	if err != nil {
 		logger.Debug("could not read certificate file: " + err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -151,7 +161,7 @@ func (bh *BaseHandler) PrivateKeyDownloadHandler(w http.ResponseWriter, r *http.
 	}
 
 	filename := fmt.Sprintf("%d-key.pem", ci.SerialNumber)
-	certContent, err := ioutil.ReadFile(filepath.Join(bh.Config.DataDir, "leafcerts", filename))
+	certContent, err := os.ReadFile(filepath.Join(bh.Config.DataDir, "leafcerts", filename))
 	if err != nil {
 		logger.Debug("could not read key file: " + err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -166,6 +176,7 @@ func (bh *BaseHandler) PrivateKeyDownloadHandler(w http.ResponseWriter, r *http.
 // CertificateAddHandler allows to add a new certificate + private key via UI
 func (bh *BaseHandler) CertificateAddHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
+	const template = "certificate_add.html"
 	logger := bh.ContextLogger("certificate")
 
 	if simpleMode := bh.DBSvc.GetSetting("certificate_request_simple_mode"); simpleMode != "true" {
@@ -173,6 +184,26 @@ func (bh *BaseHandler) CertificateAddHandler(w http.ResponseWriter, r *http.Requ
 		http.Redirect(w, r, "/certificate/list", http.StatusSeeOther)
 		return
 	}
+
+	data := struct {
+		Error       string
+		Success     string
+		Info        string
+		User        *entity.User
+		DefaultDays int
+	}{
+		Error:       templating.GetErrorMessage(w, r),
+		Success:     templating.GetSuccessMessage(w, r),
+		Info:        templating.GetInfoMessage(w, r),
+		DefaultDays: global.CertificateDefaultDays,
+	}
+
+	user, ok := r.Context().Value("user").(*entity.User)
+	if !ok || user == nil {
+		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
+		return
+	}
+	data.User = user
 
 	if r.Method == http.MethodPost {
 		organization := r.FormValue("organization")
@@ -230,7 +261,7 @@ func (bh *BaseHandler) CertificateAddHandler(w http.ResponseWriter, r *http.Requ
 			Days: daysVal,
 		}
 
-		sn, err := bh.CM.GenerateLeafCertAndKey(certRequest)
+		sn, err := bh.CertMaker.GenerateLeafCertAndKey(certRequest)
 		if err != nil {
 			logger.Error("could not generate leaf cert and key: " + err.Error())
 			http.Redirect(w, r, "/certificate/add", http.StatusSeeOther)
@@ -256,14 +287,8 @@ func (bh *BaseHandler) CertificateAddHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	data := struct {
-		DefaultDays int
-	}{
-		DefaultDays: global.CertificateDefaultDays,
-	}
-
-	if err := templates.ExecuteTemplate(bh.Inj(), w, "certificate/certificate_add.gohtml", data); err != nil {
-		w.WriteHeader(http.StatusNotFound)
+	if err := templating.ExecuteTemplate(w, template, data); err != nil {
+		logger.Errorf("could not execute template: %s", err.Error())
 	}
 }
 
@@ -271,6 +296,25 @@ func (bh *BaseHandler) CertificateAddHandler(w http.ResponseWriter, r *http.Requ
 // the UI and create a certificate
 func (bh *BaseHandler) AddCertificateFromCSRHandler(w http.ResponseWriter, r *http.Request) {
 	logger := bh.ContextLogger("certificate")
+	const template = "certificate_add_with_csr.html"
+
+	data := struct {
+		Error   string
+		Success string
+		Info    string
+		User    *entity.User
+	}{
+		Error:   templating.GetErrorMessage(w, r),
+		Success: templating.GetSuccessMessage(w, r),
+		Info:    templating.GetInfoMessage(w, r),
+	}
+
+	user, ok := r.Context().Value("user").(*entity.User)
+	if !ok || user == nil {
+		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
+		return
+	}
+	data.User = user
 
 	if r.Method == http.MethodPost {
 
@@ -281,7 +325,7 @@ func (bh *BaseHandler) AddCertificateFromCSRHandler(w http.ResponseWriter, r *ht
 			return
 		}
 
-		csrBytes, err := ioutil.ReadAll(csrFile)
+		csrBytes, err := io.ReadAll(csrFile)
 		if err != nil {
 			logger.Debug("could not read uploaded CSR file: " + err.Error())
 			http.Redirect(w, r, "/certificate/list", http.StatusSeeOther)
@@ -303,7 +347,7 @@ func (bh *BaseHandler) AddCertificateFromCSRHandler(w http.ResponseWriter, r *ht
 			return
 		}
 
-		sn, err := bh.CM.GenerateCertificateByCSR(csr)
+		sn, err := bh.CertMaker.GenerateCertificateByCSR(csr)
 		if err != nil {
 			logger.Debug("could not generate certificate FROM CSR: " + err.Error())
 			http.Redirect(w, r, "/certificate/list", http.StatusSeeOther)
@@ -326,8 +370,8 @@ func (bh *BaseHandler) AddCertificateFromCSRHandler(w http.ResponseWriter, r *ht
 		}
 	}
 
-	if err := templates.ExecuteTemplate(bh.Inj(), w, "certificate/certificate_add_with_csr.gohtml", nil); err != nil {
-		w.WriteHeader(http.StatusNotFound)
+	if err := templating.ExecuteTemplate(w, template, data); err != nil {
+		logger.Errorf("could not execute template '%s': %s", template, err.Error())
 	}
 }
 

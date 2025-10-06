@@ -1,9 +1,17 @@
 {{ template "header_default" . }}
 <div class="container">
-    <h1>Profile</h1>
-    <div class="row">
-        {{ .Message }}
-    </div>
+    <h2>Profile</h2>
+    
+    {{ if .Error }}
+        {{ template "error_alert" .Error }}
+    {{ end }}
+    {{ if .Success }}
+        {{ template "success_alert" .Success }}
+    {{ end }}
+    {{ if .Info }}
+        {{ template "info_alert" .Info }}
+    {{ end }}
+
     <div class="row">
         <form method="post" style="width: 95%;">
             <input type="hidden" name="form_name" value="personal_data">

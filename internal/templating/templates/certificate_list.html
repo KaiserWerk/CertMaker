@@ -1,6 +1,17 @@
 {{ template "header_default" . }}
 <div class="container">
-    <h1>All available certificates</h1>
+    <h2>All available certificates</h2>
+
+    {{ if .Error }}
+        {{ template "error_alert" .Error }}
+    {{ end }}
+    {{ if .Success }}
+        {{ template "success_alert" .Success }}
+    {{ end }}
+    {{ if .Info }}
+        {{ template "info_alert" .Info }}
+    {{ end }}
+
     <table class="table">
         <thead>
         <tr>

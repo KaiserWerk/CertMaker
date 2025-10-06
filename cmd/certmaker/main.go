@@ -18,6 +18,8 @@ import (
 	"github.com/KaiserWerk/CertMaker/internal/handler"
 	"github.com/KaiserWerk/CertMaker/internal/logging"
 	"github.com/KaiserWerk/CertMaker/internal/middleware"
+	"github.com/KaiserWerk/CertMaker/internal/templating"
+
 	"github.com/KaiserWerk/sessionstore"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
@@ -57,6 +59,11 @@ func main() {
 	}
 	if created {
 		logger.Debugf("The configuration file was not found so it was created.\nExiting...")
+		return
+	}
+
+	if err = templating.Start(); err != nil {
+		logger.WithField("error", err.Error()).Error("could not initialize templates")
 		return
 	}
 
@@ -117,12 +124,12 @@ func setupRoutes(cfg *configuration.AppConfig, logger *logrus.Entry, dbSvc *dbse
 	sessMgr *sessionstore.SessionManager, cm *certmaker.CertMaker, ui bool) *mux.Router {
 
 	bh := handler.BaseHandler{
-		Config:  cfg,
-		Logger:  logger,
-		DBSvc:   dbSvc,
-		SessMgr: sessMgr,
-		CM:      cm,
-		Client:  &http.Client{Timeout: 10 * time.Second},
+		Config:    cfg,
+		Logger:    logger,
+		DBSvc:     dbSvc,
+		SessMgr:   sessMgr,
+		CertMaker: cm,
+		Client:    &http.Client{Timeout: 10 * time.Second},
 	}
 
 	mh := middleware.MWHandler{

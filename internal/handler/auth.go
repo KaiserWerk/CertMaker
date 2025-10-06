@@ -8,18 +8,29 @@ import (
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 	"github.com/KaiserWerk/CertMaker/internal/global"
 	"github.com/KaiserWerk/CertMaker/internal/security"
-	"github.com/KaiserWerk/CertMaker/internal/templates"
+	"github.com/KaiserWerk/CertMaker/internal/templating"
 )
 
 // LoginHandler authenticates the user against the database, created
 // a session and associates it with the user
 func (bh *BaseHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
+	const template = "login.html"
 	logger := bh.ContextLogger("auth")
+
+	data := struct {
+		Error   string
+		Success string
+		Info    string
+	}{
+		Error:   templating.GetErrorMessage(w, r),
+		Success: templating.GetSuccessMessage(w, r),
+		Info:    templating.GetInfoMessage(w, r),
+	}
 
 	if val := bh.DBSvc.GetSetting("authprovider_userpw"); val != "true" {
 		logger.Debug("authprovider userpw not enabled; redirecting")
-		//templates.SetMessage(r, templates.MsgInfo, "AuthProvider 'userpw' not enabled; redirecting...")
+		templating.SetInfoMessage(w, "Username/password authentication is disabled!")
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
@@ -29,30 +40,26 @@ func (bh *BaseHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		password := r.FormValue("password")
 
 		if username == "" || password == "" {
-			logger.Debug("username and password are required")
-			//templates.SetMessage(r, templates.MsgInfo, "Please enter username and password!")
+			templating.SetErrorMessage(w, "Username and password must be supplied!")
 			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 			return
 		}
 
 		user, err := bh.DBSvc.FindUser("username = ?", username)
 		if err != nil {
-			logger.Debug("could not find user: " + err.Error())
-			//templates.SetMessage(r, templates.MsgError, "Incorrect credentials!")
+			templating.SetErrorMessage(w, "Could not find user.")
 			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 			return
 		}
 
 		if !security.DoesHashMatch(password, user.Password) {
-			logger.Debug("password did not match")
-			//templates.SetMessage(r, templates.MsgError, "Incorrect credentials!")
+			templating.SetErrorMessage(w, "Username or password incorrect.")
 			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 			return
 		}
 
 		if user.NoLogin {
-			logger.Info("user logged in correctly, but was cancelled due to nologin setting")
-			//templates.SetMessage(r, templates.MsgError, "No login possible due to 'nologin' setting!")
+			templating.SetErrorMessage(w, "This account is not allowed to login.")
 			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 			return
 		}
@@ -60,7 +67,7 @@ func (bh *BaseHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		sess, err := bh.SessMgr.CreateSession(time.Now().AddDate(0, 0, 7))
 		if err != nil {
 			logger.Error("could not create session: " + err.Error())
-			//templates.SetMessage(r, templates.MsgError, "Session could not be created!")
+			templating.SetErrorMessage(w, "Could not create user session.")
 			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 			return
 		}
@@ -69,19 +76,18 @@ func (bh *BaseHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		err = bh.SessMgr.SetCookie(w, sess.Id)
 		if err != nil {
 			logger.Error("could not set cookie: " + err.Error())
-			//templates.SetMessage(r, templates.MsgError, "Cookie could not be set!")
+			templating.SetErrorMessage(w, "Could not set session cookie.")
 			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 			return
 		}
 
+		templating.SetSuccessMessage(w, "You are now logged in.")
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
 
-	//msg := templates.GetMessage(r, templates.MsgError, "ERROR!!!")
-
-	if err := templates.ExecuteTemplate(bh.Inj(), w, "auth/login.gohtml", nil); err != nil {
-		w.WriteHeader(http.StatusNotFound)
+	if err := templating.ExecuteTemplate(w, template, data); err != nil {
+		logger.Errorf("could not execute template '%s': %s", template, err.Error())
 	}
 }
 
@@ -101,6 +107,7 @@ func (bh *BaseHandler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	sess, err := bh.SessMgr.GetSession(cv)
 	if err != nil {
 		logger.Error("could not get session: " + err.Error())
+		templating.SetErrorMessage(w, "Could not get session.")
 		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 		return
 	}
@@ -108,12 +115,14 @@ func (bh *BaseHandler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	err = bh.SessMgr.RemoveSession(sess.Id)
 	if err != nil {
 		logger.Error("could not remove session: " + err.Error())
+		templating.SetErrorMessage(w, "Could not remove session.")
 		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 		return
 	}
 	err = bh.SessMgr.RemoveCookie(w)
 	if err != nil {
 		logger.Error("could not remove cookie: " + err.Error())
+		templating.SetErrorMessage(w, "Could not remove session cookie.")
 		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 		return
 	}
@@ -125,14 +134,25 @@ func (bh *BaseHandler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 // account and optionally sends out a confirmation email
 func (bh *BaseHandler) RegistrationHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		err    error
-		logger = bh.ContextLogger("auth")
+		err      error
+		template = "registration.html"
+		logger   = bh.ContextLogger("auth")
 	)
 
 	if val := bh.DBSvc.GetSetting("registration_enabled"); val != "true" {
 		logger.Trace("registration is not enabled")
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 		return
+	}
+
+	data := struct {
+		Error   string
+		Success string
+		Info    string
+	}{
+		Error:   templating.GetErrorMessage(w, r),
+		Success: templating.GetSuccessMessage(w, r),
+		Info:    templating.GetInfoMessage(w, r),
 	}
 
 	if r.Method == http.MethodPost {
@@ -142,41 +162,41 @@ func (bh *BaseHandler) RegistrationHandler(w http.ResponseWriter, r *http.Reques
 		password2 := r.FormValue("password2")
 
 		if username == "" || password1 == "" || password2 == "" {
-			logger.Debug("Username and password must be supplied")
+			templating.SetErrorMessage(w, "Username and passwords must be supplied.")
 			http.Redirect(w, r, "/auth/register", http.StatusSeeOther)
 			return
 		}
 
 		if password1 != password2 {
-			logger.Debug("passwords do not match")
+			templating.SetErrorMessage(w, "Passwords do not match.")
 			http.Redirect(w, r, "/auth/register", http.StatusSeeOther)
 			return
 		}
 
 		_, err = bh.DBSvc.FindUser("username = ?", username)
 		if err == nil {
-			logger.Debug("username already in use")
+			templating.SetErrorMessage(w, "Username is already in use.")
 			http.Redirect(w, r, "/auth/register", http.StatusSeeOther)
 			return
 		}
 
 		_, err = bh.DBSvc.FindUser("email = ?", email)
 		if err == nil {
-			logger.Debug("email already in use")
+			templating.SetErrorMessage(w, "Email address is already in use.")
 			http.Redirect(w, r, "/auth/register", http.StatusSeeOther)
 			return
 		}
 
 		hash, err := security.HashString(password1)
 		if err != nil {
-			logger.Error("password could not be hashed")
+			templating.SetErrorMessage(w, "Could not hash password.")
 			http.Redirect(w, r, "/auth/register", http.StatusSeeOther)
 			return
 		}
 
 		key, err := security.GenerateToken(global.ApiTokenLength)
 		if err != nil {
-			logger.Error("api key could not be generated")
+			templating.SetErrorMessage(w, "Could not generate API token.")
 			http.Redirect(w, r, "/auth/register", http.StatusSeeOther)
 			return
 		}
@@ -194,15 +214,18 @@ func (bh *BaseHandler) RegistrationHandler(w http.ResponseWriter, r *http.Reques
 		err = bh.DBSvc.AddUser(&u)
 		if err != nil {
 			logger.Error("could not insert user: " + err.Error())
+			templating.SetErrorMessage(w, "Could not add user to database.")
 			http.Redirect(w, r, "/auth/register", http.StatusSeeOther)
 			return
 		}
+
+		templating.SetSuccessMessage(w, "Account created. You can now log in.")
 
 		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 		return
 	}
 
-	if err := templates.ExecuteTemplate(bh.Inj(), w, "auth/registration.gohtml", nil); err != nil {
-		w.WriteHeader(http.StatusNotFound)
+	if err := templating.ExecuteTemplate(w, template, data); err != nil {
+		logger.Errorf("could not execute template '%s': %s", template, err.Error())
 	}
 }

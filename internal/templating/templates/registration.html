@@ -1,0 +1,40 @@
+{{ template "header_auth" . }}
+<div class="container">
+    <h2>User Registration</h2>
+
+    {{ if .Error }}
+        {{ template "error_alert" .Error }}
+    {{ end }}
+    {{ if .Success }}
+        {{ template "success_alert" .Success }}
+    {{ end }}
+    {{ if .Info }}
+        {{ template "info_alert" .Info }}
+    {{ end }}
+
+    <form method="post">
+        
+        <h3>Register</h3>
+        <div class="row">
+            <div class="col-md-4 label-row"><label for="username">Username</label></div>
+            <div class="col-md-8"><input type="text" id="Username" name="username" placeholder="Username" required></div>
+        </div>
+        <div class="row">
+            <div class="col-md-4 label-row"><label for="email">Email</label></div>
+            <div class="col-md-8"><input type="email" id="email" name="email" placeholder="Email" required></div>
+        </div>
+        <div class="row">
+            <div class="col-md-4 label-row"><label for="password">Password</label></div>
+            <div class="col-md-8"><input type="password" id="password" name="password" placeholder="Password" required></div>
+        </div>
+        <div class="row">
+            <div class="col-md-4 label-row"><label for="password2">Repeat Password</label></div>
+            <div class="col-md-8"><input type="password" id="password2" name="password2" placeholder="Repeat Password" required></div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Register</button>
+        
+        <p>Already have an account? <a href="/auth/login">Login now</a></p>
+    </form>
+</div>
+{{ template "footer_auth" . }}

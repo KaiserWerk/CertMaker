@@ -1,0 +1,32 @@
+{{ template "header_auth" . }}
+<div class="container">
+    <h2>User Login</h2>
+    
+    {{ if .Error }}
+        {{ template "error_alert" .Error }}
+    {{ end }}
+    {{ if .Success }}
+        {{ template "success_alert" .Success }}
+    {{ end }}
+    {{ if .Info }}
+        {{ template "info_alert" .Info }}
+    {{ end }}
+
+    <form method="post">
+        
+        <h3>Login</h3>
+        <div class="row">
+            <div class="col-md-3"><label for="username">Username</label></div>
+            <div class="col-md-9"><input type="text" id="Username" name="username" placeholder="Username" class="form-control" required></div>
+        </div>
+        <div class="row">
+            <div class="col-md-3 "><label for="password">Password</label></div>
+            <div class="col-md-9"><input type="password" id="password" name="password" placeholder="Password" class="form-control" required></div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Login</button>
+    
+        <p>No account yet? <a href="/auth/register">Register new account</a></p>
+    </form>
+</div>
+{{ template "footer_auth" . }}

@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/KaiserWerk/CertMaker/internal/entity"
+	"github.com/KaiserWerk/CertMaker/internal/templating"
 
 	"gorm.io/gorm"
 )
@@ -68,16 +69,15 @@ func (mh *MWHandler) RequireAdmin(next http.Handler) http.Handler {
 			return
 		}
 
-		val := r.Context().Value("user")
-		if val == nil {
-			logger.Error("user not found in context")
-			next.ServeHTTP(w, r)
+		user, ok := r.Context().Value("user").(*entity.User)
+		if !ok || user == nil {
+			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 			return
 		}
-		u := val.(entity.User)
 
-		if !u.Admin {
-			logger.Warn("user " + u.Username + " is not an admin")
+		if !user.Admin {
+			logger.Warn("user " + user.Username + " is not an admin")
+			templating.SetErrorMessage(w, "You are not authorized to access this page.")
 			http.Redirect(w, r, "/", http.StatusSeeOther)
 			return
 		}

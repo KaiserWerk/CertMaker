@@ -3,8 +3,8 @@ package middleware
 import (
 	"github.com/KaiserWerk/CertMaker/internal/configuration"
 	"github.com/KaiserWerk/CertMaker/internal/dbservice"
-	"github.com/KaiserWerk/sessionstore"
 
+	"github.com/KaiserWerk/sessionstore"
 	"github.com/sirupsen/logrus"
 )
 

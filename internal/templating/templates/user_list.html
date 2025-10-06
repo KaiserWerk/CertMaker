@@ -1,0 +1,50 @@
+{{ template "header_default" . }}
+<div class="container">
+    <h1>All User accounts</h1>
+    
+    {{ if .Error }}
+        {{ template "error_alert" .Error }}
+    {{ end }}
+    {{ if .Success }}
+        {{ template "success_alert" .Success }}
+    {{ end }}
+    {{ if .Info }}
+        {{ template "info_alert" .Info }}
+    {{ end }}
+
+    <table class="table">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Username</th>
+            <th>Email</th>
+            <th>No login</th>
+            <th>Locked</th>
+            <th>Admin</th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody>
+        {{ range .AllUsers }}
+            <tr>
+                <td>{{ .ID }}</td>
+                <td>{{ .Username }}</td>
+                <td>{{ .Email }}</td>
+                <td>{{ .NoLogin }}</td>
+                <td>{{ .Locked }}</td>
+                <td>{{ .Admin }}</td>
+                <td>
+                    <a href="/admin/user/{{ .ID }}/edit" class="button primary small">Edit</a>
+                    <a href="/admin/user/{{ .ID }}/remove" class="button secondary small" onclick="return confirm('Really delete user {{ .Username }}?');">Remove</a>
+                </td>
+            </tr>
+        {{ else }}
+            <tr>
+                <td colspan="7">No user accounts found. <a href="/admin/user/add">Create new user account</a> </td>
+            </tr>
+        {{ end }}
+        </tbody>
+    </table>
+     
+</div>
+{{ template "footer_default" . }}

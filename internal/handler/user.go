@@ -7,40 +7,62 @@ import (
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 	"github.com/KaiserWerk/CertMaker/internal/global"
 	"github.com/KaiserWerk/CertMaker/internal/security"
-	"github.com/KaiserWerk/CertMaker/internal/templates"
+	"github.com/KaiserWerk/CertMaker/internal/templating"
 )
 
 // ProfileHandler displays the current user's profile
 func (bh *BaseHandler) ProfileHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-	var user entity.User
-	if r.Context().Value("user") != nil {
-		user = r.Context().Value("user").(entity.User)
-	}
+	logger := bh.ContextLogger("profile")
+	const template = "user_profile.html"
 
 	data := struct {
-		User entity.User
+		Error   string
+		Success string
+		Info    string
+		User    *entity.User
 	}{
-		User: user,
+		Error:   templating.GetErrorMessage(w, r),
+		Success: templating.GetSuccessMessage(w, r),
+		Info:    templating.GetInfoMessage(w, r),
 	}
 
-	if err := templates.ExecuteTemplate(bh.Inj(), w, "user/profile.gohtml", data); err != nil {
-		w.WriteHeader(http.StatusNotFound)
+	user, ok := r.Context().Value("user").(*entity.User)
+	if !ok || user == nil {
+		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
+		return
+	}
+	data.User = user
+
+	if err := templating.ExecuteTemplate(w, template, data); err != nil {
+		logger.Errorf("could not execute template %s: %s", template, err.Error())
 	}
 }
 
 // ProfileEditHandler allows profile changes to be made
 func (bh *BaseHandler) ProfileEditHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-	var user entity.User
-	if r.Context().Value("user") != nil {
-		user = r.Context().Value("user").(entity.User)
+	const template = "user_profile_edit.html"
+	var changes uint8
+	logger := bh.ContextLogger("profile")
+
+	data := struct {
+		Error   string
+		Success string
+		Info    string
+		User    *entity.User
+	}{
+		Error:   templating.GetErrorMessage(w, r),
+		Success: templating.GetSuccessMessage(w, r),
+		Info:    templating.GetInfoMessage(w, r),
 	}
-	var (
-		logger  = bh.ContextLogger("user")
-		message string
-		changes uint8
-	)
+
+	user, ok := r.Context().Value("user").(*entity.User)
+	if !ok || user == nil {
+		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
+		return
+	}
+	data.User = user
 
 	if r.Method == http.MethodPost {
 		form := r.FormValue("form_name")
@@ -49,7 +71,7 @@ func (bh *BaseHandler) ProfileEditHandler(w http.ResponseWriter, r *http.Request
 			if username != "" {
 				_, err := bh.DBSvc.FindUser("username = ? AND id != ?", username, user.ID)
 				if err == nil {
-					message += "Username is already in use!"
+					data.Error += "Username is already in use!"
 				} else {
 					user.Username = username
 					changes++
@@ -60,7 +82,7 @@ func (bh *BaseHandler) ProfileEditHandler(w http.ResponseWriter, r *http.Request
 			if email != "" {
 				_, err := bh.DBSvc.FindUser("email = ? AND id != ?", email, user.ID)
 				if err == nil {
-					message += "Email is already in use!"
+					data.Error += "Email is already in use!"
 				} else {
 					user.Email = email
 					changes++
@@ -73,21 +95,21 @@ func (bh *BaseHandler) ProfileEditHandler(w http.ResponseWriter, r *http.Request
 
 			if newPassword1 == "" || newPassword2 == "" || currentPassword == "" {
 				logger.Debug("a new password input or the old password input is missing")
-				message = "Some input was missing!"
+				data.Error = "Some input was missing!"
 				http.Redirect(w, r, "/user/profile/edit", http.StatusSeeOther)
 				return
 			}
 
 			if newPassword1 != newPassword2 {
 				logger.Debug("new password input did not match")
-				message = "New password input didn't match!"
+				data.Error = "New password input didn't match!"
 				http.Redirect(w, r, "/user/profile/edit", http.StatusSeeOther)
 				return
 			}
 
 			if !security.DoesHashMatch(currentPassword, user.Password) {
 				logger.Debug("old password was incorrect")
-				message = "The current password was not correct!"
+				data.Error = "The current password was not correct!"
 				http.Redirect(w, r, "/user/profile/edit", http.StatusSeeOther)
 				return
 			}
@@ -95,65 +117,66 @@ func (bh *BaseHandler) ProfileEditHandler(w http.ResponseWriter, r *http.Request
 			hash, err := security.HashString(newPassword1)
 			if err != nil {
 				logger.Debug("could not hash new password: " + err.Error())
-				message = "There was an error hashing your new password"
+				data.Error = "There was an error hashing your new password"
 				http.Redirect(w, r, "/user/profile/edit", http.StatusSeeOther)
 				return
 			}
 			user.Password = hash
 
-			err = bh.DBSvc.UpdateUser(&user)
+			err = bh.DBSvc.UpdateUser(user)
 			if err != nil {
 				logger.Debug("could not update user: " + err.Error())
-				message = "There was an error setting your new password"
+				data.Error = "There was an error setting your new password"
 				http.Redirect(w, r, "/user/profile/edit", http.StatusSeeOther)
 				return
 			}
 
-			message = "Password changed successfully!"
+			data.Success = "Password changed successfully!"
 		}
 	}
 
-	message += fmt.Sprintf(" %d changes were made.", changes)
-
-	data := struct {
-		User    entity.User
-		Message string
-	}{
-		User:    user,
-		Message: message,
+	if changes == 0 {
+		data.Info = "No changes were made."
+	} else if changes == 1 {
+		data.Info = "One change was made."
+	} else {
+		data.Info = fmt.Sprintf("%d changes were made.", changes)
 	}
 
-	if err := templates.ExecuteTemplate(bh.Inj(), w, "user/profile_edit.gohtml", data); err != nil {
-		w.WriteHeader(http.StatusNotFound)
+	if err := templating.ExecuteTemplate(w, template, data); err != nil {
+		logger.Errorf("could not execute template %s: %s", template, err.Error())
 	}
 }
 
 // ProfileRegenerateKeyHandler generates a new token for the current user and saves it to the DB
 func (bh *BaseHandler) ProfileRegenerateKeyHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-	var (
-		logger = bh.ContextLogger("user")
-		user   entity.User
-	)
-	if r.Context().Value("user") != nil {
-		user = r.Context().Value("user").(entity.User)
+	logger := bh.ContextLogger("user")
+
+	user, ok := r.Context().Value("user").(*entity.User)
+	if !ok || user == nil {
+		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
+		return
 	}
 
 	token, err := security.GenerateToken(global.ApiTokenLength)
 	if err != nil {
 		logger.Error("could not generate token: " + err.Error())
+		templating.SetErrorMessage(w, "Could not generate new API token.")
 		http.Redirect(w, r, "/user/profile", http.StatusSeeOther)
 		return
 	}
 
 	user.ApiKey = token
 
-	err = bh.DBSvc.UpdateUser(&user)
+	err = bh.DBSvc.UpdateUser(user)
 	if err != nil {
 		logger.Error("could not update user: " + err.Error())
+		templating.SetErrorMessage(w, "Could not update user.")
 		http.Redirect(w, r, "/user/profile", http.StatusSeeOther)
 		return
 	}
 
+	templating.SetSuccessMessage(w, "New API token generated successfully.")
 	http.Redirect(w, r, "/user/profile", http.StatusSeeOther)
 }

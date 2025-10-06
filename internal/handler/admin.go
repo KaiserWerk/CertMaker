@@ -3,11 +3,12 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 	"github.com/KaiserWerk/CertMaker/internal/global"
 	"github.com/KaiserWerk/CertMaker/internal/security"
-	"github.com/KaiserWerk/CertMaker/internal/templates"
+	"github.com/KaiserWerk/CertMaker/internal/templating"
 
 	"github.com/gorilla/mux"
 )
@@ -16,23 +17,25 @@ import (
 // to the database
 func (bh *BaseHandler) AdminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		template = "admin/settings.gohtml"
+		template = "system_settings.html"
 		logger   = bh.ContextLogger("admin")
 	)
 
 	data := struct {
 		Error         string
 		Success       string
+		Info          string
 		User          *entity.User
 		AdminSettings map[string]string
 	}{
-		Error:   templates.GetErrorMessage(w, r),
-		Success: templates.GetSuccessMessage(w, r),
+		Error:   templating.GetErrorMessage(w, r),
+		Success: templating.GetSuccessMessage(w, r),
+		Info:    templating.GetInfoMessage(w, r),
 	}
 
 	user, ok := r.Context().Value("user").(*entity.User)
 	if !ok || user == nil {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 		return
 	}
 	data.User = user
@@ -151,7 +154,7 @@ func (bh *BaseHandler) AdminSettingsHandler(w http.ResponseWriter, r *http.Reque
 	}
 	data.AdminSettings = allSettings
 
-	if err := templates.ExecuteTemplate(bh.Inj(), w, template, data); err != nil {
+	if err := templating.ExecuteTemplate(w, template, data); err != nil {
 		logger.Errorf("could not execute template '%s': %s", template, err)
 	}
 }
@@ -159,23 +162,25 @@ func (bh *BaseHandler) AdminSettingsHandler(w http.ResponseWriter, r *http.Reque
 // AdminUserListHandler lists all existing user
 func (bh *BaseHandler) AdminUserListHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		template = "admin/user_list.gohtml"
+		template = "user_list.html"
 		logger   = bh.ContextLogger("admin")
 	)
 
 	data := struct {
 		Error    string
 		Success  string
+		Info     string
 		User     *entity.User
 		AllUsers []entity.User
 	}{
-		Error:   templates.GetErrorMessage(w, r),
-		Success: templates.GetSuccessMessage(w, r),
+		Error:   templating.GetErrorMessage(w, r),
+		Success: templating.GetSuccessMessage(w, r),
+		Info:    templating.GetInfoMessage(w, r),
 	}
 
 	user, ok := r.Context().Value("user").(*entity.User)
 	if !ok || user == nil {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 		return
 	}
 	data.User = user
@@ -188,8 +193,8 @@ func (bh *BaseHandler) AdminUserListHandler(w http.ResponseWriter, r *http.Reque
 	}
 	data.AllUsers = allUsers
 
-	if err := templates.ExecuteTemplate(bh.Inj(), w, "admin/user_list.gohtml", data); err != nil {
-		w.WriteHeader(http.StatusNotFound)
+	if err := templating.ExecuteTemplate(w, template, data); err != nil {
+		logger.Errorf("could not execute template '%s': %s", template, err.Error())
 	}
 }
 
@@ -197,23 +202,27 @@ func (bh *BaseHandler) AdminUserListHandler(w http.ResponseWriter, r *http.Reque
 func (bh *BaseHandler) AdminUserAddHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		err      error
-		template = "admin/user_add.gohtml"
+		template = "user_form.html"
 		logger   = bh.ContextLogger("admin")
 	)
 
 	data := struct {
-		Error   string
-		Success string
-		Edit    bool
-		User    *entity.User
+		Error      string
+		Success    string
+		Info       string
+		Edit       bool
+		User       *entity.User
+		UserToEdit *entity.User
 	}{
-		Error:   templates.GetErrorMessage(w, r),
-		Success: templates.GetSuccessMessage(w, r),
+		Error:   templating.GetErrorMessage(w, r),
+		Success: templating.GetSuccessMessage(w, r),
+		Info:    templating.GetInfoMessage(w, r),
+		Edit:    false,
 	}
 
 	user, ok := r.Context().Value("user").(*entity.User)
 	if !ok || user == nil {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 		return
 	}
 	data.User = user
@@ -225,14 +234,14 @@ func (bh *BaseHandler) AdminUserAddHandler(w http.ResponseWriter, r *http.Reques
 		password := r.FormValue("password")
 
 		if username == "" || password == "" {
-			logger.Debug("username and password required")
+			templating.SetErrorMessage(w, "Username and password are required.")
 			http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
 			return
 		}
 
 		_, err = bh.DBSvc.FindUser("username = ?", username)
 		if err == nil {
-			logger.Debug("username already taken")
+			templating.SetErrorMessage(w, "Username is already taken.")
 			http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
 			return
 		}
@@ -240,7 +249,7 @@ func (bh *BaseHandler) AdminUserAddHandler(w http.ResponseWriter, r *http.Reques
 		if email != "" {
 			_, err = bh.DBSvc.FindUser("email = ?", email)
 			if err == nil {
-				logger.Debug("email already taken")
+				templating.SetErrorMessage(w, "Email is already taken.")
 				http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
 				return
 			}
@@ -263,7 +272,8 @@ func (bh *BaseHandler) AdminUserAddHandler(w http.ResponseWriter, r *http.Reques
 
 		apikey, err := security.GenerateToken(global.ApiTokenLength)
 		if err != nil {
-			logger.Error("could not generate token: " + err.Error())
+
+			templating.SetErrorMessage(w, "Could not generate API token.")
 			http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
 			return
 		}
@@ -271,6 +281,7 @@ func (bh *BaseHandler) AdminUserAddHandler(w http.ResponseWriter, r *http.Reques
 		hash, err := security.HashString(password)
 		if err != nil {
 			logger.Error("could not hash password: " + err.Error())
+			templating.SetErrorMessage(w, "Could not hash password.")
 			http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
 			return
 		}
@@ -288,15 +299,15 @@ func (bh *BaseHandler) AdminUserAddHandler(w http.ResponseWriter, r *http.Reques
 		err = bh.DBSvc.AddUser(&u)
 		if err != nil {
 			logger.Error("could not create user: " + err.Error())
+			templating.SetErrorMessage(w, "Could not create user.")
 			http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
 			return
 		}
 
-		logger.Trace("user added")
-
+		templating.SetSuccessMessage(w, "User created successfully!")
 	}
 
-	if err := templates.ExecuteTemplate(bh.Inj(), w, template, data); err != nil {
+	if err := templating.ExecuteTemplate(w, template, data); err != nil {
 		logger.Errorf("could not execute template '%s': %s", template, err)
 	}
 }
@@ -304,28 +315,31 @@ func (bh *BaseHandler) AdminUserAddHandler(w http.ResponseWriter, r *http.Reques
 // AdminUserEditHandler allows changing values for a given user account
 func (bh *BaseHandler) AdminUserEditHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		vars    = mux.Vars(r)
-		err     error
-		logger        = bh.ContextLogger("admin")
-		changes uint8 = 0
+		vars     = mux.Vars(r)
+		err      error
+		template       = "user_form.html"
+		logger         = bh.ContextLogger("admin")
+		changes  uint8 = 0
 	)
 
 	data := struct {
 		Error      string
 		Success    string
+		Info       string
 		Edit       bool
 		User       *entity.User
 		UserToEdit *entity.User
 		Message    string
 	}{
-		Error:   templates.GetErrorMessage(w, r),
-		Success: templates.GetSuccessMessage(w, r),
+		Error:   templating.GetErrorMessage(w, r),
+		Success: templating.GetSuccessMessage(w, r),
+		Info:    templating.GetInfoMessage(w, r),
 		Edit:    true,
 	}
 
 	user, ok := r.Context().Value("user").(*entity.User)
 	if !ok || user == nil {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 		return
 	}
 	data.User = user
@@ -333,10 +347,11 @@ func (bh *BaseHandler) AdminUserEditHandler(w http.ResponseWriter, r *http.Reque
 	userToEdit, err := bh.DBSvc.FindUser("id = ?", vars["id"])
 	if err != nil {
 		logger.Debugf("could not find user with ID '%s': %s", vars["id"], err.Error())
+		templating.SetErrorMessage(w, "User not found.")
 		http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
 		return
 	}
-	data.UserToEdit = &userToEdit
+	data.UserToEdit = userToEdit
 
 	if r.Method == http.MethodPost {
 		username := r.FormValue("username")
@@ -346,7 +361,7 @@ func (bh *BaseHandler) AdminUserEditHandler(w http.ResponseWriter, r *http.Reque
 		if username != "" {
 			_, err = bh.DBSvc.FindUser("username = ? && id != ?", username, userToEdit.ID)
 			if err == nil {
-				logger.Debug("username already taken")
+				templating.SetErrorMessage(w, "Username is already taken.")
 				http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
 				return
 			}
@@ -357,7 +372,7 @@ func (bh *BaseHandler) AdminUserEditHandler(w http.ResponseWriter, r *http.Reque
 		if email != "" {
 			_, err = bh.DBSvc.FindUser("email = ? && id != ?", email, userToEdit.ID)
 			if err == nil {
-				logger.Debug("email already taken")
+				templating.SetErrorMessage(w, "Email is already taken.")
 				http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
 				return
 			}
@@ -368,7 +383,7 @@ func (bh *BaseHandler) AdminUserEditHandler(w http.ResponseWriter, r *http.Reque
 		if password != "" {
 			hash, err := security.HashString(password)
 			if err != nil {
-				logger.Error("could not hash password: " + err.Error())
+				templating.SetErrorMessage(w, "Could not hash password.")
 				http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
 				return
 			}
@@ -404,54 +419,72 @@ func (bh *BaseHandler) AdminUserEditHandler(w http.ResponseWriter, r *http.Reque
 		}
 
 		if changes == 0 {
-			message = "No changes were made."
+			data.Info = "No changes were made."
+		} else if changes == 1 {
+			data.Info = "One change was saved!"
 		} else {
-			message = fmt.Sprintf("%d changes were saved!", changes)
+			data.Info = fmt.Sprintf("%d changes were saved!", changes)
 		}
 
-		err = bh.DBSvc.UpdateUser(&userToEdit)
+		err = bh.DBSvc.UpdateUser(userToEdit)
 		if err != nil {
-			logger.Error("user data could not be updated")
+			logger.Error("user data could not be updated: " + err.Error())
+			templating.SetErrorMessage(w, "Could not update user.")
 			http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
 			return
 		}
 	}
 
-	if err := templates.ExecuteTemplate(bh.Inj(), w, "admin/user_edit.gohtml", data); err != nil {
-		w.WriteHeader(http.StatusNotFound)
+	templating.SetSuccessMessage(w, "User updated successfully!")
+
+	if err := templating.ExecuteTemplate(w, template, data); err != nil {
+		logger.Errorf("could not execute template '%s': %s", template, err.Error())
 	}
 }
 
 // AdminUserRemoveHandler allows removing a given user account
 func (bh *BaseHandler) AdminUserRemoveHandler(w http.ResponseWriter, r *http.Request) {
-	var user entity.User
-	if r.Context().Value("user") != nil {
-		user = r.Context().Value("user").(entity.User)
-	}
 	var (
 		vars   = mux.Vars(r)
 		logger = bh.ContextLogger("admin")
 	)
 
-	if fmt.Sprintf("%d", user.ID) == vars["id"] {
-		logger.Debug("You cannot remove your own user account!")
+	user, ok := r.Context().Value("user").(*entity.User)
+	if !ok || user == nil {
+		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
+		return
+	}
+
+	userID, err := strconv.ParseUint(vars["id"], 10, 64)
+	if err != nil || userID < 1 {
+		templating.SetErrorMessage(w, "Invalid user ID.")
 		http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
 		return
 	}
 
-	user, err := bh.DBSvc.FindUser("id = ?", vars["id"])
+	if user.ID == uint(userID) {
+		logger.Debugf("You cannot remove your own user account! (User ID: %d)", user.ID)
+		templating.SetErrorMessage(w, "You cannot remove your own user account!")
+		http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
+		return
+	}
+
+	userToDelete, err := bh.DBSvc.FindUser("id = ?", vars["id"])
 	if err != nil {
 		logger.Trace("User could not be found")
+		templating.SetErrorMessage(w, fmt.Sprintf("User with ID %d could not be found.", userID))
 		http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
 		return
 	}
 
-	err = bh.DBSvc.DeleteUser(&user)
+	err = bh.DBSvc.DeleteUser(userToDelete)
 	if err != nil {
 		logger.Error("User could not be deleted: " + err.Error())
+		templating.SetErrorMessage(w, "User could not be deleted.")
 		http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
 		return
 	}
 
+	templating.SetSuccessMessage(w, "User deleted successfully!")
 	http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
 }

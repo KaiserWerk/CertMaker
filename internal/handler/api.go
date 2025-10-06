@@ -99,7 +99,7 @@ func (bh *BaseHandler) ApiRequestCertificateHandler(w http.ResponseWriter, r *ht
 		return
 	}
 
-	sn, err := bh.CM.GenerateLeafCertAndKey(certRequest)
+	sn, err := bh.CertMaker.GenerateLeafCertAndKey(certRequest)
 	if err != nil {
 		logger.Errorf("error generating key + certificate: %s\n", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -193,7 +193,7 @@ func (bh *BaseHandler) ApiRequestCertificateWithCSRHandler(w http.ResponseWriter
 		return
 	}
 
-	sn, err := bh.CM.GenerateCertificateByCSR(csr)
+	sn, err := bh.CertMaker.GenerateCertificateByCSR(csr)
 	if err != nil {
 		logger.Errorf("error generating certificate: %s\n", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -227,7 +227,7 @@ func (bh *BaseHandler) ApiObtainCertificateHandler(w http.ResponseWriter, r *htt
 		id     = mux.Vars(r)["id"]
 	)
 
-	certBytes, err := bh.CM.FindLeafCertificate(id)
+	certBytes, err := bh.CertMaker.FindLeafCertificate(id)
 	if err != nil {
 		logger.Debugf("No certificate found for ID %s", id)
 		w.WriteHeader(http.StatusNotFound)
@@ -251,7 +251,7 @@ func (bh *BaseHandler) ApiObtainPrivateKeyHandler(w http.ResponseWriter, r *http
 		id     = vars["id"]
 	)
 
-	keyBytes, err := bh.CM.FindLeafPrivateKey(id)
+	keyBytes, err := bh.CertMaker.FindLeafPrivateKey(id)
 	if err != nil {
 		logger.Debugf("No private key found for ID %s", id)
 		w.WriteHeader(http.StatusNotFound)
@@ -374,7 +374,7 @@ func (bh *BaseHandler) ApiOcspRequestHandler(w http.ResponseWriter, r *http.Requ
 		IssuerHash:         crypto.SHA512,
 	}
 
-	rootCert, rootKey, err := bh.CM.GetRootKeyPair()
+	rootCert, rootKey, err := bh.CertMaker.GetRootKeyPair()
 	if err != nil {
 		logger.Errorf("could not retrieve root certificate: %s", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -589,14 +589,14 @@ func (bh *BaseHandler) ApiSolveChallengeHandler(w http.ResponseWriter, r *http.R
 
 	var sn int64
 	if !fromCsr {
-		sn, err = bh.CM.GenerateLeafCertAndKey(certificateRequest)
+		sn, err = bh.CertMaker.GenerateLeafCertAndKey(certificateRequest)
 		if err != nil {
 			logger.Errorf("error generating key + certificate: %s\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 	} else {
-		sn, err = bh.CM.GenerateCertificateByCSR(&csr)
+		sn, err = bh.CertMaker.GenerateCertificateByCSR(&csr)
 		if err != nil {
 			logger.Errorf("error generating key + certificate: %s\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
