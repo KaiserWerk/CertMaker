@@ -262,7 +262,7 @@ func (bh *BaseHandler) CertificateAddHandler(w http.ResponseWriter, r *http.Requ
 			Days: daysVal,
 		}
 
-		sn, err := bh.CertMaker.GenerateLeafCertAndKey(certRequest)
+		_, _, sn, err := bh.CertMaker.GenerateLeafCertAndKey(certRequest)
 		if err != nil {
 			logger.Error("could not generate leaf cert and key: " + err.Error())
 			http.Redirect(w, r, "/certificate/add", http.StatusSeeOther)
@@ -354,7 +354,7 @@ func (bh *BaseHandler) AddCertificateFromCSRHandler(w http.ResponseWriter, r *ht
 			return
 		}
 
-		sn, err := bh.CertMaker.GenerateCertificateByCSR(csr)
+		_, sn, err := bh.CertMaker.GenerateCertificateByCSR(csr)
 		if err != nil {
 			logger.Debug("could not generate certificate FROM CSR: " + err.Error())
 			http.Redirect(w, r, "/certificate/list", http.StatusSeeOther)

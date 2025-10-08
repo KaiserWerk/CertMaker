@@ -187,12 +187,7 @@ func (bh *BaseHandler) RegistrationHandler(w http.ResponseWriter, r *http.Reques
 			return
 		}
 
-		key, err := security.GenerateToken(global.APITokenLength)
-		if err != nil {
-			templating.SetErrorMessage(w, "Could not generate API token.")
-			http.Redirect(w, r, "/auth/register", http.StatusSeeOther)
-			return
-		}
+		key := security.GenerateToken(global.APITokenLength)
 
 		u := entity.User{
 			Username: username,

@@ -159,17 +159,10 @@ func (bh *BaseHandler) ProfileRegenerateKeyHandler(w http.ResponseWriter, r *htt
 		return
 	}
 
-	token, err := security.GenerateToken(global.APITokenLength)
-	if err != nil {
-		logger.Error("could not generate token: " + err.Error())
-		templating.SetErrorMessage(w, "Could not generate new API token.")
-		http.Redirect(w, r, "/user/profile", http.StatusSeeOther)
-		return
-	}
-
+	token := security.GenerateToken(global.APITokenLength)
 	user.ApiKey = token
 
-	err = bh.DBSvc.UpdateUser(user)
+	err := bh.DBSvc.UpdateUser(user)
 	if err != nil {
 		logger.Error("could not update user: " + err.Error())
 		templating.SetErrorMessage(w, "Could not update user.")

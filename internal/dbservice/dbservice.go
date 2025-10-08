@@ -1,6 +1,8 @@
 package dbservice
 
 import (
+	"errors"
+
 	"github.com/KaiserWerk/CertMaker/internal/configuration"
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 	"gorm.io/driver/mysql"
@@ -9,6 +11,10 @@ import (
 	"gorm.io/driver/sqlserver"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
+)
+
+var (
+	ErrNotFound = errors.New("record not found")
 )
 
 type DBService struct {
@@ -45,6 +51,7 @@ func New(config *configuration.AppConfig) (*DBService, error) {
 func (ds *DBService) AutoMigrate() error {
 	err := ds.db.AutoMigrate(
 		&entity.CertInfo{},
+		&entity.Challenge{},
 		&entity.RequestInfo{},
 		&entity.SystemSetting{},
 		&entity.User{},

@@ -6,12 +6,9 @@ import (
 )
 
 // GenerateToken generates a random string with a given length.
-func GenerateToken(length uint8) (string, error) {
+func GenerateToken(length uint8) string {
 	buf := make([]byte, length)
-	_, err := rand.Read(buf)
-	if err != nil {
-		return "", err
-	}
+	_, _ = rand.Read(buf)
 
-	return hex.EncodeToString(buf), nil
+	return hex.EncodeToString(buf)
 }

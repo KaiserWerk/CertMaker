@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // TrimSliceElements removes whitespace from all elements
@@ -49,4 +50,16 @@ func StringSliceContains(s []string, key string) bool {
 	}
 
 	return false
+}
+
+func Retry(attempts uint, sleep time.Duration, f func() error) error {
+	if err := f(); err != nil {
+		if attempts--; attempts > 0 {
+			time.Sleep(sleep)
+			return Retry(attempts, sleep+1*time.Second, f)
+		}
+		return err
+	}
+
+	return nil
 }

@@ -309,13 +309,7 @@ func (bh *BaseHandler) AdminUserAddHandler(w http.ResponseWriter, r *http.Reques
 			admin = true
 		}
 
-		apikey, err := security.GenerateToken(global.APITokenLength)
-		if err != nil {
-
-			templating.SetErrorMessage(w, "Could not generate API token.")
-			http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
-			return
-		}
+		apikey := security.GenerateToken(global.APITokenLength)
 
 		hash, err := security.HashString(password)
 		if err != nil {

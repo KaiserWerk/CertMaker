@@ -184,17 +184,18 @@ func setupRoutes(cfg *configuration.AppConfig, logger *logrus.Entry, dbSvc *dbse
 
 	apiRouter := router.PathPrefix("/api/v1").Subrouter()
 	apiRouter.Use(mh.WithToken)
-	apiRouter.HandleFunc("/root-certificate/obtain", bh.ApiRootCertificateDownloadHandler).Methods(http.MethodGet)
-	apiRouter.HandleFunc("/certificate/request", bh.ApiRequestCertificateHandler).Methods(http.MethodPost)
-	apiRouter.HandleFunc("/certificate/request-with-csr", bh.ApiRequestCertificateWithCSRHandler).Methods(http.MethodPost)
-	apiRouter.HandleFunc("/certificate/{id}/obtain", bh.ApiObtainCertificateHandler).Methods(http.MethodGet)
-	apiRouter.HandleFunc("/certificate/{sn}/revoke", bh.ApiRevokeCertificateHandler).Methods(http.MethodGet)
-	apiRouter.HandleFunc("/privatekey/{id}/obtain", bh.ApiObtainPrivateKeyHandler).Methods(http.MethodGet)
-	apiRouter.HandleFunc("/challenge/{id}/solve", bh.ApiSolveChallengeHandler).Methods(http.MethodGet)
+	apiRouter.HandleFunc("/root-certificate/obtain", bh.APIRootCertificateDownloadHandler).Methods(http.MethodGet)
+	apiRouter.HandleFunc("/certificate/request", bh.APIRequestCertificateWithSimpleRequestHandler).Methods(http.MethodPost)
+	apiRouter.HandleFunc("/certificate/request-with-csr", bh.APIRequestCertificateWithCSRHandler).Methods(http.MethodPost)
+	apiRouter.HandleFunc("/certificate/{sn}/revoke", bh.APIRevokeCertificateHandler).Methods(http.MethodGet)
+	apiRouter.HandleFunc("/certificate/{id}/obtain", bh.APIObtainCertificateHandler).Methods(http.MethodGet)
+	apiRouter.HandleFunc("/privatekey/{id}/obtain", bh.APIObtainPrivateKeyHandler).Methods(http.MethodGet)
+	apiRouter.HandleFunc("/http-01/{challengeID}/solve", bh.APISolveHTTP01ChallengeHandler).Methods(http.MethodGet)
+	apiRouter.HandleFunc("/dns-01/{challengeID}/solve", bh.APISolveHTTP01ChallengeHandler).Methods(http.MethodGet)
 
 	ocspRouter := router.PathPrefix("/ocsp").Subrouter()
-	ocspRouter.HandleFunc("/ocsp/{base64}", bh.ApiOcspRequestHandler).Methods(http.MethodGet, http.MethodPost)
-	ocspRouter.HandleFunc("/ocsp", bh.ApiOcspRequestHandler).Methods(http.MethodGet, http.MethodPost)
+	ocspRouter.HandleFunc("/ocsp/{base64}", bh.APIOSCPRequestHandler).Methods(http.MethodGet, http.MethodPost)
+	ocspRouter.HandleFunc("/ocsp", bh.APIOSCPRequestHandler).Methods(http.MethodGet, http.MethodPost)
 
 	return router
 }

@@ -1,12 +1,12 @@
-# The public-facing host address. Used to construct external links referencing your CertMaker installation
+# The public-facing host address. Used to construct external links referencing your CertMaker installation.
 server_host: http://localhost:8880
 
-# The data directory where certs are stored. When not absolute, it is interpreted as relative to the binary
+# The data directory where certificates and the serial number file are stored. When not absolute, it is interpreted as relative to the binary
 data_dir: data
 
 # Details for the database connection
 database:
-  # The database system driver to use. Can be either sqlite, mysql or postgresql. Change the DSN accordingly
+  # The database system driver to use. Can be either sqlite, mysql or postgresql. Change the DSN accordingly.
   driver: mysql
   # The connection string for the chosen database system
   dsn: 'root:root@tcp(127.0.0.1:3306)/certmaker?parseTime=true&charset=utf8'
@@ -14,7 +14,8 @@ database:
 # The algorithm to use for creating and/or parsing the root private key (rsa, ecdsa, ed25519)
 root_key_algo: ed25519
 
-# The subject data a new root certificate is to be generated with
+# The subject data a new root certificate is to be generated with.
+# The root certificate is only created if it does not exist. This allows for a custom root certificate to be used.
 root_cert_subject:
   organization: Some Company
   country: Some Country
@@ -23,6 +24,7 @@ root_cert_subject:
   street_address: Some Address
   postal_code: Some ZIP
 
+# Hetzner storage box connection details for automated database backups
 storagebox:
   username: username
   password: changeme

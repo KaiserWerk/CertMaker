@@ -1,6 +1,8 @@
 package entity
 
 import (
+	"github.com/KaiserWerk/CertMaker/internal/global"
+
 	"gorm.io/gorm"
 )
 
@@ -10,6 +12,5 @@ type RequestInfo struct {
 	CreatedFor         uint
 	CsrBytes           []byte
 	SimpleRequestBytes []byte
-	Token              string
-	Status             string
+	Status             global.RequestInfoStatus
 }
