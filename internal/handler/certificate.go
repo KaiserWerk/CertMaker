@@ -101,9 +101,9 @@ func (bh *BaseHandler) RootCertificateDownloadHandler(w http.ResponseWriter, r *
 // CertificateDownloadHandler downloads a certificate requested via UI
 func (bh *BaseHandler) CertificateDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-	var user entity.User
+	var user *entity.User
 	if r.Context().Value("user") != nil {
-		user = r.Context().Value("user").(entity.User)
+		user = r.Context().Value("user").(*entity.User)
 	}
 	var (
 		logger = bh.ContextLogger("certificate")
@@ -139,9 +139,9 @@ func (bh *BaseHandler) CertificateDownloadHandler(w http.ResponseWriter, r *http
 // PrivateKeyDownloadHandler downloads a private key requested via UI
 func (bh *BaseHandler) PrivateKeyDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-	var user entity.User
+	var user *entity.User
 	if r.Context().Value("user") != nil {
-		user = r.Context().Value("user").(entity.User)
+		user = r.Context().Value("user").(*entity.User)
 	}
 	var (
 		logger = bh.ContextLogger("certificate")
@@ -269,7 +269,7 @@ func (bh *BaseHandler) CertificateAddHandler(w http.ResponseWriter, r *http.Requ
 			return
 		}
 
-		user := r.Context().Value("user").(entity.User)
+		user := r.Context().Value("user").(*entity.User)
 
 		ci := entity.CertInfo{
 			SerialNumber:   sn,
@@ -362,7 +362,7 @@ func (bh *BaseHandler) AddCertificateFromCSRHandler(w http.ResponseWriter, r *ht
 		}
 
 		userFromContext := r.Context().Value("user")
-		u := userFromContext.(entity.User)
+		u := userFromContext.(*entity.User)
 
 		ci := entity.CertInfo{
 			SerialNumber:   sn,
@@ -387,7 +387,7 @@ func (bh *BaseHandler) RevokeCertificateHandler(w http.ResponseWriter, r *http.R
 	var (
 		logger = bh.ContextLogger("certificate")
 		vars   = mux.Vars(r)
-		u      = r.Context().Value("user").(entity.User)
+		u      = r.Context().Value("user").(*entity.User)
 	)
 
 	ci, err := bh.DBSvc.FindCertInfo("id = ?", vars["id"])

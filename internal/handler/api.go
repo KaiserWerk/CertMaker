@@ -33,7 +33,7 @@ func (bh *BaseHandler) APIRequestCertificateWithSimpleRequestHandler(w http.Resp
 
 	var (
 		logger = bh.ContextLogger("api")
-		user   = r.Context().Value("user").(entity.User)
+		user   = r.Context().Value("user").(*entity.User)
 	)
 
 	srMode := bh.DBSvc.GetSetting(global.SettingEnableSimpleRequestMode)
@@ -168,7 +168,7 @@ func (bh *BaseHandler) APIRequestCertificateWithCSRHandler(w http.ResponseWriter
 	var (
 		logger = bh.ContextLogger("api")
 		err    error
-		user   = r.Context().Value("user").(entity.User)
+		user   = r.Context().Value("user").(*entity.User)
 	)
 
 	csrMode := bh.DBSvc.GetSetting(global.SettingEnableCSRRequestMode)
@@ -191,7 +191,7 @@ func (bh *BaseHandler) APIRequestCertificateWithCSRHandler(w http.ResponseWriter
 		return
 	}
 
-	u := r.Context().Value("user").(entity.User)
+	u := r.Context().Value("user").(*entity.User)
 
 	ri := entity.RequestInfo{
 		CreatedFor: u.ID,
@@ -843,7 +843,7 @@ func (bh *BaseHandler) APIRevokeCertificateHandler(w http.ResponseWriter, r *htt
 	defer r.Body.Close()
 	var (
 		logger = bh.ContextLogger("api")
-		u      = r.Context().Value("user").(entity.User)
+		u      = r.Context().Value("user").(*entity.User)
 		vars   = mux.Vars(r)
 	)
 
