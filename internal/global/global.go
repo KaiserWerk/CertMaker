@@ -41,8 +41,11 @@ const (
 
 	DefaultChallengeValidity                    = 2 * time.Hour
 	HTTP01ChallengeDefaultValidationPort uint16 = 80
+
+	DNS01ChallengeSubdomain = "__certmaker_challenge."
 )
 
 var (
-	DNSNamesToSkip = []string{"localhost", "127.0.0.1", "::1", "[::1]"}
+	DNSNamesToSkip = []string{"localhost"}
+	IPsToSkip      = []string{"127.0.0.1", "::1", "[::1]"}
 )

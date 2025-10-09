@@ -191,8 +191,7 @@ func (bh *BaseHandler) APIRequestCertificateWithCSRHandler(w http.ResponseWriter
 		return
 	}
 
-	val := r.Context().Value("user")
-	u := val.(entity.User)
+	u := r.Context().Value("user").(entity.User)
 
 	ri := entity.RequestInfo{
 		CreatedFor: u.ID,
@@ -552,7 +551,7 @@ func (bh *BaseHandler) APISolveHTTP01ChallengeHandler(w http.ResponseWriter, r *
 		ips = simpleRequest.IPs
 	}
 
-	// check well known path for every domain
+	// check well-known path for every domain
 	for _, domain := range domains {
 		if domain == "" {
 			continue
@@ -662,10 +661,157 @@ func (bh *BaseHandler) APISolveHTTP01ChallengeHandler(w http.ResponseWriter, r *
 
 func (bh *BaseHandler) APISolveDNS01ChallengeHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-	// var (
-	// 	logger = bh.ContextLogger("api")
-	// 	vars   = mux.Vars(r)
-	// )
+	var (
+		logger = bh.ContextLogger("api")
+		vars   = mux.Vars(r)
+	)
+
+	var response entity.CertificateResponse
+
+	// fetch challenge info from DB
+	challenge, err := bh.DBSvc.FindChallenge("public_id = ?", vars["challengeID"])
+	if err != nil {
+		if err == sql.ErrNoRows {
+			logger.Debugf("no challenge found for public ID %s", vars["challengeID"])
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		logger.Errorf("could not query challenge: %s", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	// check if challenge type matches
+	if challenge.ChallengeType != "dns-01" {
+		logger.Debugf("challenge type is not dns-01: %s", challenge.ChallengeType)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	// get requestInfo for challenge
+	requestInfo, err := bh.DBSvc.GetRequestInfo(challenge.RequestInfoID)
+	if err != nil {
+		logger.Errorf("could not get request info for ID %v: %s", challenge.RequestInfoID, err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	var (
+		domains       []string
+		fromCSR       = requestInfo.CsrBytes != nil
+		csr           *x509.CertificateRequest
+		simpleRequest entity.SimpleRequest
+	)
+
+	if fromCSR {
+		// determine DNS names and IPs from CSR
+		csr, err = x509.ParseCertificateRequest(requestInfo.CsrBytes)
+		if err != nil {
+			logger.Errorf("could not parse CSR: %s", err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		domains = append(domains, csr.DNSNames...)
+	} else {
+		err = json.Unmarshal(requestInfo.SimpleRequestBytes, &simpleRequest)
+		if err != nil {
+			logger.Errorf("could not unmarshal simple request: %s", err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		domains = simpleRequest.Domains
+	}
+
+	// check well known path for every domain
+	for _, domain := range domains {
+		if domain == "" {
+			continue
+		}
+
+		if helper.StringSliceContains(global.DNSNamesToSkip, domain) {
+			continue
+		}
+
+		ok, err := challenges.CheckDNS01Challenge(domain, challenge.Token)
+		if err != nil {
+			response.Error = fmt.Sprintf("error checking domain %s: %s", domain, err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(response)
+			return
+		}
+
+		if !ok {
+			response.Error = fmt.Sprintf("DNS check of TXT record for %s%s did not match expected token", global.DNS01ChallengeSubdomain, domain)
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(response)
+			return
+		}
+	}
+
+	// from here on, we know that the challenge was successful for all domains
+	// that means we can issue the certificate
+
+	var (
+		certBytes, keyBytes []byte
+		sn                  int64
+	)
+	if fromCSR {
+		// issue certificate from CSR
+		certBytes, sn, err = bh.CertMaker.GenerateCertificateByCSR(csr)
+		if err != nil {
+			logger.Errorf("error generating certificate from CSR: %s\n", err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	} else {
+		certBytes, keyBytes, sn, err = bh.CertMaker.GenerateLeafCertAndKey(simpleRequest)
+		if err != nil {
+			logger.Errorf("error generating key + certificate: %s\n", err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// update the request info status to "issued"
+	requestInfo.Status = "issued"
+	err = bh.DBSvc.UpdateRequestInfo(requestInfo)
+	if err != nil {
+		logger.Errorf("could not update request info status: %s", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	// store certificate info in DB
+	ci := entity.CertInfo{
+		SerialNumber:   sn,
+		FromCSR:        fromCSR,
+		CreatedForUser: challenge.CreatedFor,
+		Revoked:        false,
+	}
+
+	err = bh.DBSvc.AddCertInfo(&ci)
+	if err != nil {
+		logger.Errorf("could not insert cert info into DB: %s", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	// set up response
+	response.CertificatePem = string(certBytes)
+	if !fromCSR {
+		response.PrivateKeyPem = string(keyBytes)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		logger.Infof("could not encode response: %s", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
 
 // APIRootCertificateDownloadHandler allows to programmatically obtain the root certificate
@@ -692,6 +838,7 @@ func (bh *BaseHandler) APIRootCertificateDownloadHandler(w http.ResponseWriter, 
 	_ = fh.Close()
 }
 
+// APIRevokeCertificateHandler allows a user to revoke a certificate by its serial number
 func (bh *BaseHandler) APIRevokeCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	var (
