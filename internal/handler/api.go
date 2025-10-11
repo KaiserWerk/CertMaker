@@ -86,32 +86,34 @@ func (bh *BaseHandler) APIRequestCertificateWithSimpleRequestHandler(w http.Resp
 		ch := &entity.Challenge{
 			CreatedFor:    user.ID,
 			RequestInfoID: ri.ID,
-			PublicID:      fmt.Sprintf("%d-%s", user.ID, security.GenerateToken(20)),
+			ChallengeID:   fmt.Sprintf("%d-%s", user.ID, security.GenerateToken(20)),
 			ChallengeType: "http-01",
 			ValidUntil:    time.Now().Add(global.DefaultChallengeValidity),
+			Token:         security.GenerateToken(80),
 		}
 		if err = bh.DBSvc.AddChallenge(ch); err != nil {
 			logger.Infof("error inserting challenge: %s\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		response.HTTP01Challenge = fmt.Sprintf(bh.Config.ServerHost+global.SolveHTTP01ChallengePath, ch.PublicID)
+		response.HTTP01Challenge = true
 	}
 	if dnsChallengeEnabled := bh.DBSvc.GetSetting(global.SettingEnableDNS01Challenge); dnsChallengeEnabled == "true" {
 		hasChallenge = true
 		ch := &entity.Challenge{
 			CreatedFor:    user.ID,
 			RequestInfoID: ri.ID,
-			PublicID:      fmt.Sprintf("%d-%s", user.ID, security.GenerateToken(20)),
+			ChallengeID:   fmt.Sprintf("%d-%s", user.ID, security.GenerateToken(20)),
 			ChallengeType: "dns-01",
 			ValidUntil:    time.Now().Add(global.DefaultChallengeValidity),
+			Token:         security.GenerateToken(80),
 		}
 		if err = bh.DBSvc.AddChallenge(ch); err != nil {
 			logger.Infof("error inserting challenge: %s\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		response.DNS01Challenge = fmt.Sprintf(bh.Config.ServerHost+global.SolvDNS01ChallengePath, ch.PublicID)
+		response.DNS01Challenge = true
 	}
 
 	if hasChallenge {
@@ -146,8 +148,8 @@ func (bh *BaseHandler) APIRequestCertificateWithSimpleRequestHandler(w http.Resp
 		return
 	}
 
-	response.CertificatePem = string(certBytes)
-	response.PrivateKeyPem = string(keyBytes)
+	response.CertificatePEM = string(certBytes)
+	response.PrivateKeyPEM = string(keyBytes)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -213,32 +215,34 @@ func (bh *BaseHandler) APIRequestCertificateWithCSRHandler(w http.ResponseWriter
 		ch := &entity.Challenge{
 			CreatedFor:    user.ID,
 			RequestInfoID: ri.ID,
-			PublicID:      fmt.Sprintf("%d-%s", user.ID, security.GenerateToken(20)),
+			ChallengeID:   fmt.Sprintf("%d-%s", user.ID, security.GenerateToken(20)),
 			ChallengeType: "http-01",
 			ValidUntil:    time.Now().Add(global.DefaultChallengeValidity),
+			Token:         security.GenerateToken(80),
 		}
 		if err = bh.DBSvc.AddChallenge(ch); err != nil {
 			logger.Infof("error inserting challenge: %s\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		response.HTTP01Challenge = fmt.Sprintf(bh.Config.ServerHost+global.SolveHTTP01ChallengePath, ch.PublicID)
+		response.HTTP01Challenge = true
 	}
 	if dnsChallengeEnabled := bh.DBSvc.GetSetting(global.SettingEnableDNS01Challenge); dnsChallengeEnabled == "true" {
 		hasChallenge = true
 		ch := &entity.Challenge{
 			CreatedFor:    user.ID,
 			RequestInfoID: ri.ID,
-			PublicID:      fmt.Sprintf("%d-%s", user.ID, security.GenerateToken(20)),
+			ChallengeID:   fmt.Sprintf("%d-%s", user.ID, security.GenerateToken(20)),
 			ChallengeType: "dns-01",
 			ValidUntil:    time.Now().Add(global.DefaultChallengeValidity),
+			Token:         security.GenerateToken(80),
 		}
 		if err = bh.DBSvc.AddChallenge(ch); err != nil {
 			logger.Infof("error inserting challenge: %s\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		response.DNS01Challenge = fmt.Sprintf(bh.Config.ServerHost+global.SolvDNS01ChallengePath, ch.PublicID)
+		response.DNS01Challenge = true
 	}
 
 	if hasChallenge {
@@ -273,7 +277,7 @@ func (bh *BaseHandler) APIRequestCertificateWithCSRHandler(w http.ResponseWriter
 		return
 	}
 
-	response.CertificatePem = string(certBytes)
+	response.CertificatePEM = string(certBytes)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -347,9 +351,9 @@ func (bh *BaseHandler) APIObtainPrivateKeyHandler(w http.ResponseWriter, r *http
 	}
 }
 
-// APIOSCPRequestHandler responds to OCSP requests with whether the certificate
+// APIOCSPRequestHandler responds to OCSP requests with whether the certificate
 // in question is revoked or not
-func (bh *BaseHandler) APIOSCPRequestHandler(w http.ResponseWriter, r *http.Request) {
+func (bh *BaseHandler) APIOCSPRequestHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	var (
 		err    error
@@ -363,27 +367,13 @@ func (bh *BaseHandler) APIOSCPRequestHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	//if r.Header.Get("Accept") != "application/ocsp-response" {
-	//	logger.Debug("incorrect Accept header: " + r.Header.Get("Accept"))
-	//	w.WriteHeader(http.StatusBadRequest)
-	//	return
-	//}
-
-	//if r.Header.Get("Host") == "" {
-	//	logger.Debug("incorrect Host header: empty")
-	//	w.WriteHeader(http.StatusBadRequest)
-	//	return
-	//}
-
 	w.Header().Set("Content-Type", "application/ocsp-response")
 
-	b64 := vars["base64"]
-
-	var request []byte
+	var requestData []byte
 	switch r.Method {
 	case http.MethodPost:
 		logger.Debug("POST request")
-		request, err = io.ReadAll(r.Body)
+		requestData, err = io.ReadAll(r.Body)
 		if err != nil {
 			logger.Debugf("could not read request body: %s", err.Error())
 			w.WriteHeader(http.StatusBadRequest)
@@ -392,7 +382,7 @@ func (bh *BaseHandler) APIOSCPRequestHandler(w http.ResponseWriter, r *http.Requ
 		_ = r.Body.Close()
 	case http.MethodGet:
 		logger.Debug("GET request")
-		request, err = base64.StdEncoding.DecodeString(b64)
+		requestData, err = base64.StdEncoding.DecodeString(vars["base64"])
 		if err != nil {
 			logger.Debugf("could not base64 decode: %s", err.Error())
 			w.WriteHeader(http.StatusBadRequest)
@@ -400,7 +390,7 @@ func (bh *BaseHandler) APIOSCPRequestHandler(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	ocspReq, err := ocsp.ParseRequest(request)
+	ocspReq, err := ocsp.ParseRequest(requestData)
 	if err != nil {
 		logger.Debug("could not parse OCSP Request: " + err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -644,9 +634,9 @@ func (bh *BaseHandler) APISolveHTTP01ChallengeHandler(w http.ResponseWriter, r *
 	}
 
 	// set up response
-	response.CertificatePem = string(certBytes)
+	response.CertificatePEM = string(certBytes)
 	if !fromCSR {
-		response.PrivateKeyPem = string(keyBytes)
+		response.PrivateKeyPEM = string(keyBytes)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -799,9 +789,9 @@ func (bh *BaseHandler) APISolveDNS01ChallengeHandler(w http.ResponseWriter, r *h
 	}
 
 	// set up response
-	response.CertificatePem = string(certBytes)
+	response.CertificatePEM = string(certBytes)
 	if !fromCSR {
-		response.PrivateKeyPem = string(keyBytes)
+		response.PrivateKeyPEM = string(keyBytes)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

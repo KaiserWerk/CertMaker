@@ -11,7 +11,7 @@ type Challenge struct {
 	gorm.Model
 	CreatedFor    uint
 	RequestInfoID uint
-	PublicID      string `gorm:"index:,unique"`
+	ChallengeID   string `gorm:"index:,unique"`
 	ChallengeType string
 	Token         string
 	ValidUntil    time.Time

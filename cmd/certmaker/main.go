@@ -48,6 +48,10 @@ func main() {
 			fmt.Println("could not execute cleanup func:", err.Error())
 		}
 	}()
+	if err != nil {
+		fmt.Println("could not set up logging:", err.Error())
+		return
+	}
 
 	logger.WithFields(logrus.Fields{"application": "certmaker", "version": Version, "versionDate": VersionDate}).Info("app info")
 
@@ -81,9 +85,14 @@ func main() {
 	}
 	// create database service
 	ds, err := dbservice.New(config)
+	if err != nil {
+		logger.WithField("error", err.Error()).Error("could not set up database service")
+		return
+	}
+
 	err = ds.AutoMigrate()
 	if err != nil {
-		logger.WithField("error", err.Error()).Error("could not execute auto migrations")
+		logger.WithField("error", err.Error()).Error("could not execute schema setup")
 		return
 	}
 
@@ -148,14 +157,14 @@ func setupRoutes(cfg *configuration.AppConfig, logger *logrus.Entry, dbSvc *dbse
 			Handler(http.StripPrefix(staticDir, http.FileServer(http.FS(assets.GetStaticFS()))))
 
 		defaultRouter := router.PathPrefix("/").Subrouter()
-		defaultRouter.Use(mh.WithSession)
+		defaultRouter.Use(mh.RequireSession)
 		defaultRouter.HandleFunc("/", bh.IndexHandler).Methods(http.MethodGet)
 		defaultRouter.HandleFunc("/favicon.ico", bh.FaviconHandler)
 		defaultRouter.HandleFunc("/root-certificate/download", bh.RootCertificateDownloadHandler).Methods(http.MethodGet)
 		defaultRouter.HandleFunc("/privatekey/{id}/download", bh.PrivateKeyDownloadHandler).Methods(http.MethodGet)
 
 		userRouter := router.PathPrefix("/user").Subrouter()
-		userRouter.Use(mh.WithSession)
+		userRouter.Use(mh.RequireSession)
 		userRouter.HandleFunc("/profile", bh.ProfileHandler)
 		userRouter.HandleFunc("/profile/edit", bh.ProfileEditHandler)
 		userRouter.HandleFunc("/regenerate-key", bh.ProfileRegenerateKeyHandler)
@@ -166,7 +175,7 @@ func setupRoutes(cfg *configuration.AppConfig, logger *logrus.Entry, dbSvc *dbse
 		authRouter.HandleFunc("/register", bh.RegistrationHandler).Methods(http.MethodGet, http.MethodPost)
 
 		certRouter := router.PathPrefix("/certificate").Subrouter()
-		certRouter.Use(mh.WithSession)
+		certRouter.Use(mh.RequireSession)
 		certRouter.HandleFunc("/list", bh.CertificateListHandler).Methods(http.MethodGet)
 		certRouter.HandleFunc("/add", bh.CertificateAddHandler).Methods(http.MethodGet, http.MethodPost)
 		certRouter.HandleFunc("/add-with-csr", bh.AddCertificateFromCSRHandler).Methods(http.MethodGet, http.MethodPost)
@@ -174,7 +183,7 @@ func setupRoutes(cfg *configuration.AppConfig, logger *logrus.Entry, dbSvc *dbse
 		certRouter.HandleFunc("/{id}/download", bh.CertificateDownloadHandler).Methods(http.MethodGet)
 
 		adminRouter := router.PathPrefix("/admin").Subrouter()
-		adminRouter.Use(mh.WithSession, mh.RequireAdmin)
+		adminRouter.Use(mh.RequireSession, mh.RequireAdmin)
 		adminRouter.HandleFunc("/settings", bh.AdminSettingsHandler).Methods(http.MethodGet, http.MethodPost)
 		adminRouter.HandleFunc("/user/list", bh.AdminUserListHandler).Methods(http.MethodGet)
 		adminRouter.HandleFunc("/user/add", bh.AdminUserAddHandler).Methods(http.MethodGet, http.MethodPost)
@@ -183,9 +192,9 @@ func setupRoutes(cfg *configuration.AppConfig, logger *logrus.Entry, dbSvc *dbse
 	}
 
 	apiRouter := router.PathPrefix("/api/v1").Subrouter()
-	apiRouter.Use(mh.WithToken)
+	apiRouter.Use(mh.RequireToken)
 	apiRouter.HandleFunc("/root-certificate/obtain", bh.APIRootCertificateDownloadHandler).Methods(http.MethodGet)
-	apiRouter.HandleFunc("/certificate/request", bh.APIRequestCertificateWithSimpleRequestHandler).Methods(http.MethodPost)
+	apiRouter.HandleFunc("/certificate/request-with-simplerequest", bh.APIRequestCertificateWithSimpleRequestHandler).Methods(http.MethodPost)
 	apiRouter.HandleFunc("/certificate/request-with-csr", bh.APIRequestCertificateWithCSRHandler).Methods(http.MethodPost)
 	apiRouter.HandleFunc("/certificate/{sn}/revoke", bh.APIRevokeCertificateHandler).Methods(http.MethodGet)
 	apiRouter.HandleFunc("/certificate/{id}/obtain", bh.APIObtainCertificateHandler).Methods(http.MethodGet)
@@ -194,8 +203,8 @@ func setupRoutes(cfg *configuration.AppConfig, logger *logrus.Entry, dbSvc *dbse
 	apiRouter.HandleFunc("/dns-01/{challengeID}/solve", bh.APISolveHTTP01ChallengeHandler).Methods(http.MethodGet)
 
 	ocspRouter := router.PathPrefix("/ocsp").Subrouter()
-	ocspRouter.HandleFunc("/ocsp/{base64}", bh.APIOSCPRequestHandler).Methods(http.MethodGet, http.MethodPost)
-	ocspRouter.HandleFunc("/ocsp", bh.APIOSCPRequestHandler).Methods(http.MethodGet, http.MethodPost)
+	ocspRouter.HandleFunc("/{base64}", bh.APIOCSPRequestHandler).Methods(http.MethodGet)
+	ocspRouter.HandleFunc("/", bh.APIOCSPRequestHandler).Methods(http.MethodPost)
 
 	return router
 }

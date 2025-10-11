@@ -5,9 +5,9 @@ import (
 	"net/http"
 )
 
-// WithToken makes sure that, if enabled, a client must provide his API key
+// RequireToken makes sure that, if enabled, a client must provide his API key
 // within an HTTP header
-func (mh *MWHandler) WithToken(next http.Handler) http.Handler {
+func (mh *MWHandler) RequireToken(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := mh.ContextLogger("middleware")
 

@@ -11,9 +11,9 @@ import (
 	"gorm.io/gorm"
 )
 
-// WithSession requires the client to have a valid session
+// RequireSession requires the client to have a valid session
 // (to be logged in)
-func (mh *MWHandler) WithSession(next http.Handler) http.Handler {
+func (mh *MWHandler) RequireSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := mh.ContextLogger("middleware")
 
