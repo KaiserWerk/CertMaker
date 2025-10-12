@@ -471,10 +471,10 @@ func (bh *BaseHandler) APISolveHTTP01ChallengeHandler(w http.ResponseWriter, r *
 	var response entity.CertificateResponse
 
 	// fetch challenge info from DB
-	challenge, err := bh.DBSvc.FindChallenge("public_id = ?", vars["challengeID"])
+	challenge, err := bh.DBSvc.FindChallenge("challenge_id = ?", vars["challengeID"])
 	if err != nil {
 		if err == sql.ErrNoRows {
-			logger.Debugf("no challenge found for public ID %s", vars["challengeID"])
+			logger.Debugf("no challenge found for challenge ID %s", vars["challengeID"])
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
@@ -542,14 +542,14 @@ func (bh *BaseHandler) APISolveHTTP01ChallengeHandler(w http.ResponseWriter, r *
 
 		ok, err := challenges.CheckHTTP01Challenge(bh.Client, domain, request.ChallengePort, challenge.Token)
 		if err != nil {
-			response.Error = fmt.Sprintf("error checking domain %s: %s", domain, err.Error())
+			response.Error = fmt.Sprintf("failed HTTP-01 validation for domain %s: %s", domain, err.Error())
 			w.WriteHeader(http.StatusBadRequest)
 			_ = json.NewEncoder(w).Encode(response)
 			return
 		}
 
 		if !ok {
-			response.Error = fmt.Sprintf("HTTP response from domain %s did not respond with expected token", domain)
+			response.Error = fmt.Sprintf("failed HTTP-01 validation for domain %s", domain)
 			w.WriteHeader(http.StatusBadRequest)
 			_ = json.NewEncoder(w).Encode(response)
 			return
@@ -558,16 +558,24 @@ func (bh *BaseHandler) APISolveHTTP01ChallengeHandler(w http.ResponseWriter, r *
 
 	// check well known path for every IP
 	for _, ip := range ips {
+		if ip == "" {
+			continue
+		}
+
+		if helper.StringSliceContains(global.IPsToSkip, ip) {
+			continue
+		}
+
 		ok, err := challenges.CheckHTTP01Challenge(bh.Client, ip, request.ChallengePort, challenge.Token)
 		if err != nil {
-			response.Error = fmt.Sprintf("error checking IP %s: %s", ip, err.Error())
+			response.Error = fmt.Sprintf("failed HTTP-01 validation for IP %s: %s", ip, err.Error())
 			w.WriteHeader(http.StatusBadRequest)
 			_ = json.NewEncoder(w).Encode(response)
 			return
 		}
 
 		if !ok {
-			response.Error = fmt.Sprintf("HTTP response from IP %s did not respond with expected token", ip)
+			response.Error = fmt.Sprintf("failed HTTP-01 validation for IP %s", ip)
 			w.WriteHeader(http.StatusBadRequest)
 			_ = json.NewEncoder(w).Encode(response)
 			return
@@ -576,7 +584,6 @@ func (bh *BaseHandler) APISolveHTTP01ChallengeHandler(w http.ResponseWriter, r *
 
 	// from here on, we know that the challenge was successful for all domains and IPs
 	// that means we can issue the certificate
-
 	var (
 		certBytes, keyBytes []byte
 		sn                  int64
@@ -648,10 +655,10 @@ func (bh *BaseHandler) APISolveDNS01ChallengeHandler(w http.ResponseWriter, r *h
 	var response entity.CertificateResponse
 
 	// fetch challenge info from DB
-	challenge, err := bh.DBSvc.FindChallenge("public_id = ?", vars["challengeID"])
+	challenge, err := bh.DBSvc.FindChallenge("challenge_id = ?", vars["challengeID"])
 	if err != nil {
 		if err == sql.ErrNoRows {
-			logger.Debugf("no challenge found for public ID %s", vars["challengeID"])
+			logger.Debugf("no challenge found for challenge ID %s", vars["challengeID"])
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}

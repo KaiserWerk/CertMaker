@@ -199,7 +199,7 @@ func setupRoutes(cfg *configuration.AppConfig, logger *logrus.Entry, dbSvc *dbse
 	apiRouter.HandleFunc("/certificate/{sn}/revoke", bh.APIRevokeCertificateHandler).Methods(http.MethodGet)
 	apiRouter.HandleFunc("/certificate/{id}/obtain", bh.APIObtainCertificateHandler).Methods(http.MethodGet)
 	apiRouter.HandleFunc("/privatekey/{id}/obtain", bh.APIObtainPrivateKeyHandler).Methods(http.MethodGet)
-	apiRouter.HandleFunc("/http-01/{challengeID}/solve", bh.APISolveHTTP01ChallengeHandler).Methods(http.MethodGet)
+	apiRouter.HandleFunc("/http-01/{challengeID}/solve", bh.APISolveHTTP01ChallengeHandler).Methods(http.MethodPost)
 	apiRouter.HandleFunc("/dns-01/{challengeID}/solve", bh.APISolveHTTP01ChallengeHandler).Methods(http.MethodGet)
 
 	ocspRouter := router.PathPrefix("/ocsp").Subrouter()
