@@ -10,6 +10,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/base64"
 	"encoding/pem"
 	"fmt"
 	"math/big"
@@ -200,14 +201,14 @@ func (cm *CertMaker) GenerateRootCertAndKey() error {
 
 // GenerateLeafCertAndKey generates a certificate signed by
 // the root certificate and a private key.
-func (cm *CertMaker) GenerateLeafCertAndKey(request entity.SimpleRequest) ([]byte, []byte, int64, error) {
+func (cm *CertMaker) GenerateLeafCertAndKey(request entity.SimpleRequest) (string, string, int64, error) {
 	caTls, err := tls.LoadX509KeyPair(filepath.Join(cm.Config.DataDir, global.RootCertificateFilename), filepath.Join(cm.Config.DataDir, global.RootPrivateKeyFilename))
 	if err != nil {
-		return nil, nil, 0, err
+		return "", "", 0, err
 	}
 	ca, err := x509.ParseCertificate(caTls.Certificate[0])
 	if err != nil {
-		return nil, nil, 0, err
+		return "", "", 0, err
 	}
 
 	if request.Days > global.CertificateMaxDays {
@@ -228,7 +229,7 @@ func (cm *CertMaker) GenerateLeafCertAndKey(request entity.SimpleRequest) ([]byt
 
 	nextSn, err := cm.GetNextSerialNumber()
 	if err != nil {
-		return nil, nil, 0, err
+		return "", "", 0, err
 	}
 
 	cert := &x509.Certificate{
@@ -269,7 +270,7 @@ func (cm *CertMaker) GenerateLeafCertAndKey(request entity.SimpleRequest) ([]byt
 	case RSA:
 		rsaPrivKey, err := rsa.GenerateKey(rand.Reader, 4096)
 		if err != nil {
-			return nil, nil, 0, err
+			return "", "", 0, err
 		}
 		privKey = rsaPrivKey
 		pubKey = &rsaPrivKey.PublicKey
@@ -277,7 +278,7 @@ func (cm *CertMaker) GenerateLeafCertAndKey(request entity.SimpleRequest) ([]byt
 	case ECDSA:
 		ecdsaPrivKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		if err != nil {
-			return nil, nil, 0, err
+			return "", "", 0, err
 		}
 		privKey = ecdsaPrivKey
 		pubKey = &ecdsaPrivKey.PublicKey
@@ -285,7 +286,7 @@ func (cm *CertMaker) GenerateLeafCertAndKey(request entity.SimpleRequest) ([]byt
 	case ED25519:
 		pub, priv, err := ed25519.GenerateKey(rand.Reader)
 		if err != nil {
-			return nil, nil, 0, err
+			return "", "", 0, err
 		}
 		privKey = priv
 		pubKey = pub
@@ -295,57 +296,57 @@ func (cm *CertMaker) GenerateLeafCertAndKey(request entity.SimpleRequest) ([]byt
 	// Sign the certificate
 	certBytes, err := x509.CreateCertificate(rand.Reader, cert, ca, pubKey, caTls.PrivateKey)
 	if err != nil {
-		return nil, nil, 0, err
+		return "", "", 0, err
 	}
 
 	// Public key + cert
-	certOut, err := os.Create(outCertFilename)
+	certOut, err := os.OpenFile(outCertFilename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
-		return nil, nil, 0, err
+		return "", "", 0, err
 	}
 	err = pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
 	if err != nil {
-		return nil, nil, 0, err
+		return "", "", 0, err
 	}
 	err = certOut.Close()
 	if err != nil {
-		return nil, nil, 0, err
+		return "", "", 0, err
 	}
 
 	// Private key
 	keyOut, err := os.OpenFile(outKeyFilename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0744)
 	if err != nil {
-		return nil, nil, 0, err
+		return "", "", 0, err
 	}
 	privKeyBytes, err := x509.MarshalPKCS8PrivateKey(privKey)
 	if err != nil {
-		return nil, nil, 0, err
+		return "", "", 0, err
 	}
 	err = pem.Encode(keyOut, &pem.Block{Type: "PRIVATE KEY", Bytes: privKeyBytes})
 	if err != nil {
-		return nil, nil, 0, err
+		return "", "", 0, err
 	}
 	err = keyOut.Close()
 	if err != nil {
-		return nil, nil, 0, err
+		return "", "", 0, err
 	}
 
-	return certBytes, privKeyBytes, nextSn, nil
+	return base64.StdEncoding.EncodeToString(certBytes), base64.StdEncoding.EncodeToString(privKeyBytes), nextSn, nil
 }
 
-func (cm *CertMaker) GenerateCertificateByCSR(csr *x509.CertificateRequest) ([]byte, int64, error) {
+func (cm *CertMaker) GenerateCertificateByCSR(csr *x509.CertificateRequest) (string, int64, error) {
 	caTls, err := tls.LoadX509KeyPair(filepath.Join(cm.Config.DataDir, global.RootCertificateFilename), filepath.Join(cm.Config.DataDir, global.RootPrivateKeyFilename))
 	if err != nil {
-		return nil, 0, err
+		return "", 0, err
 	}
 	ca, err := x509.ParseCertificate(caTls.Certificate[0])
 	if err != nil {
-		return nil, 0, err
+		return "", 0, err
 	}
 
 	nextSn, err := cm.GetNextSerialNumber()
 	if err != nil {
-		return nil, 0, err
+		return "", 0, err
 	}
 
 	template := &x509.Certificate{
@@ -366,31 +367,31 @@ func (cm *CertMaker) GenerateCertificateByCSR(csr *x509.CertificateRequest) ([]b
 
 	err = os.MkdirAll(filepath.Join(cm.Config.DataDir, "leafcerts"), 0744)
 	if err != nil {
-		return nil, 0, err
+		return "", 0, err
 	}
 	outCertFilename := filepath.Join(cm.Config.DataDir, "leafcerts", fmt.Sprintf("%s-cert.pem", strconv.FormatInt(nextSn, 10)))
 
 	// Sign the certificate
 	certBytes, err := x509.CreateCertificate(rand.Reader, template, ca, csr.PublicKey, caTls.PrivateKey)
 	if err != nil {
-		return nil, 0, err
+		return "", 0, err
 	}
 
 	// Public key + cert
 	certOut, err := os.Create(outCertFilename)
 	if err != nil {
-		return nil, 0, err
+		return "", 0, err
 	}
 	err = pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
 	if err != nil {
-		return nil, 0, err
+		return "", 0, err
 	}
 	err = certOut.Close()
 	if err != nil {
-		return nil, 0, err
+		return "", 0, err
 	}
 
-	return certBytes, nextSn, nil
+	return base64.StdEncoding.EncodeToString(certBytes), nextSn, nil
 }
 
 // FindLeafCertificate returns the contents of the leaf certificate

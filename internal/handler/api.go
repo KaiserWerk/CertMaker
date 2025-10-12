@@ -148,7 +148,7 @@ func (bh *BaseHandler) APIRequestCertificateWithSimpleRequestHandler(w http.Resp
 		return
 	}
 
-	certBytes, keyBytes, sn, err := bh.CertMaker.GenerateLeafCertAndKey(certRequest)
+	certData, keyData, sn, err := bh.CertMaker.GenerateLeafCertAndKey(certRequest)
 	if err != nil {
 		logger.Errorf("error generating key + certificate: %s\n", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -168,8 +168,8 @@ func (bh *BaseHandler) APIRequestCertificateWithSimpleRequestHandler(w http.Resp
 		return
 	}
 
-	response.CertificatePEM = string(certBytes)
-	response.PrivateKeyPEM = string(keyBytes)
+	response.CertificatePEM = certData
+	response.PrivateKeyPEM = keyData
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -449,7 +449,7 @@ func (bh *BaseHandler) APIOCSPRequestHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	w.Write(resp)
+	_, _ = w.Write(resp)
 }
 
 // APISolveHTTP01ChallengeHandler handles solving the challenges created for certificate request
@@ -544,14 +544,24 @@ func (bh *BaseHandler) APISolveHTTP01ChallengeHandler(w http.ResponseWriter, r *
 		if err != nil {
 			response.Error = fmt.Sprintf("failed HTTP-01 validation for domain %s: %s", domain, err.Error())
 			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(response)
+			err = json.NewEncoder(w).Encode(response)
+			if err != nil {
+				logger.Infof("could not encode response: %s", err.Error())
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
 			return
 		}
 
 		if !ok {
 			response.Error = fmt.Sprintf("failed HTTP-01 validation for domain %s", domain)
 			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(response)
+			err = json.NewEncoder(w).Encode(response)
+			if err != nil {
+				logger.Infof("could not encode response: %s", err.Error())
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
 			return
 		}
 	}
@@ -570,14 +580,24 @@ func (bh *BaseHandler) APISolveHTTP01ChallengeHandler(w http.ResponseWriter, r *
 		if err != nil {
 			response.Error = fmt.Sprintf("failed HTTP-01 validation for IP %s: %s", ip, err.Error())
 			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(response)
+			err = json.NewEncoder(w).Encode(response)
+			if err != nil {
+				logger.Infof("could not encode response: %s", err.Error())
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
 			return
 		}
 
 		if !ok {
 			response.Error = fmt.Sprintf("failed HTTP-01 validation for IP %s", ip)
 			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(response)
+			err = json.NewEncoder(w).Encode(response)
+			if err != nil {
+				logger.Infof("could not encode response: %s", err.Error())
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
 			return
 		}
 	}
@@ -585,19 +605,20 @@ func (bh *BaseHandler) APISolveHTTP01ChallengeHandler(w http.ResponseWriter, r *
 	// from here on, we know that the challenge was successful for all domains and IPs
 	// that means we can issue the certificate
 	var (
-		certBytes, keyBytes []byte
-		sn                  int64
+		certData, keyData string
+		sn                int64
 	)
 	if fromCSR {
 		// issue certificate from CSR
-		certBytes, sn, err = bh.CertMaker.GenerateCertificateByCSR(csr)
+		certData, sn, err = bh.CertMaker.GenerateCertificateByCSR(csr)
 		if err != nil {
 			logger.Errorf("error generating certificate from CSR: %s\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
+
 			return
 		}
 	} else {
-		certBytes, keyBytes, sn, err = bh.CertMaker.GenerateLeafCertAndKey(simpleRequest)
+		certData, keyData, sn, err = bh.CertMaker.GenerateLeafCertAndKey(simpleRequest)
 		if err != nil {
 			logger.Errorf("error generating key + certificate: %s\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
@@ -630,9 +651,9 @@ func (bh *BaseHandler) APISolveHTTP01ChallengeHandler(w http.ResponseWriter, r *
 	}
 
 	// set up response
-	response.CertificatePEM = string(certBytes)
+	response.CertificatePEM = certData
 	if !fromCSR {
-		response.PrivateKeyPEM = string(keyBytes)
+		response.PrivateKeyPEM = keyData
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -740,19 +761,19 @@ func (bh *BaseHandler) APISolveDNS01ChallengeHandler(w http.ResponseWriter, r *h
 	// that means we can issue the certificate
 
 	var (
-		certBytes, keyBytes []byte
-		sn                  int64
+		certData, keyData string
+		sn                int64
 	)
 	if fromCSR {
 		// issue certificate from CSR
-		certBytes, sn, err = bh.CertMaker.GenerateCertificateByCSR(csr)
+		certData, sn, err = bh.CertMaker.GenerateCertificateByCSR(csr)
 		if err != nil {
 			logger.Errorf("error generating certificate from CSR: %s\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 	} else {
-		certBytes, keyBytes, sn, err = bh.CertMaker.GenerateLeafCertAndKey(simpleRequest)
+		certData, keyData, sn, err = bh.CertMaker.GenerateLeafCertAndKey(simpleRequest)
 		if err != nil {
 			logger.Errorf("error generating key + certificate: %s\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
@@ -770,14 +791,14 @@ func (bh *BaseHandler) APISolveDNS01ChallengeHandler(w http.ResponseWriter, r *h
 	}
 
 	// store certificate info in DB
-	ci := entity.CertInfo{
+	certInfo := &entity.CertInfo{
 		SerialNumber:   sn,
 		FromCSR:        fromCSR,
 		CreatedForUser: challenge.CreatedFor,
 		Revoked:        false,
 	}
 
-	err = bh.DBSvc.AddCertInfo(&ci)
+	err = bh.DBSvc.AddCertInfo(certInfo)
 	if err != nil {
 		logger.Errorf("could not insert cert info into DB: %s", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -785,9 +806,9 @@ func (bh *BaseHandler) APISolveDNS01ChallengeHandler(w http.ResponseWriter, r *h
 	}
 
 	// set up response
-	response.CertificatePEM = string(certBytes)
+	response.CertificatePEM = certData
 	if !fromCSR {
-		response.PrivateKeyPEM = string(keyBytes)
+		response.PrivateKeyPEM = keyData
 	}
 
 	w.Header().Set("Content-Type", "application/json")
