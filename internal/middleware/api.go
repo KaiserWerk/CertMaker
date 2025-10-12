@@ -20,7 +20,7 @@ func (mh *MWHandler) RequireToken(next http.Handler) http.Handler {
 		u, err := mh.DBSvc.FindUser("api_key = ?", token)
 		if err != nil {
 			logger.Print("could not find associated user")
-			w.WriteHeader(http.StatusNotFound)
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 

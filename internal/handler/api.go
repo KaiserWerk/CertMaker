@@ -77,43 +77,63 @@ func (bh *BaseHandler) APIRequestCertificateWithSimpleRequestHandler(w http.Resp
 		return
 	}
 
+	var domainsToCheck []string
+	for _, d := range certRequest.Domains {
+		if helper.StringSliceContains(global.DNSNamesToSkip, d) {
+			continue
+		}
+		domainsToCheck = append(domainsToCheck, d)
+	}
+
 	// set up response
 	response := entity.CertificateResponse{}
 
 	var hasChallenge bool
-	if httpChallengeEnabled := bh.DBSvc.GetSetting(global.SettingEnableHTTP01Challenge); httpChallengeEnabled == "true" {
-		hasChallenge = true
-		ch := &entity.Challenge{
-			CreatedFor:    user.ID,
-			RequestInfoID: ri.ID,
-			ChallengeID:   fmt.Sprintf("%d-%s", user.ID, security.GenerateToken(20)),
-			ChallengeType: "http-01",
-			ValidUntil:    time.Now().Add(global.DefaultChallengeValidity),
-			Token:         security.GenerateToken(80),
+	if len(domainsToCheck) > 0 {
+		if httpChallengeEnabled := bh.DBSvc.GetSetting(global.SettingEnableHTTP01Challenge); httpChallengeEnabled == "true" {
+			hasChallenge = true
+			ch := &entity.Challenge{
+				CreatedFor:    user.ID,
+				RequestInfoID: ri.ID,
+				ChallengeID:   fmt.Sprintf("%d-%s", user.ID, security.GenerateToken(20)),
+				ChallengeType: "http-01",
+				ValidUntil:    time.Now().Add(global.DefaultChallengeValidity),
+				Token:         security.GenerateToken(80),
+			}
+			if err = bh.DBSvc.AddChallenge(ch); err != nil {
+				logger.Infof("error inserting challenge: %s\n", err.Error())
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			response.Challenges = append(response.Challenges, entity.ChallengeResponse{
+				ChallengeType:  ch.ChallengeType,
+				ChallengeID:    ch.ChallengeID,
+				ChallengeToken: ch.Token,
+				ValidUntil:     ch.ValidUntil.Format(time.RFC3339),
+			})
 		}
-		if err = bh.DBSvc.AddChallenge(ch); err != nil {
-			logger.Infof("error inserting challenge: %s\n", err.Error())
-			w.WriteHeader(http.StatusInternalServerError)
-			return
+		if dnsChallengeEnabled := bh.DBSvc.GetSetting(global.SettingEnableDNS01Challenge); dnsChallengeEnabled == "true" {
+			hasChallenge = true
+			ch := &entity.Challenge{
+				CreatedFor:    user.ID,
+				RequestInfoID: ri.ID,
+				ChallengeID:   fmt.Sprintf("%d-%s", user.ID, security.GenerateToken(20)),
+				ChallengeType: "dns-01",
+				ValidUntil:    time.Now().Add(global.DefaultChallengeValidity),
+				Token:         security.GenerateToken(80),
+			}
+			if err = bh.DBSvc.AddChallenge(ch); err != nil {
+				logger.Infof("error inserting challenge: %s\n", err.Error())
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			response.Challenges = append(response.Challenges, entity.ChallengeResponse{
+				ChallengeType:  ch.ChallengeType,
+				ChallengeID:    ch.ChallengeID,
+				ChallengeToken: ch.Token,
+				ValidUntil:     ch.ValidUntil.Format(time.RFC3339),
+			})
 		}
-		response.HTTP01Challenge = true
-	}
-	if dnsChallengeEnabled := bh.DBSvc.GetSetting(global.SettingEnableDNS01Challenge); dnsChallengeEnabled == "true" {
-		hasChallenge = true
-		ch := &entity.Challenge{
-			CreatedFor:    user.ID,
-			RequestInfoID: ri.ID,
-			ChallengeID:   fmt.Sprintf("%d-%s", user.ID, security.GenerateToken(20)),
-			ChallengeType: "dns-01",
-			ValidUntil:    time.Now().Add(global.DefaultChallengeValidity),
-			Token:         security.GenerateToken(80),
-		}
-		if err = bh.DBSvc.AddChallenge(ch); err != nil {
-			logger.Infof("error inserting challenge: %s\n", err.Error())
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		response.DNS01Challenge = true
 	}
 
 	if hasChallenge {
@@ -207,42 +227,65 @@ func (bh *BaseHandler) APIRequestCertificateWithCSRHandler(w http.ResponseWriter
 		return
 	}
 
+	var domainsToCheck []string
+	for _, d := range csr.DNSNames {
+		if helper.StringSliceContains(global.DNSNamesToSkip, d) {
+			continue
+		}
+		domainsToCheck = append(domainsToCheck, d)
+	}
+
 	response := entity.CertificateResponse{}
 
 	var hasChallenge bool
-	if httpChallengeEnabled := bh.DBSvc.GetSetting(global.SettingEnableHTTP01Challenge); httpChallengeEnabled == "true" {
-		hasChallenge = true
-		ch := &entity.Challenge{
-			CreatedFor:    user.ID,
-			RequestInfoID: ri.ID,
-			ChallengeID:   fmt.Sprintf("%d-%s", user.ID, security.GenerateToken(20)),
-			ChallengeType: "http-01",
-			ValidUntil:    time.Now().Add(global.DefaultChallengeValidity),
-			Token:         security.GenerateToken(80),
+	if len(domainsToCheck) > 0 {
+		challengeID := fmt.Sprintf("%d-%s", user.ID, security.GenerateToken(20))
+		expectedToken := security.GenerateToken(80)
+		if httpChallengeEnabled := bh.DBSvc.GetSetting(global.SettingEnableHTTP01Challenge); httpChallengeEnabled == "true" {
+			hasChallenge = true
+			ch := &entity.Challenge{
+				CreatedFor:    user.ID,
+				RequestInfoID: ri.ID,
+				ChallengeID:   challengeID,
+				ChallengeType: "http-01",
+				ValidUntil:    time.Now().Add(global.DefaultChallengeValidity),
+				Token:         expectedToken,
+			}
+			if err = bh.DBSvc.AddChallenge(ch); err != nil {
+				logger.Infof("error inserting challenge: %s\n", err.Error())
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			response.Challenges = append(response.Challenges, entity.ChallengeResponse{
+				ChallengeType:  ch.ChallengeType,
+				ChallengeID:    ch.ChallengeID,
+				ChallengeToken: ch.Token,
+				ValidUntil:     ch.ValidUntil.Format(time.RFC3339),
+			})
 		}
-		if err = bh.DBSvc.AddChallenge(ch); err != nil {
-			logger.Infof("error inserting challenge: %s\n", err.Error())
-			w.WriteHeader(http.StatusInternalServerError)
-			return
+		if dnsChallengeEnabled := bh.DBSvc.GetSetting(global.SettingEnableDNS01Challenge); dnsChallengeEnabled == "true" {
+			hasChallenge = true
+			ch := &entity.Challenge{
+				CreatedFor:    user.ID,
+				RequestInfoID: ri.ID,
+				ChallengeID:   challengeID,
+				ChallengeType: "dns-01",
+				ValidUntil:    time.Now().Add(global.DefaultChallengeValidity),
+				Token:         expectedToken,
+			}
+			if err = bh.DBSvc.AddChallenge(ch); err != nil {
+				logger.Infof("error inserting challenge: %s\n", err.Error())
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			response.Challenges = append(response.Challenges, entity.ChallengeResponse{
+				ChallengeType:  ch.ChallengeType,
+				ChallengeID:    ch.ChallengeID,
+				ChallengeToken: ch.Token,
+				ValidUntil:     ch.ValidUntil.Format(time.RFC3339),
+			})
 		}
-		response.HTTP01Challenge = true
-	}
-	if dnsChallengeEnabled := bh.DBSvc.GetSetting(global.SettingEnableDNS01Challenge); dnsChallengeEnabled == "true" {
-		hasChallenge = true
-		ch := &entity.Challenge{
-			CreatedFor:    user.ID,
-			RequestInfoID: ri.ID,
-			ChallengeID:   fmt.Sprintf("%d-%s", user.ID, security.GenerateToken(20)),
-			ChallengeType: "dns-01",
-			ValidUntil:    time.Now().Add(global.DefaultChallengeValidity),
-			Token:         security.GenerateToken(80),
-		}
-		if err = bh.DBSvc.AddChallenge(ch); err != nil {
-			logger.Infof("error inserting challenge: %s\n", err.Error())
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		response.DNS01Challenge = true
+
 	}
 
 	if hasChallenge {

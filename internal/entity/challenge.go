@@ -11,8 +11,9 @@ type Challenge struct {
 	gorm.Model
 	CreatedFor    uint
 	RequestInfoID uint
-	ChallengeID   string `gorm:"index:,unique"`
+	ChallengeID   string
 	ChallengeType string
-	Token         string
-	ValidUntil    time.Time
+	//Domains       string // Comma-separated list of domains this challenge is for
+	Token      string
+	ValidUntil time.Time
 }
