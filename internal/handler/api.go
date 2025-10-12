@@ -340,67 +340,6 @@ func (bh *BaseHandler) APIRequestCertificateWithCSRHandler(w http.ResponseWriter
 	_ = json.NewEncoder(w).Encode(response)
 }
 
-// APIObtainCertificateHandler allows to actually download a certificate
-func (bh *BaseHandler) APIObtainCertificateHandler(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-	var (
-		logger = bh.ContextLogger("api")
-		id     = mux.Vars(r)["id"]
-	)
-
-	certID, err := strconv.ParseInt(id, 10, 64)
-	if err != nil {
-		logger.Debugf("ID is not numeric: %s", id)
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	certBytes, err := bh.CertMaker.FindLeafCertificate(certID)
-	if err != nil {
-		logger.Debugf("No certificate found for ID %s", id)
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
-	//w.Header().Set("Content-Disposition", "attachment; filename=\""+id+"-cert.pem\"")
-	w.Header().Set("Content-Type", global.PEMContentType)
-	_, err = w.Write(certBytes)
-	if err != nil {
-		logger.Error("could not write cert bytes: " + err.Error())
-	}
-}
-
-// APIObtainPrivateKeyHandler allows to actually download a private key
-func (bh *BaseHandler) APIObtainPrivateKeyHandler(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-	var (
-		logger = bh.ContextLogger("api")
-		vars   = mux.Vars(r)
-		id     = vars["id"]
-	)
-
-	keyID, err := strconv.ParseInt(id, 10, 64)
-	if err != nil {
-		logger.Debugf("ID is not numeric: %s", id)
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	keyBytes, err := bh.CertMaker.FindLeafPrivateKey(keyID)
-	if err != nil {
-		logger.Debugf("No private key found for ID %s", id)
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
-	//w.Header().Set("Content-Disposition", "attachment; filename=\""+id+"-key.pem\"")
-	w.Header().Set("Content-Type", global.PEMContentType)
-	_, err = w.Write(keyBytes)
-	if err != nil {
-		logger.Error("could not write private key bytes: " + err.Error())
-	}
-}
-
 // APIOCSPRequestHandler responds to OCSP requests with whether the certificate
 // in question is revoked or not
 func (bh *BaseHandler) APIOCSPRequestHandler(w http.ResponseWriter, r *http.Request) {
@@ -914,5 +853,66 @@ func (bh *BaseHandler) APIRevokeCertificateHandler(w http.ResponseWriter, r *htt
 		logger.Debugf("could not update certinfo: %s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 		return
+	}
+}
+
+// APIObtainCertificateHandler allows to actually download a certificate
+func (bh *BaseHandler) APIObtainCertificateHandler(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	var (
+		logger = bh.ContextLogger("api")
+		id     = mux.Vars(r)["id"]
+	)
+
+	certID, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		logger.Debugf("ID is not numeric: %s", id)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	certBytes, err := bh.CertMaker.FindLeafCertificate(certID)
+	if err != nil {
+		logger.Debugf("No certificate found for ID %s", id)
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	//w.Header().Set("Content-Disposition", "attachment; filename=\""+id+"-cert.pem\"")
+	w.Header().Set("Content-Type", global.PEMContentType)
+	_, err = w.Write(certBytes)
+	if err != nil {
+		logger.Error("could not write cert bytes: " + err.Error())
+	}
+}
+
+// APIObtainPrivateKeyHandler allows to actually download a private key
+func (bh *BaseHandler) APIObtainPrivateKeyHandler(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	var (
+		logger = bh.ContextLogger("api")
+		vars   = mux.Vars(r)
+		id     = vars["id"]
+	)
+
+	keyID, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		logger.Debugf("ID is not numeric: %s", id)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	keyBytes, err := bh.CertMaker.FindLeafPrivateKey(keyID)
+	if err != nil {
+		logger.Debugf("No private key found for ID %s", id)
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	//w.Header().Set("Content-Disposition", "attachment; filename=\""+id+"-key.pem\"")
+	w.Header().Set("Content-Type", global.PEMContentType)
+	_, err = w.Write(keyBytes)
+	if err != nil {
+		logger.Error("could not write private key bytes: " + err.Error())
 	}
 }
