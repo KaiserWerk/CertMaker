@@ -193,23 +193,31 @@ func (bh *BaseHandler) APIRequestCertificateWithCSRHandler(w http.ResponseWriter
 		user   = r.Context().Value("user").(*entity.User)
 	)
 
+	response := entity.CertificateResponse{}
+
 	csrMode := bh.DBSvc.GetSetting(global.SettingEnableCSRRequestMode)
 	if csrMode != "true" {
 		w.WriteHeader(http.StatusNotImplemented)
+		response.Error = "CSR mode is not enabled on this instance"
+		_ = json.NewEncoder(w).Encode(response)
 		return
 	}
 
 	csrBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		logger.Debugf("could not read request body: %s", err.Error())
-		http.Error(w, "malformed http request", http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		response.Error = "could not read request body"
+		_ = json.NewEncoder(w).Encode(response)
 		return
 	}
 
 	csr, err := x509.ParseCertificateRequest(csrBytes)
 	if err != nil {
 		logger.Debugf("could not parse certificate signing request: %s", err.Error())
-		http.Error(w, "malformed certificate signing request", http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		response.Error = "could not parse request body"
+		_ = json.NewEncoder(w).Encode(response)
 		return
 	}
 
@@ -224,6 +232,8 @@ func (bh *BaseHandler) APIRequestCertificateWithCSRHandler(w http.ResponseWriter
 	if err = bh.DBSvc.AddRequestInfo(&ri); err != nil {
 		logger.Infof("error inserting request info: %s\n", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
+		response.Error = "internal server error"
+		_ = json.NewEncoder(w).Encode(response)
 		return
 	}
 
@@ -234,8 +244,6 @@ func (bh *BaseHandler) APIRequestCertificateWithCSRHandler(w http.ResponseWriter
 		}
 		domainsToCheck = append(domainsToCheck, d)
 	}
-
-	response := entity.CertificateResponse{}
 
 	var hasChallenge bool
 	if len(domainsToCheck) > 0 {
@@ -254,6 +262,8 @@ func (bh *BaseHandler) APIRequestCertificateWithCSRHandler(w http.ResponseWriter
 			if err = bh.DBSvc.AddChallenge(ch); err != nil {
 				logger.Infof("error inserting challenge: %s\n", err.Error())
 				w.WriteHeader(http.StatusInternalServerError)
+				response.Error = "internal server error"
+				_ = json.NewEncoder(w).Encode(response)
 				return
 			}
 			response.Challenges = append(response.Challenges, entity.ChallengeResponse{
@@ -276,6 +286,8 @@ func (bh *BaseHandler) APIRequestCertificateWithCSRHandler(w http.ResponseWriter
 			if err = bh.DBSvc.AddChallenge(ch); err != nil {
 				logger.Infof("error inserting challenge: %s\n", err.Error())
 				w.WriteHeader(http.StatusInternalServerError)
+				response.Error = "internal server error"
+				_ = json.NewEncoder(w).Encode(response)
 				return
 			}
 			response.Challenges = append(response.Challenges, entity.ChallengeResponse{
@@ -291,19 +303,17 @@ func (bh *BaseHandler) APIRequestCertificateWithCSRHandler(w http.ResponseWriter
 	if hasChallenge {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusAccepted)
-		err = json.NewEncoder(w).Encode(response)
-		if err != nil {
-			logger.Infof("could not encode response: %s", err.Error())
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
+		_ = json.NewEncoder(w).Encode(response)
 		return
 	}
 
+	// no challenge, issue certificate right away
 	certBytes, sn, err := bh.CertMaker.GenerateCertificateByCSR(csr)
 	if err != nil {
 		logger.Errorf("error generating certificate: %s\n", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
+		response.Error = "internal server error"
+		_ = json.NewEncoder(w).Encode(response)
 		return
 	}
 
@@ -317,6 +327,8 @@ func (bh *BaseHandler) APIRequestCertificateWithCSRHandler(w http.ResponseWriter
 	if err != nil {
 		logger.Errorf("could not insert cert info into DB: %s", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
+		response.Error = "internal server error"
+		_ = json.NewEncoder(w).Encode(response)
 		return
 	}
 
@@ -325,12 +337,7 @@ func (bh *BaseHandler) APIRequestCertificateWithCSRHandler(w http.ResponseWriter
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 
-	err = json.NewEncoder(w).Encode(response)
-	if err != nil {
-		logger.Infof("could not encode response: %s", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 // APIObtainCertificateHandler allows to actually download a certificate
