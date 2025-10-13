@@ -564,6 +564,7 @@ func (bh *BaseHandler) APISolveHTTP01ChallengeHandler(w http.ResponseWriter, r *
 			}
 			return
 		}
+		logger.Debugf("HTTP-01 validation successful for domain %s", domain)
 	}
 
 	// check well known path for every IP
@@ -600,6 +601,7 @@ func (bh *BaseHandler) APISolveHTTP01ChallengeHandler(w http.ResponseWriter, r *
 			}
 			return
 		}
+		logger.Debugf("HTTP-01 validation successful for IP %s", ip)
 	}
 
 	// from here on, we know that the challenge was successful for all domains and IPs
