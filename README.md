@@ -27,13 +27,14 @@ Perfect for your homelab or self-hosted infrastructure.
 ### Tools
 * [CertMaker Bot](https://github.com/KaiserWerk/CertMaker-Bot)
 
-  A simple tool to automate the certificate fetching for apps which cannot handle that themselves,
-  like Nginx, Apache or Lighttpd.
-* [certctl](https://github.com/KaiserWerk/certctl)
+  A simple sidecar app to automate fetching new certificates based on configuration files.
 
-  A command line tool to obtain certificates from one or multiple CertMaker instances. Has a neat interactive mode!
+* [CertMaker CLI](https://github.com/KaiserWerk/CertMaker-CLI)
+
+  A command line tool to obtain certificates from CertMaker instances and to handle general certificate needs.
+
 * [Go SDK](https://github.com/KaiserWerk/CertMaker-Go-SDK)
   
   The Golang software development kit for *CertMaker*. It allows you to build custom apps for your specific 
-  certificate needs without having to use the REST API directly.
+  certificate needs without having to use the HTTP API directly.
 
