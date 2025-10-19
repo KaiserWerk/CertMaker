@@ -8,10 +8,9 @@ yourself (in that case, refer to ``build.ps1``).
    configuration values according to your needs. At next startup, all the necessary database 
    tables will be created automatically.
 1. Open your favourite browser and navigate to ``http://localhost:8880`` to access the web UI.
-1. Create a new user with admin flag set. Make sure you remember the password.
-1. Enable the *Username and Password (UI)* authentication provider.
+1. Create a new user with admin flag set. 
 
-That's about it for initial setup. Make sure all files and folder can be written and read by 
+That's about it for initial setup. Make sure all files and folders can be written and read by 
 the user running the binary.
 
 I strongly suggest you create a separate user account for every app / client that will

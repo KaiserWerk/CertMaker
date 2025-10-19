@@ -112,7 +112,9 @@ func (bh *BaseHandler) APIRequestCertificateWithSimpleRequestHandler(w http.Resp
 				ValidUntil:     ch.ValidUntil.Format(time.RFC3339),
 			})
 		}
-		if dnsChallengeEnabled := bh.DBSvc.GetSetting(global.SettingEnableDNS01Challenge); dnsChallengeEnabled == "true" {
+		// only allow DNS-01 challenge if no IPs are requested.
+		// Those cannot be validated via DNS.
+		if dnsChallengeEnabled := bh.DBSvc.GetSetting(global.SettingEnableDNS01Challenge); dnsChallengeEnabled == "true" && len(certRequest.IPs) == 0 {
 			hasChallenge = true
 			ch := &entity.Challenge{
 				CreatedFor:    user.ID,

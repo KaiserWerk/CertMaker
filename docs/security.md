@@ -2,14 +2,10 @@
 
 ### Authentication
 
-There are two modes of authentication which can be enabled and disabled separately.
+There are two modes of authentication:
 
 1. Username and Password (UI)
 1. API Token (API)
-
-If 1. is disabled, everyone can access the web UI at will. If 2. is disabled, everyone 
-can use the API without any token.
-Both modes are disabled by default.
 
 ### Authorization
 
@@ -30,8 +26,5 @@ disabled by default.
 
 ### Generation of private keys
 
-*CertMaker* currently uses ECDSA for private key generation. That goes for the root private key 
-as well.
-
-I consider adding a system setting so you can switch the algorithm via web UI, possible 
-algorithms would be RSA, ECDSA and ED25519.
+*CertMaker* uses the key algorithm which is set in the configuration. If not set, default 'rsa' is assumed. 
+Other possible values are 'ecdsa' and 'ed25519'.

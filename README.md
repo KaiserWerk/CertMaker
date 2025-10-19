@@ -20,7 +20,6 @@ Perfect for your homelab or self-hosted infrastructure.
 
 * [Setup](docs/setup.md)
 * [Configuration](docs/configuration.md)
-* [UI](docs/ui.md)
 * [API](docs/api.md)
 * [Security](docs/security.md)
 
