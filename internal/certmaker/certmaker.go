@@ -428,39 +428,39 @@ func (cm *CertMaker) GetRootCertificate() (*x509.Certificate, error) {
 	return x509.ParseCertificate(block.Bytes)
 }
 
-func (cm *CertMaker) GetRootKeyPair() (*x509.Certificate, crypto.Signer, error) {
+func (cm *CertMaker) GetRootKeyPair() (*x509.Certificate, crypto.Signer, x509.SignatureAlgorithm, error) {
 	// cert
 	cont, err := os.ReadFile(filepath.Join(cm.Config.DataDir, "root-cert.pem"))
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, 0, err
 	}
 
 	block, _ := pem.Decode(cont)
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, 0, err
 	}
 
 	cont, err = os.ReadFile(filepath.Join(cm.Config.DataDir, "root-key.pem"))
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, 0, err
 	}
 
 	block, _ = pem.Decode(cont)
 	privKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, 0, err
 	}
 
-	if rsaKey, ok := privKey.(rsa.PrivateKey); ok {
-		return cert, &rsaKey, nil
+	if rsaKey, ok := privKey.(*rsa.PrivateKey); ok {
+		return cert, rsaKey, x509.SHA512WithRSA, nil
 	}
-	if ecdsaKey, ok := privKey.(ecdsa.PrivateKey); ok {
-		return cert, &ecdsaKey, nil
+	if ecdsaKey, ok := privKey.(*ecdsa.PrivateKey); ok {
+		return cert, ecdsaKey, x509.ECDSAWithSHA512, nil
 	}
 	if ed25519Key, ok := privKey.(ed25519.PrivateKey); ok {
-		return cert, &ed25519Key, nil
+		return cert, &ed25519Key, x509.PureEd25519, nil
 	}
 
-	return nil, nil, fmt.Errorf("private key is neither of type RSA, ECDSA nor ED25519")
+	return nil, nil, 0, fmt.Errorf("private key is neither of type RSA, ECDSA nor ED25519")
 }

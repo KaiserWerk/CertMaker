@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"database/sql"
+	"encoding/asn1"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
@@ -20,6 +22,7 @@ import (
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 	"github.com/KaiserWerk/CertMaker/internal/global"
 	"github.com/KaiserWerk/CertMaker/internal/helper"
+	"github.com/KaiserWerk/CertMaker/internal/ocsputil"
 	"github.com/KaiserWerk/CertMaker/internal/security"
 
 	"github.com/gorilla/mux"
@@ -429,20 +432,40 @@ func (bh *BaseHandler) APIOCSPRequestHandler(w http.ResponseWriter, r *http.Requ
 		SerialNumber: ocspReq.SerialNumber,
 		ThisUpdate:   time.Now().AddDate(0, 0, -1).UTC(),
 		//adding 1 day after the current date. This ocsp library sets the default date to epoch which makes ocsp clients freak out.
-		NextUpdate:         time.Now().AddDate(0, 0, 1).UTC(),
-		RevokedAt:          revokedAt,
-		RevocationReason:   ocsp.Unspecified,
-		Certificate:        cert,
-		SignatureAlgorithm: x509.ECDSAWithSHA256,
-		IssuerHash:         crypto.SHA512,
+		NextUpdate:       time.Now().AddDate(0, 0, 1).UTC(),
+		RevokedAt:        revokedAt,
+		RevocationReason: ocsp.Unspecified,
+		Certificate:      cert,
+		IssuerHash:       crypto.SHA512,
 	}
 
-	rootCert, rootKey, err := bh.CertMaker.GetRootKeyPair()
+	nonce, err := ocsputil.ExtractNonceFromRequestDER(requestData)
+	if err != nil {
+		logger.Errorf("could not extract nonce from OCSP request: %s", err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if nonce != nil {
+		nonceExt := pkix.Extension{
+			Id: ocsputil.OidOCSPNonce,
+			Value: ocsputil.MustASN1Marshal(asn1.RawValue{
+				Tag:   asn1.TagOctetString,
+				Class: asn1.ClassUniversal,
+				Bytes: nonce,
+			}),
+		}
+		responseTemplate.ExtraExtensions = []pkix.Extension{nonceExt}
+	}
+
+	rootCert, rootKey, sigAlgo, err := bh.CertMaker.GetRootKeyPair()
 	if err != nil {
 		logger.Errorf("could not retrieve root certificate: %s", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
+	responseTemplate.SignatureAlgorithm = sigAlgo
 
 	resp, err := ocsp.CreateResponse(rootCert, rootCert, responseTemplate, rootKey)
 	if err != nil {

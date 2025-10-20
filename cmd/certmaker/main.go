@@ -202,9 +202,9 @@ func setupRoutes(cfg *configuration.AppConfig, logger *logrus.Entry, dbSvc *dbse
 	apiRouter.HandleFunc("/http-01/{challengeID}/solve", bh.APISolveHTTP01ChallengeHandler).Methods(http.MethodPost)
 	apiRouter.HandleFunc("/dns-01/{challengeID}/solve", bh.APISolveHTTP01ChallengeHandler).Methods(http.MethodGet)
 
-	ocspRouter := router.PathPrefix("/ocsp").Subrouter()
-	ocspRouter.HandleFunc("/{base64}", bh.APIOCSPRequestHandler).Methods(http.MethodGet)
-	ocspRouter.HandleFunc("/", bh.APIOCSPRequestHandler).Methods(http.MethodPost)
+	ocspRouter := router.PathPrefix("/api/v1").Subrouter()
+	ocspRouter.HandleFunc("/ocsp/{base64}", bh.APIOCSPRequestHandler).Methods(http.MethodGet)
+	ocspRouter.HandleFunc("/ocsp", bh.APIOCSPRequestHandler).Methods(http.MethodPost)
 
 	return router
 }
