@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"database/sql"
-	"encoding/asn1"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
@@ -22,7 +20,6 @@ import (
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 	"github.com/KaiserWerk/CertMaker/internal/global"
 	"github.com/KaiserWerk/CertMaker/internal/helper"
-	"github.com/KaiserWerk/CertMaker/internal/ocsputil"
 	"github.com/KaiserWerk/CertMaker/internal/security"
 
 	"github.com/gorilla/mux"
@@ -345,8 +342,8 @@ func (bh *BaseHandler) APIRequestCertificateWithCSRHandler(w http.ResponseWriter
 	_ = json.NewEncoder(w).Encode(response)
 }
 
-// APIOCSPRequestHandler responds to OCSP requests with whether the certificate
-// in question is revoked or not
+// APIOCSPRequestHandler responds to OCSP requests with the revocation status of the certificate
+// in question
 func (bh *BaseHandler) APIOCSPRequestHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	var (
@@ -355,18 +352,17 @@ func (bh *BaseHandler) APIOCSPRequestHandler(w http.ResponseWriter, r *http.Requ
 		vars   = mux.Vars(r)
 	)
 
+	// handle content type headers
+	w.Header().Set("Content-Type", "application/ocsp-response")
 	if r.Header.Get("Content-Type") != "application/ocsp-request" {
 		logger.Debug("incorrect content type header: " + r.Header.Get("Content-Type"))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/ocsp-response")
-
 	var requestData []byte
 	switch r.Method {
 	case http.MethodPost:
-		logger.Debug("POST request")
 		requestData, err = io.ReadAll(r.Body)
 		if err != nil {
 			logger.Debugf("could not read request body: %s", err.Error())
@@ -375,7 +371,6 @@ func (bh *BaseHandler) APIOCSPRequestHandler(w http.ResponseWriter, r *http.Requ
 		}
 		_ = r.Body.Close()
 	case http.MethodGet:
-		logger.Debug("GET request")
 		requestData, err = base64.StdEncoding.DecodeString(vars["base64"])
 		if err != nil {
 			logger.Debugf("could not base64 decode: %s", err.Error())
@@ -392,7 +387,7 @@ func (bh *BaseHandler) APIOCSPRequestHandler(w http.ResponseWriter, r *http.Requ
 	}
 
 	status := ocsp.Good
-	ci, err := bh.DBSvc.FindCertInfo("serial_number = ?", ocspReq.SerialNumber.Int64()) // geht das?
+	ci, err := bh.DBSvc.FindCertInfo("serial_number = ?", ocspReq.SerialNumber.Int64())
 	if err != nil {
 		logger.Debug("could not find cert info: " + err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -439,24 +434,26 @@ func (bh *BaseHandler) APIOCSPRequestHandler(w http.ResponseWriter, r *http.Requ
 		IssuerHash:       crypto.SHA512,
 	}
 
-	nonce, err := ocsputil.ExtractNonceFromRequestDER(requestData)
-	if err != nil {
-		logger.Errorf("could not extract nonce from OCSP request: %s", err.Error())
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
+	// maybe add nonce extension back in the future
 
-	if nonce != nil {
-		nonceExt := pkix.Extension{
-			Id: ocsputil.OidOCSPNonce,
-			Value: ocsputil.MustASN1Marshal(asn1.RawValue{
-				Tag:   asn1.TagOctetString,
-				Class: asn1.ClassUniversal,
-				Bytes: nonce,
-			}),
-		}
-		responseTemplate.ExtraExtensions = []pkix.Extension{nonceExt}
-	}
+	// nonce, err := ocsputil.ExtractNonceFromRequestDER(requestData)
+	// if err != nil {
+	// 	logger.Errorf("could not extract nonce from OCSP request: %s", err.Error())
+	// 	w.WriteHeader(http.StatusBadRequest)
+	// 	return
+	// }
+
+	// if nonce != nil {
+	// 	nonceExt := pkix.Extension{
+	// 		Id: ocsputil.OidOCSPNonce,
+	// 		Value: ocsputil.MustASN1Marshal(asn1.RawValue{
+	// 			Tag:   asn1.TagOctetString,
+	// 			Class: asn1.ClassUniversal,
+	// 			Bytes: nonce,
+	// 		}),
+	// 	}
+	// 	responseTemplate.ExtraExtensions = []pkix.Extension{nonceExt}
+	// }
 
 	rootCert, rootKey, sigAlgo, err := bh.CertMaker.GetRootKeyPair()
 	if err != nil {
