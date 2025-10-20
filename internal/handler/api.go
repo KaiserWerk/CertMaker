@@ -7,7 +7,6 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"io"
 	"net/http"
@@ -398,26 +397,6 @@ func (bh *BaseHandler) APIOCSPRequestHandler(w http.ResponseWriter, r *http.Requ
 		status = ocsp.Revoked
 	}
 
-	certContent, err := os.ReadFile(filepath.Join(bh.Config.DataDir, "leafcerts", fmt.Sprintf("%d-cert.pem", ci.SerialNumber)))
-	if err != nil {
-		logger.Debug("could not read certificate file: " + err.Error())
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	block, _ := pem.Decode(certContent)
-	if block == nil {
-		logger.Debug("could not decode PEM block")
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	cert, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
-		logger.Debug("could not parse certificate: " + err.Error())
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
 	revokedAt := time.Now()
 	if ci.Revoked && ci.RevokedAt.Valid {
 		revokedAt = ci.RevokedAt.Time
@@ -430,7 +409,6 @@ func (bh *BaseHandler) APIOCSPRequestHandler(w http.ResponseWriter, r *http.Requ
 		NextUpdate:       time.Now().AddDate(0, 0, 1).UTC(),
 		RevokedAt:        revokedAt,
 		RevocationReason: ocsp.Unspecified,
-		Certificate:      cert,
 		IssuerHash:       crypto.SHA512,
 	}
 
