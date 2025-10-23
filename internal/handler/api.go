@@ -853,10 +853,17 @@ func (bh *BaseHandler) APIRevokeCertificateHandler(w http.ResponseWriter, r *htt
 	var (
 		logger = bh.ContextLogger("api")
 		u      = r.Context().Value("user").(*entity.User)
-		vars   = mux.Vars(r)
 	)
 
-	ci, err := bh.DBSvc.FindCertInfo("serial_number = ?", vars["sn"])
+	var revocationRequest entity.RevocationRequest
+	err := json.NewDecoder(r.Body).Decode(&revocationRequest)
+	if err != nil {
+		logger.Debugf("could not decode request body: %s", err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	ci, err := bh.DBSvc.FindCertInfo("serial_number = ?", revocationRequest.SerialNumber)
 	if err != nil {
 		logger.Debugf("could not find certinfo: %s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -864,7 +871,7 @@ func (bh *BaseHandler) APIRevokeCertificateHandler(w http.ResponseWriter, r *htt
 	}
 
 	if ci.CreatedForUser != u.ID && !u.Admin {
-		logger.Debugf("this is not your certificate")
+		logger.Debugf("This certificate was not issued to the requesting user %d (%s)", u.ID, u.Username)
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
@@ -881,7 +888,7 @@ func (bh *BaseHandler) APIRevokeCertificateHandler(w http.ResponseWriter, r *htt
 	err = bh.DBSvc.UpdateCertInfo(&ci)
 	if err != nil {
 		logger.Debugf("could not update certinfo: %s", err.Error())
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 }

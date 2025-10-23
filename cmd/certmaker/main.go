@@ -196,7 +196,7 @@ func setupRoutes(cfg *configuration.AppConfig, logger *logrus.Entry, dbSvc *dbse
 	apiRouter.HandleFunc("/root-certificate/obtain", bh.APIRootCertificateDownloadHandler).Methods(http.MethodGet)
 	apiRouter.HandleFunc("/certificate/request-with-simplerequest", bh.APIRequestCertificateWithSimpleRequestHandler).Methods(http.MethodPost)
 	apiRouter.HandleFunc("/certificate/request-with-csr", bh.APIRequestCertificateWithCSRHandler).Methods(http.MethodPost)
-	apiRouter.HandleFunc("/certificate/{sn}/revoke", bh.APIRevokeCertificateHandler).Methods(http.MethodGet)
+	apiRouter.HandleFunc("/certificate/revoke", bh.APIRevokeCertificateHandler).Methods(http.MethodPost)
 	// apiRouter.HandleFunc("/certificate/{id}/obtain", bh.APIObtainCertificateHandler).Methods(http.MethodGet)
 	// apiRouter.HandleFunc("/privatekey/{id}/obtain", bh.APIObtainPrivateKeyHandler).Methods(http.MethodGet)
 	apiRouter.HandleFunc("/http-01/{challengeID}/solve", bh.APISolveHTTP01ChallengeHandler).Methods(http.MethodPost)
