@@ -847,7 +847,7 @@ func (bh *BaseHandler) APIRootCertificateDownloadHandler(w http.ResponseWriter, 
 	_ = fh.Close()
 }
 
-// APIRevokeCertificateHandler allows a user to revoke a certificate by its serial number
+// APIRevokeCertificateHandler allows a user to revoke a certificate what was issued to that user
 func (bh *BaseHandler) APIRevokeCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	var (

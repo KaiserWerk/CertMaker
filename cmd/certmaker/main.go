@@ -14,8 +14,10 @@ import (
 	"github.com/KaiserWerk/CertMaker/internal/backup"
 	"github.com/KaiserWerk/CertMaker/internal/certmaker"
 	"github.com/KaiserWerk/CertMaker/internal/configuration"
+	"github.com/KaiserWerk/CertMaker/internal/cron"
 	"github.com/KaiserWerk/CertMaker/internal/dbservice"
 	"github.com/KaiserWerk/CertMaker/internal/handler"
+	"github.com/KaiserWerk/CertMaker/internal/jobs"
 	"github.com/KaiserWerk/CertMaker/internal/logging"
 	"github.com/KaiserWerk/CertMaker/internal/middleware"
 	"github.com/KaiserWerk/CertMaker/internal/templating"
@@ -90,21 +92,32 @@ func main() {
 		return
 	}
 
+	// perform schema setup
 	err = ds.AutoMigrate()
 	if err != nil {
 		logger.WithField("error", err.Error()).Error("could not execute schema setup")
 		return
 	}
 
-	router := setupRoutes(config, logger, ds, sessMgr, cm, *useUi)
+	// set up the jobs
+	cronjob := cron.New(&cron.Dependencies{
+		Config:    config,
+		Logger:    logger,
+		DBSvc:     ds,
+		CertMaker: cm,
+	})
+	cronjob.AddDaily(jobs.GenerateCTLsJob)
+
+	// set up the HTTP server
+	router := setupRoutes(config, logger, ds, sessMgr, cm, cronjob, *useUi)
 
 	host := fmt.Sprintf(":%s", *port)
 	srv := &http.Server{
 		Addr:              host,
 		Handler:           router,
-		ReadTimeout:       10 * time.Second,
-		WriteTimeout:      10 * time.Second,
-		IdleTimeout:       20 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
 		ReadHeaderTimeout: 3 * time.Second,
 	}
 
@@ -130,7 +143,7 @@ func main() {
 }
 
 func setupRoutes(cfg *configuration.AppConfig, logger *logrus.Entry, dbSvc *dbservice.DBService,
-	sessMgr *sessionstore.SessionManager, cm *certmaker.CertMaker, ui bool) *mux.Router {
+	sessMgr *sessionstore.SessionManager, cm *certmaker.CertMaker, cron *cron.Cron, ui bool) *mux.Router {
 
 	bh := handler.BaseHandler{
 		Config:    cfg,
@@ -138,6 +151,7 @@ func setupRoutes(cfg *configuration.AppConfig, logger *logrus.Entry, dbSvc *dbse
 		DBSvc:     dbSvc,
 		SessMgr:   sessMgr,
 		CertMaker: cm,
+		CronSvc:   cron,
 		Client:    &http.Client{Timeout: 10 * time.Second},
 	}
 
@@ -189,6 +203,9 @@ func setupRoutes(cfg *configuration.AppConfig, logger *logrus.Entry, dbSvc *dbse
 		adminRouter.HandleFunc("/user/add", bh.AdminUserAddHandler).Methods(http.MethodGet, http.MethodPost)
 		adminRouter.HandleFunc("/user/{id}/edit", bh.AdminUserEditHandler).Methods(http.MethodGet, http.MethodPost)
 		adminRouter.HandleFunc("/user/{id}/remove", bh.AdminUserRemoveHandler).Methods(http.MethodGet, http.MethodPost)
+		adminRouter.HandleFunc("/jobs", bh.AdminJobListHandler).Methods(http.MethodGet)
+		adminRouter.HandleFunc("/issuer/list", bh.AdminIssuerListHandler).Methods(http.MethodGet)
+		adminRouter.HandleFunc("/issuer/create", bh.AdminIssuerCreateHandler).Methods(http.MethodGet, http.MethodPost)
 	}
 
 	apiRouter := router.PathPrefix("/api/v1").Subrouter()

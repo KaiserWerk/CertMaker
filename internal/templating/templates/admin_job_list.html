@@ -1,0 +1,46 @@
+{{ template "header_default" . }}
+<div class="container">
+    <h3>Overview of all running jobs</h3>
+
+    {{ if .Error }}
+        {{ template "error_alert" .Error }}
+    {{ end }}
+    {{ if .Success }}
+        {{ template "success_alert" .Success }}
+    {{ end }}
+    {{ if .Info }}
+        {{ template "info_alert" .Info }}
+    {{ end }}
+
+    <div class="row">
+        <div class="col-md-12">
+            
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Job ID</th>
+                        <th>Caption</th>
+                        <th>Interval</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{ range .Jobs }}
+                    <tr>
+                        <td>{{ .ID }}</td>
+                        <td>{{ .Caption }}</td>
+                        <td>{{ .Interval }}</td>
+                    </tr>
+                    {{ else }}
+                    <tr>
+                        <td colspan="6">No jobs found.</td>
+                    </tr>
+                    {{ end }}
+                </tbody>
+            </table>
+
+        </div>  
+    </div>
+
+</div>
+
+{{ template "footer_default" . }}

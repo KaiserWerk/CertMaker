@@ -24,11 +24,12 @@ type DBService struct {
 // New creates and returns a new database connection
 func New(config *configuration.AppConfig) (*DBService, error) {
 	var driver gorm.Dialector = mysql.Open(config.Database.DSN)
-	if config.Database.Driver == "sqlite" {
+	switch config.Database.Driver {
+	case "sqlite":
 		driver = sqlite.Open(config.Database.DSN)
-	} else if config.Database.Driver == "pgsql" {
+	case "pgsql":
 		driver = postgres.Open(config.Database.DSN)
-	} else if config.Database.Driver == "mssql" {
+	case "mssql":
 		driver = sqlserver.Open(config.Database.DSN)
 	}
 
@@ -49,16 +50,16 @@ func New(config *configuration.AppConfig) (*DBService, error) {
 // AutoMigrate makes sure the database schema
 // is up-to-date.
 func (ds *DBService) AutoMigrate() error {
-	err := ds.db.AutoMigrate(
+	return ds.db.AutoMigrate(
 		&entity.CertInfo{},
 		&entity.Challenge{},
 		&entity.RequestInfo{},
 		&entity.SystemSetting{},
 		&entity.User{},
-	)
-	if err != nil {
-		return err
-	}
 
-	return nil
+		&entity.Issuer{},
+		&entity.IssuerSource{},
+		&entity.IssuerFileSystemSource{},
+		&entity.IssuerLocalDatabaseSource{},
+	)
 }

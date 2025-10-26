@@ -16,28 +16,25 @@ import (
 	"math/big"
 	"net"
 	"os"
-	"path"
 	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
 
-	"github.com/KaiserWerk/CertMaker/internal/configuration"
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 	"github.com/KaiserWerk/CertMaker/internal/global"
 	"github.com/KaiserWerk/CertMaker/internal/helper"
 )
 
-var ()
-
 type (
-	Algo      string
-	CertMaker struct {
-		Config   *configuration.AppConfig
-		snMutex  sync.Mutex
-		CertFile string
-		KeyFile  string
-	}
+	Algo string
+	// CertMaker struct {
+	// 	Config *configuration.AppConfig
+
+	// 	CertFile string
+	// 	KeyFile  string
+	// 	CRLFile  string
+	// }
 )
 
 const (
@@ -46,43 +43,47 @@ const (
 	ED25519 Algo = "ed25519"
 )
 
-func New(config *configuration.AppConfig) *CertMaker {
-	return &CertMaker{
-		Config: config,
-	}
-}
+var (
+	snMutex = new(sync.Mutex)
+)
+
+// func New(config *configuration.AppConfig) *CertMaker {
+// 	return &CertMaker{
+// 		Config: config,
+// 	}
+// }
 
 // SetupCA checks if root key and certificate exist. if not,
 // both are created. Also check if both files are readable and
 // parseable.
-func (cm *CertMaker) SetupCA() error {
-	cm.CertFile = filepath.Join(cm.Config.DataDir, global.RootCertificateFilename)
-	cm.KeyFile = filepath.Join(cm.Config.DataDir, global.RootPrivateKeyFilename)
+// func SetupCA(dataDir string) error {
+// 	certFile := filepath.Join(dataDir, global.RootCertificateFilename)
+// 	keyFile := filepath.Join(dataDir, global.RootPrivateKeyFilename)
 
-	if !helper.DoesFileExist(cm.CertFile) || !helper.DoesFileExist(cm.KeyFile) {
-		if err := cm.GenerateRootCertAndKey(); err != nil {
-			return err
-		}
-	}
+// 	if !helper.DoesFileExist(cm.CertFile) || !helper.DoesFileExist(cm.KeyFile) {
+// 		if err := cm.GenerateRootCertAndKey(); err != nil {
+// 			return err
+// 		}
+// 	}
 
-	caFiles, err := tls.LoadX509KeyPair(cm.CertFile, cm.KeyFile)
-	if err != nil {
-		return err
-	}
-	_, err = x509.ParseCertificate(caFiles.Certificate[0])
-	if err != nil {
-		return err
-	}
+// 	caFiles, err := tls.LoadX509KeyPair(cm.CertFile, cm.KeyFile)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	_, err = x509.ParseCertificate(caFiles.Certificate[0])
+// 	if err != nil {
+// 		return err
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
-// GetNextSerialNumber fetches the next serial number.
-func (cm *CertMaker) GetNextSerialNumber() (int64, error) {
-	cm.snMutex.Lock()
-	defer cm.snMutex.Unlock()
+// GetNextLeafSerialNumber fetches the next serial number.
+func GetNextLeafSerialNumber(dataDir string) (int64, error) {
+	snMutex.Lock()
+	defer snMutex.Unlock()
 
-	file := filepath.Join(cm.Config.DataDir, "sn.txt")
+	file := filepath.Join(dataDir, "sn.txt")
 	cont, err := os.ReadFile(file)
 	if err != nil {
 		return 0, err
@@ -95,22 +96,38 @@ func (cm *CertMaker) GetNextSerialNumber() (int64, error) {
 	sn++
 
 	err = os.WriteFile(file, []byte(strconv.FormatInt(sn, 10)), 0744)
+	return sn, err
+}
+
+func GetNextCRLSerialNumber(dataDir string) (int64, error) {
+	snMutex.Lock()
+	defer snMutex.Unlock()
+
+	file := filepath.Join(dataDir, "crl-sn.txt")
+	cont, err := os.ReadFile(file)
 	if err != nil {
 		return 0, err
 	}
 
-	return sn, nil
+	sn, err := strconv.ParseInt(string(cont), 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	sn++
+
+	err = os.WriteFile(file, []byte(strconv.FormatInt(sn, 10)), 0744)
+	return sn, err
 }
 
 // GenerateRootCertAndKey generates the root private key and with it,
 // the root certificate
-func (cm *CertMaker) GenerateRootCertAndKey() error {
+func GenerateRootCertAndKey(dataDir, certFile, keyFile string, subject pkix.Name, sigAlgo x509.SignatureAlgorithm) error {
 	// create folder if it does not exist
-	if err := os.MkdirAll(path.Dir(cm.CertFile), 0744); err != nil {
+	if err := os.MkdirAll(dataDir, 0644); err != nil {
 		return err
 	}
 
-	nextSn, err := cm.GetNextSerialNumber() // read sn from file and increment it
+	nextSn, err := GetNextLeafSerialNumber(dataDir) // read sn from file and increment it
 	if err != nil {
 		return err
 	}
@@ -121,15 +138,8 @@ func (cm *CertMaker) GenerateRootCertAndKey() error {
 	)
 
 	ca := &x509.Certificate{
-		SerialNumber: big.NewInt(nextSn),
-		Subject: pkix.Name{
-			Organization:  []string{cm.Config.RootCertSubject.Organization},
-			Country:       []string{cm.Config.RootCertSubject.Country},
-			Province:      []string{cm.Config.RootCertSubject.Province},
-			Locality:      []string{cm.Config.RootCertSubject.Locality},
-			StreetAddress: []string{cm.Config.RootCertSubject.StreetAddress},
-			PostalCode:    []string{cm.Config.RootCertSubject.PostalCode},
-		},
+		SerialNumber:          big.NewInt(nextSn),
+		Subject:               subject,
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().AddDate(15, 0, 0),
 		IsCA:                  true,
@@ -138,33 +148,31 @@ func (cm *CertMaker) GenerateRootCertAndKey() error {
 		BasicConstraintsValid: true,
 	}
 
-	switch Algo(cm.Config.RootKeyAlgo) {
-	case "":
-		fallthrough
-	case RSA:
+	ca.SignatureAlgorithm = sigAlgo
+
+	switch sigAlgo {
+	case x509.SHA256WithRSA, x509.SHA384WithRSA, x509.SHA512WithRSA:
 		rsaPrivKey, err := rsa.GenerateKey(rand.Reader, 4096)
 		if err != nil {
 			return err
 		}
 		privKey = rsaPrivKey
 		pubKey = &rsaPrivKey.PublicKey
-		ca.SignatureAlgorithm = x509.SHA256WithRSA
-	case ECDSA:
+	case x509.ECDSAWithSHA256, x509.ECDSAWithSHA384, x509.ECDSAWithSHA512:
 		ecdsaPrivKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		if err != nil {
 			return err
 		}
 		privKey = ecdsaPrivKey
 		pubKey = &ecdsaPrivKey.PublicKey
-		ca.SignatureAlgorithm = x509.ECDSAWithSHA256
-	case ED25519:
+
+	case x509.PureEd25519:
 		edPubKey, edPrivKey, err := ed25519.GenerateKey(rand.Reader)
 		if err != nil {
 			return err
 		}
 		privKey = edPrivKey
 		pubKey = edPubKey
-		ca.SignatureAlgorithm = x509.PureEd25519
 	}
 
 	certBytes, err := x509.CreateCertificate(rand.Reader, ca, ca, pubKey, privKey)
@@ -172,7 +180,7 @@ func (cm *CertMaker) GenerateRootCertAndKey() error {
 		return err
 	}
 
-	fh, err := os.OpenFile(cm.CertFile, os.O_CREATE|os.O_WRONLY, 0644)
+	fh, err := os.OpenFile(filepath.Join(dataDir, certFile), os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
@@ -182,7 +190,7 @@ func (cm *CertMaker) GenerateRootCertAndKey() error {
 	}
 	_ = fh.Close()
 
-	fh, err = os.OpenFile(cm.KeyFile, os.O_CREATE|os.O_WRONLY, 0600)
+	fh, err = os.OpenFile(filepath.Join(dataDir, keyFile), os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}
@@ -201,8 +209,8 @@ func (cm *CertMaker) GenerateRootCertAndKey() error {
 
 // GenerateLeafCertAndKey generates a certificate signed by
 // the root certificate and a private key.
-func (cm *CertMaker) GenerateLeafCertAndKey(request entity.SimpleRequest) (string, string, int64, error) {
-	caTls, err := tls.LoadX509KeyPair(filepath.Join(cm.Config.DataDir, global.RootCertificateFilename), filepath.Join(cm.Config.DataDir, global.RootPrivateKeyFilename))
+func GenerateLeafCertAndKey(dataDir, certFile, keyFile, serverHost string, sigAlgo x509.SignatureAlgorithm, request entity.SimpleRequest) (string, string, int64, error) {
+	caTls, err := tls.LoadX509KeyPair(filepath.Join(dataDir, global.RootCertificateFilename), filepath.Join(dataDir, global.RootPrivateKeyFilename))
 	if err != nil {
 		return "", "", 0, err
 	}
@@ -227,7 +235,7 @@ func (cm *CertMaker) GenerateLeafCertAndKey(request entity.SimpleRequest) (strin
 		}
 	}
 
-	nextSn, err := cm.GetNextSerialNumber()
+	nextSn, err := GetNextLeafSerialNumber(dataDir)
 	if err != nil {
 		return "", "", 0, err
 	}
@@ -243,54 +251,51 @@ func (cm *CertMaker) GenerateLeafCertAndKey(request entity.SimpleRequest) (strin
 			StreetAddress: []string{request.Subject.StreetAddress},
 			PostalCode:    []string{request.Subject.PostalCode},
 		},
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().AddDate(0, 0, request.Days),
-		SubjectKeyId: []byte{1, 2, 3, 4, 6},
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		KeyUsage:     x509.KeyUsageDigitalSignature,
-		OCSPServer:   []string{cm.Config.ServerHost + global.OCSPPath},
+		NotBefore:          time.Now(),
+		NotAfter:           time.Now().AddDate(0, 0, request.Days),
+		SignatureAlgorithm: sigAlgo,
+		SubjectKeyId:       []byte{1, 2, 3, 4, 6},
+		ExtKeyUsage:        []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:           x509.KeyUsageDigitalSignature,
+		OCSPServer:         []string{serverHost + global.OCSPPath},
 
 		DNSNames:       request.Domains,
 		IPAddresses:    ips,
 		EmailAddresses: request.EmailAddresses,
 	}
 
-	_ = os.MkdirAll(fmt.Sprintf("%s/leafcerts", cm.Config.DataDir), 0744)
-	outCertFilename := fmt.Sprintf("%s/leafcerts/%d-cert.pem", cm.Config.DataDir, nextSn)
-	outKeyFilename := fmt.Sprintf("%s/leafcerts/%d-key.pem", cm.Config.DataDir, nextSn)
+	_ = os.MkdirAll(fmt.Sprintf("%s/leafcerts", dataDir), 0644)
+	outCertFilename := fmt.Sprintf("%s/leafcerts/%d-cert.pem", dataDir, nextSn)
+	outKeyFilename := fmt.Sprintf("%s/leafcerts/%d-key.pem", dataDir, nextSn)
 
 	var (
 		privKey any
 		pubKey  crypto.PublicKey
 	)
 
-	switch Algo(cm.Config.RootKeyAlgo) {
-	case "":
-		fallthrough
-	case RSA:
+	switch sigAlgo {
+	case x509.SHA256WithRSA, x509.SHA384WithRSA, x509.SHA512WithRSA:
 		rsaPrivKey, err := rsa.GenerateKey(rand.Reader, 4096)
 		if err != nil {
 			return "", "", 0, err
 		}
 		privKey = rsaPrivKey
 		pubKey = &rsaPrivKey.PublicKey
-		cert.SignatureAlgorithm = x509.SHA256WithRSA
-	case ECDSA:
+	case x509.ECDSAWithSHA256, x509.ECDSAWithSHA384, x509.ECDSAWithSHA512:
 		ecdsaPrivKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		if err != nil {
 			return "", "", 0, err
 		}
 		privKey = ecdsaPrivKey
 		pubKey = &ecdsaPrivKey.PublicKey
-		cert.SignatureAlgorithm = x509.ECDSAWithSHA256
-	case ED25519:
-		pub, priv, err := ed25519.GenerateKey(rand.Reader)
+
+	case x509.PureEd25519:
+		edPubKey, edPrivKey, err := ed25519.GenerateKey(rand.Reader)
 		if err != nil {
 			return "", "", 0, err
 		}
-		privKey = priv
-		pubKey = pub
-		cert.SignatureAlgorithm = x509.PureEd25519
+		privKey = edPrivKey
+		pubKey = edPubKey
 	}
 
 	// Sign the certificate
@@ -334,8 +339,8 @@ func (cm *CertMaker) GenerateLeafCertAndKey(request entity.SimpleRequest) (strin
 	return base64.StdEncoding.EncodeToString(certBytes), base64.StdEncoding.EncodeToString(privKeyBytes), nextSn, nil
 }
 
-func (cm *CertMaker) GenerateCertificateByCSR(csr *x509.CertificateRequest) (string, int64, error) {
-	caTls, err := tls.LoadX509KeyPair(filepath.Join(cm.Config.DataDir, global.RootCertificateFilename), filepath.Join(cm.Config.DataDir, global.RootPrivateKeyFilename))
+func GenerateCertificateByCSR(dataDir, certFile, keyFile, serverHost string, csr *x509.CertificateRequest) (string, int64, error) {
+	caTls, err := tls.LoadX509KeyPair(filepath.Join(dataDir, global.RootCertificateFilename), filepath.Join(dataDir, global.RootPrivateKeyFilename))
 	if err != nil {
 		return "", 0, err
 	}
@@ -344,7 +349,7 @@ func (cm *CertMaker) GenerateCertificateByCSR(csr *x509.CertificateRequest) (str
 		return "", 0, err
 	}
 
-	nextSn, err := cm.GetNextSerialNumber()
+	nextSn, err := GetNextLeafSerialNumber()
 	if err != nil {
 		return "", 0, err
 	}
@@ -358,18 +363,18 @@ func (cm *CertMaker) GenerateCertificateByCSR(csr *x509.CertificateRequest) (str
 		ExtKeyUsage:        []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:           x509.KeyUsageDigitalSignature,
 		SignatureAlgorithm: csr.SignatureAlgorithm,
-		OCSPServer:         []string{cm.Config.ServerHost + global.OCSPPath}, // TODO implement/fix
+		OCSPServer:         []string{serverHost + global.OCSPPath}, // TODO implement/fix
 
 		EmailAddresses: csr.EmailAddresses,
 		DNSNames:       csr.DNSNames,
 		IPAddresses:    csr.IPAddresses,
 	}
 
-	err = os.MkdirAll(filepath.Join(cm.Config.DataDir, "leafcerts"), 0744)
+	err = os.MkdirAll(filepath.Join(dataDir, "leafcerts"), 0744)
 	if err != nil {
 		return "", 0, err
 	}
-	outCertFilename := filepath.Join(cm.Config.DataDir, "leafcerts", fmt.Sprintf("%s-cert.pem", strconv.FormatInt(nextSn, 10)))
+	outCertFilename := filepath.Join(dataDir, "leafcerts", fmt.Sprintf("%s-cert.pem", strconv.FormatInt(nextSn, 10)))
 
 	// Sign the certificate
 	certBytes, err := x509.CreateCertificate(rand.Reader, template, ca, csr.PublicKey, caTls.PrivateKey)
@@ -396,10 +401,10 @@ func (cm *CertMaker) GenerateCertificateByCSR(csr *x509.CertificateRequest) (str
 
 // FindLeafCertificate returns the contents of the leaf certificate
 // with the supplied serial number
-func (cm *CertMaker) FindLeafCertificate(sn int64) ([]byte, error) {
-	certFile := filepath.Join(cm.Config.DataDir, "leafcerts", fmt.Sprintf("%d-cert.pem", sn))
+func FindLeafCertificate(dataDir string, sn int64) ([]byte, error) {
+	certFile := filepath.Join(dataDir, "leafcerts", fmt.Sprintf("%d-cert.pem", sn))
 	if !helper.DoesFileExist(certFile) {
-		return nil, fmt.Errorf("cert file with id %d not found", sn)
+		return nil, fmt.Errorf("cert file with sn %d not found", sn)
 	}
 
 	content, err := os.ReadFile(certFile)
@@ -408,18 +413,18 @@ func (cm *CertMaker) FindLeafCertificate(sn int64) ([]byte, error) {
 
 // FindLeafPrivateKey returns the contents of the leaf private key
 // with the supplied serial number
-func (cm *CertMaker) FindLeafPrivateKey(sn int64) ([]byte, error) {
-	keyFile := filepath.Join(cm.Config.DataDir, "leafcerts", fmt.Sprintf("%d-key.pem", sn))
+func FindLeafPrivateKey(dataDir string, sn int64) ([]byte, error) {
+	keyFile := filepath.Join(dataDir, "leafcerts", fmt.Sprintf("%d-key.pem", sn))
 	if !helper.DoesFileExist(keyFile) {
-		return nil, fmt.Errorf("key file with id %d not found", sn)
+		return nil, fmt.Errorf("key file with sn %d not found", sn)
 	}
 
 	content, err := os.ReadFile(keyFile)
 	return content, err
 }
 
-func (cm *CertMaker) GetRootCertificate() (*x509.Certificate, error) {
-	certContent, err := os.ReadFile(filepath.Join(cm.Config.DataDir, "root-cert.pem"))
+func GetRootCertificate(dataDir string) (*x509.Certificate, error) {
+	certContent, err := os.ReadFile(filepath.Join(dataDir, "root-cert.pem"))
 	if err != nil {
 		return nil, err
 	}
@@ -428,9 +433,9 @@ func (cm *CertMaker) GetRootCertificate() (*x509.Certificate, error) {
 	return x509.ParseCertificate(block.Bytes)
 }
 
-func (cm *CertMaker) GetRootKeyPair() (*x509.Certificate, crypto.Signer, x509.SignatureAlgorithm, error) {
+func GetRootKeyPair(dataDir string) (*x509.Certificate, crypto.Signer, x509.SignatureAlgorithm, error) {
 	// cert
-	cont, err := os.ReadFile(filepath.Join(cm.Config.DataDir, "root-cert.pem"))
+	cont, err := os.ReadFile(filepath.Join(dataDir, "root-cert.pem"))
 	if err != nil {
 		return nil, nil, 0, err
 	}
@@ -441,7 +446,7 @@ func (cm *CertMaker) GetRootKeyPair() (*x509.Certificate, crypto.Signer, x509.Si
 		return nil, nil, 0, err
 	}
 
-	cont, err = os.ReadFile(filepath.Join(cm.Config.DataDir, "root-key.pem"))
+	cont, err = os.ReadFile(filepath.Join(dataDir, "root-key.pem"))
 	if err != nil {
 		return nil, nil, 0, err
 	}
@@ -463,4 +468,42 @@ func (cm *CertMaker) GetRootKeyPair() (*x509.Certificate, crypto.Signer, x509.Si
 	}
 
 	return nil, nil, 0, fmt.Errorf("private key is neither of type RSA, ECDSA nor ED25519")
+}
+
+func GenerateCRL(dataDir string, revokedCertificates []x509.RevocationListEntry) error {
+	// get root certificate
+	issuer, signer, _, err := GetRootKeyPair(dataDir)
+	if err != nil {
+		return err
+	}
+
+	sn, err := GetNextCRLSerialNumber(dataDir)
+	if err != nil {
+		return err
+	}
+
+	now := time.Now().UTC()
+	tmpl := &x509.RevocationList{
+		Number:                    big.NewInt(sn),
+		ThisUpdate:                now,
+		NextUpdate:                now.Add(7 * 24 * time.Hour),
+		RevokedCertificateEntries: revokedCertificates,
+		// optionale ExtraExtensions: z.B. AuthorityKeyId (wird automatisch aus issuer.PublicKeyId gesetzt)
+		ExtraExtensions: nil,
+	}
+
+	derBytes, err := x509.CreateRevocationList(rand.Reader, tmpl, issuer, signer)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "CreateRevocationList failed: %v\n", err)
+		os.Exit(2)
+	}
+
+	// Write PEM
+	f, err := os.Create(filepath.Join(dataDir, global.CRLFile))
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	return pem.Encode(f, &pem.Block{Type: "X509 CRL", Bytes: derBytes})
 }

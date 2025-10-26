@@ -1,0 +1,70 @@
+{{ template "header_default" . }}
+<div class="container">
+    <h3>Overview of all issuers</h3>
+
+    {{ if .Error }}
+        {{ template "error_alert" .Error }}
+    {{ end }}
+    {{ if .Success }}
+        {{ template "success_alert" .Success }}
+    {{ end }}
+    {{ if .Info }}
+        {{ template "info_alert" .Info }}
+    {{ end }}
+
+    <div class="row">
+        <div class="col-md-12">
+
+            <a href="/admin/issuer/create" class="btn btn-primary mb-3">Create New Issuer</a>
+            <a href="/admin/issuer/import" class="btn btn-secondary mb-3">Import existing Issuer</a>
+
+            <table class="table table-striped table-bordered">
+                <thead>
+                    <tr>
+                        <th>Serial Number</th>
+                        <th>Context</th>
+                        <th>Issuer &amp; Subject</th>
+                        <th>Validity</th>
+                        <th>Source</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{ range .Issuers }}
+                    <tr>
+                        <td>{{ .SerialNumber }}</td>
+                        <td>{{ .Context }}</td>
+                        <td>Issuer:{{ .Issuer }}<br>Subject: {{ .Subject }}</td>
+                        <td>Not before: {{ .NotBefore }}<br>Not after: {{ .NotAfter }}</td>
+                        <td>{{ if .FileSystemSource }}File System{{ else if .DatabaseSource }}Database{{ else }}Unknown{{ end }}</td>
+                        <td>
+                            <a href="/admin/issuer/{{ .ID }}/deactivate" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to deactivate this root issuer?');">Deactivate</a>
+                        </td>
+                    </tr>
+                        {{ if .Intermediates }}
+                            {{ range .Intermediates }}
+                            <tr>
+                                <td>{{ .SerialNumber }}</td>
+                                <td>{{ .Context }}</td>
+                                <td>Issuer:{{ .Issuer }}<br>Subject: {{ .Subject }}</td>
+                                <td>Not before: {{ .NotBefore }}<br>Not after: {{ .NotAfter }}</td>
+                                <td>{{ if .FileSystemSource }}File System{{ else if .DatabaseSource }}Database{{ else }}Unknown{{ end }}</td>
+                                <td>
+                                    <a href="/admin/issuer/{{ .ID }}/deactivate" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to deactivate this intermediate issuer?');">Deactivate</a>
+                                </td>
+                            </tr>
+                            {{ end }}
+                        {{ end }}
+                    {{ else }}
+                    <tr>
+                        <td colspan="6" class="text-center">No issuers found.</td>
+                    </tr>
+                    {{ end }}
+                </tbody>
+
+        </div>  
+    </div>
+
+</div>
+
+{{ template "footer_default" . }}

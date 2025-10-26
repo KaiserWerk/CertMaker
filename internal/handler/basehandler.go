@@ -5,6 +5,7 @@ import (
 
 	"github.com/KaiserWerk/CertMaker/internal/certmaker"
 	"github.com/KaiserWerk/CertMaker/internal/configuration"
+	"github.com/KaiserWerk/CertMaker/internal/cron"
 	"github.com/KaiserWerk/CertMaker/internal/dbservice"
 
 	"github.com/KaiserWerk/sessionstore"
@@ -17,6 +18,7 @@ type BaseHandler struct {
 	DBSvc     *dbservice.DBService
 	SessMgr   *sessionstore.SessionManager
 	CertMaker *certmaker.CertMaker
+	CronSvc   *cron.Cron
 	Client    *http.Client
 }
 

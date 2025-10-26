@@ -36,6 +36,7 @@ const (
 
 	RootCertificateFilename = "root-cert.pem"
 	RootPrivateKeyFilename  = "root-key.pem"
+	CRLFile                 = "crl.pem"
 
 	PEMContentType = "application/x-pem-file"
 

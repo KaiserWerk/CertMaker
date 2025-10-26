@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"crypto/x509/pkix"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -520,4 +521,175 @@ func (bh *BaseHandler) AdminUserRemoveHandler(w http.ResponseWriter, r *http.Req
 
 	templating.SetSuccessMessage(w, "User deleted successfully!")
 	http.Redirect(w, r, "/admin/user/list", http.StatusSeeOther)
+}
+
+func (bh *BaseHandler) AdminJobListHandler(w http.ResponseWriter, r *http.Request) {
+	var (
+		template = "admin_job_list.html"
+		logger   = bh.ContextLogger("admin")
+	)
+
+	data := struct {
+		Error   string
+		Success string
+		Info    string
+		User    *entity.User
+		Jobs    []entity.JobInfo
+	}{
+		Error:   templating.GetErrorMessage(w, r),
+		Success: templating.GetSuccessMessage(w, r),
+		Info:    templating.GetInfoMessage(w, r),
+	}
+
+	user, ok := r.Context().Value("user").(*entity.User)
+	if !ok || user == nil {
+		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
+		return
+	}
+	data.User = user
+
+	data.Jobs = bh.CronSvc.GetAllJobInfo()
+
+	if err := templating.ExecuteTemplate(w, template, data); err != nil {
+		logger.Errorf("could not execute template '%s': %s", template, err.Error())
+	}
+}
+
+func (bh *BaseHandler) AdminIssuerListHandler(w http.ResponseWriter, r *http.Request) {
+	var (
+		template = "admin_issuer_list.html"
+		logger   = bh.ContextLogger("admin")
+	)
+
+	data := struct {
+		Error   string
+		Success string
+		Info    string
+		User    *entity.User
+		Issuers []entity.Issuer
+	}{
+		Error:   templating.GetErrorMessage(w, r),
+		Success: templating.GetSuccessMessage(w, r),
+		Info:    templating.GetInfoMessage(w, r),
+	}
+
+	user, ok := r.Context().Value("user").(*entity.User)
+	if !ok || user == nil {
+		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
+		return
+	}
+	data.User = user
+
+	issuers, err := bh.DBSvc.GetAllIssuers()
+	if err != nil {
+		data.Error = "Could not retrieve issuers: " + err.Error()
+		logger.Errorf("could not retrieve issuers: %s", err.Error())
+		if err := templating.ExecuteTemplate(w, template, data); err != nil {
+			logger.Errorf("could not execute template '%s': %s", template, err.Error())
+		}
+		return
+	}
+	data.Issuers = issuers
+
+	if err := templating.ExecuteTemplate(w, template, data); err != nil {
+		logger.Errorf("could not execute template '%s': %s", template, err.Error())
+	}
+}
+
+func (bh *BaseHandler) AdminIssuerCreateHandler(w http.ResponseWriter, r *http.Request) {
+	var (
+		template = "admin_issuer_create.html"
+		logger   = bh.ContextLogger("admin")
+	)
+
+	data := struct {
+		Error   string
+		Success string
+		Info    string
+		User    *entity.User
+		Issuers []entity.Issuer
+	}{
+		Error:   templating.GetErrorMessage(w, r),
+		Success: templating.GetSuccessMessage(w, r),
+		Info:    templating.GetInfoMessage(w, r),
+	}
+
+	user, ok := r.Context().Value("user").(*entity.User)
+	if !ok || user == nil {
+		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
+		return
+	}
+	data.User = user
+
+	issuers, err := bh.DBSvc.GetAllIssuers()
+	if err != nil {
+		data.Error = "Could not retrieve issuers: " + err.Error()
+		logger.Errorf("could not retrieve issuers: %s", err.Error())
+		if err := templating.ExecuteTemplate(w, template, data); err != nil {
+			logger.Errorf("could not execute template '%s': %s", template, err.Error())
+		}
+		return
+	}
+	data.Issuers = issuers
+
+	if r.Method == http.MethodPost {
+		// Handle form submission
+		var (
+			parentIssuerID int
+			parentIssuer   *entity.Issuer
+		)
+		parentIssuerRaw := r.FormValue("parent_issuer")
+		if parentIssuerRaw != "" {
+			parentIssuerID, err = strconv.Atoi(parentIssuerRaw)
+			if err != nil {
+				templating.SetErrorMessage(w, "Invalid parent issuer ID.")
+				http.Redirect(w, r, "/admin/issuer/create", http.StatusSeeOther)
+				return
+			}
+			parentIssuer, err = bh.DBSvc.FindIssuer("id = ?", parentIssuerID)
+			if err != nil {
+				templating.SetErrorMessage(w, "Parent issuer not found.")
+				http.Redirect(w, r, "/admin/issuer/create", http.StatusSeeOther)
+				return
+			}
+
+		} else {
+			parentIssuerID = 0 // No parent issuer
+		}
+
+		keyAlgorithmRaw := r.FormValue("key_algorithm")
+
+		keyLengthRaw := r.FormValue("key_length")
+		keyLength, err := strconv.Atoi(keyLengthRaw)
+		if err != nil {
+			templating.SetErrorMessage(w, "Invalid value for key length.")
+			http.Redirect(w, r, "/admin/issuer/create", http.StatusSeeOther)
+			return
+		}
+
+		subjectCommonNameRaw := r.FormValue("subject_common_name")
+		subjectOrganizationRaw := r.FormValue("subject_organization")
+		subjectOrganizationalUnitRaw := r.FormValue("subject_organizational_unit")
+		subjectCountryRaw := r.FormValue("subject_country")
+		subjectStateRaw := r.FormValue("subject_state")
+		subjectLocalityRaw := r.FormValue("subject_locality")
+		subjectPostalCodeRaw := r.FormValue("subject_postal_code")
+		subjectStreetAddressRaw := r.FormValue("subject_street_address")
+		// put everything into a pkix.Name structure
+		subject := pkix.Name{
+			CommonName:         subjectCommonNameRaw,
+			Organization:       []string{subjectOrganizationRaw},
+			OrganizationalUnit: []string{subjectOrganizationalUnitRaw},
+			Country:            []string{subjectCountryRaw},
+			Province:           []string{subjectStateRaw},
+			Locality:           []string{subjectLocalityRaw},
+			PostalCode:         []string{subjectPostalCodeRaw},
+			StreetAddress:      []string{subjectStreetAddressRaw},
+		}
+
+	}
+
+	if err := templating.ExecuteTemplate(w, template, data); err != nil {
+		logger.Errorf("could not execute template '%s': %s", template, err.Error())
+	}
 }
