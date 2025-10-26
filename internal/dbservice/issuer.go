@@ -42,6 +42,11 @@ func (ds *DBService) FindIssuer(cond string, args ...interface{}) (*entity.Issue
 	}
 
 	if issuer.SourceType == "filesystem" {
+		// load cert and priv key from filesystem
+		source, err := ds.FindIssuerFileSystemSource("id = ?", issuer.SourceID)
+		if err != nil {
+			return nil, err
+		}
 
 	} else if issuer.SourceType == "local_database" {
 
