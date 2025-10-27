@@ -507,3 +507,54 @@ func GenerateCRL(dataDir string, revokedCertificates []x509.RevocationListEntry)
 
 	return pem.Encode(f, &pem.Block{Type: "X509 CRL", Bytes: derBytes})
 }
+
+func LoadCertificateFromFile(certFile string) (*x509.Certificate, error) {
+	cont, err := os.ReadFile(certFile)
+	if err != nil {
+		return nil, err
+	}
+	block, _ := pem.Decode(cont)
+	if block == nil || block.Type != "CERTIFICATE" {
+		return nil, fmt.Errorf("failed to decode PEM block")
+	}
+	return x509.ParseCertificate(block.Bytes)
+}
+
+func LoadPrivateKeyFromFile(keyFile string) (crypto.Signer, error) {
+	cont, err := os.ReadFile(keyFile)
+	if err != nil {
+		return nil, err
+	}
+
+	block, _ := pem.Decode(cont)
+	if block == nil || block.Type != "PRIVATE KEY" || block.Type != "EC PRIVATE KEY" || block.Type != "RSA PRIVATE KEY" {
+		return nil, fmt.Errorf("failed to decode PEM block")
+	}
+
+	privKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return privKey.(crypto.Signer), nil
+}
+
+func LoadCertificateFromPEM(pemData []byte) (*x509.Certificate, error) {
+	block, _ := pem.Decode(pemData)
+	if block == nil || block.Type != "CERTIFICATE" {
+		return nil, fmt.Errorf("failed to decode PEM block")
+	}
+	return x509.ParseCertificate(block.Bytes)
+}
+
+func LoadPrivateKeyFromPEM(pemData []byte) (crypto.Signer, error) {
+	block, _ := pem.Decode(pemData)
+	if block == nil || block.Type != "PRIVATE KEY" || block.Type != "EC PRIVATE KEY" || block.Type != "RSA PRIVATE KEY" {
+		return nil, fmt.Errorf("failed to decode PEM block")
+	}
+	privKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	return privKey.(crypto.Signer), nil
+}

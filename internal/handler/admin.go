@@ -1,11 +1,21 @@
 package handler
 
 import (
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"crypto/x509/pkix"
 	"fmt"
+	"math/big"
 	"net/http"
 	"strconv"
+	"time"
 
+	"github.com/KaiserWerk/CertMaker/internal/certmaker"
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 	"github.com/KaiserWerk/CertMaker/internal/global"
 	"github.com/KaiserWerk/CertMaker/internal/security"
@@ -657,6 +667,7 @@ func (bh *BaseHandler) AdminIssuerCreateHandler(w http.ResponseWriter, r *http.R
 			parentIssuerID = 0 // No parent issuer
 		}
 
+		// generate new private key
 		keyAlgorithmRaw := r.FormValue("key_algorithm")
 
 		keyLengthRaw := r.FormValue("key_length")
@@ -665,6 +676,77 @@ func (bh *BaseHandler) AdminIssuerCreateHandler(w http.ResponseWriter, r *http.R
 			templating.SetErrorMessage(w, "Invalid value for key length.")
 			http.Redirect(w, r, "/admin/issuer/create", http.StatusSeeOther)
 			return
+		}
+
+		var (
+			newPrivateKeyBytes []byte
+			signer             crypto.Signer
+			issuerCertificate  *x509.Certificate
+		)
+		switch keyAlgorithmRaw {
+		case "rsa":
+			// generate RSA private key
+			privKey, err := rsa.GenerateKey(rand.Reader, keyLength)
+			if err != nil {
+				templating.SetErrorMessage(w, "Could not generate RSA private key: "+err.Error())
+				http.Redirect(w, r, "/admin/issuer/create", http.StatusSeeOther)
+				return
+			}
+			signer = privKey
+			newPrivateKeyBytes, err = x509.MarshalPKCS8PrivateKey(privKey)
+			if err != nil {
+				templating.SetErrorMessage(w, "Could not marshal RSA private key: "+err.Error())
+				http.Redirect(w, r, "/admin/issuer/create", http.StatusSeeOther)
+				return
+			}
+		case "ecdsa":
+			// generate ECDSA private key
+			var curve elliptic.Curve
+			switch keyLength {
+			case 256:
+				curve = elliptic.P256()
+			case 384:
+				curve = elliptic.P384()
+			case 521:
+				curve = elliptic.P521()
+			default:
+				templating.SetErrorMessage(w, "Invalid key length for ECDSA. Allowed values are 256, 384, 521.")
+				http.Redirect(w, r, "/admin/issuer/create", http.StatusSeeOther)
+				return
+			}
+
+			privKey, err := ecdsa.GenerateKey(curve, rand.Reader)
+			if err != nil {
+				templating.SetErrorMessage(w, "Could not generate ECDSA private key: "+err.Error())
+				http.Redirect(w, r, "/admin/issuer/create", http.StatusSeeOther)
+				return
+			}
+			signer = privKey
+			newPrivateKeyBytes, err = x509.MarshalPKCS8PrivateKey(privKey)
+			if err != nil {
+				templating.SetErrorMessage(w, "Could not marshal ECDSA private key: "+err.Error())
+				http.Redirect(w, r, "/admin/issuer/create", http.StatusSeeOther)
+				return
+			}
+		case "ed25519":
+			// generate Ed25519 private key
+			_, privKey, err := ed25519.GenerateKey(rand.Reader)
+			if err != nil {
+				templating.SetErrorMessage(w, "Could not generate Ed25519 private key: "+err.Error())
+				http.Redirect(w, r, "/admin/issuer/create", http.StatusSeeOther)
+				return
+			}
+			signer = privKey
+			newPrivateKeyBytes, err = x509.MarshalPKCS8PrivateKey(privKey)
+			if err != nil {
+				templating.SetErrorMessage(w, "Could not marshal Ed25519 private key: "+err.Error())
+				http.Redirect(w, r, "/admin/issuer/create", http.StatusSeeOther)
+				return
+			}
+		}
+
+		if parentIssuerID != 0 { // intermediate issuer
+			signer = parentIssuer.PrivateKey.(crypto.Signer)
 		}
 
 		subjectCommonNameRaw := r.FormValue("subject_common_name")
@@ -685,6 +767,54 @@ func (bh *BaseHandler) AdminIssuerCreateHandler(w http.ResponseWriter, r *http.R
 			Locality:           []string{subjectLocalityRaw},
 			PostalCode:         []string{subjectPostalCodeRaw},
 			StreetAddress:      []string{subjectStreetAddressRaw},
+		}
+
+		// generate a self-signed certificate or a certificate signed by the parent issuer
+		sn, err := certmaker.GetNextLeafSerialNumber(bh.Config.DataDir)
+		if err != nil {
+			templating.SetErrorMessage(w, "Could not get next serial number: "+err.Error())
+			http.Redirect(w, r, "/admin/issuer/create", http.StatusSeeOther)
+			return
+		}
+
+		yearsRaw := r.FormValue("validity_years")
+		years, err := strconv.Atoi(yearsRaw)
+		if err != nil {
+			templating.SetErrorMessage(w, "Invalid value for validity years.")
+			http.Redirect(w, r, "/admin/issuer/create", http.StatusSeeOther)
+			return
+		}
+
+		certTemplate := &x509.Certificate{
+			SerialNumber:          big.NewInt(sn),
+			Subject:               subject,
+			NotBefore:             time.Now().UTC().Add(-24 * time.Hour),
+			NotAfter:              time.Now().UTC().AddDate(years, 0, 0),
+			KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+			BasicConstraintsValid: true,
+			IsCA:                  true,
+		}
+
+		if parentIssuerID != 0 {
+			issuerCertificate = parentIssuer.Certificate
+		}
+		newCert, err := x509.CreateCertificate(rand.Reader, certTemplate, issuerCertificate, signer.Public(), signer)
+		if err != nil {
+			templating.SetErrorMessage(w, "Could not create certificate: "+err.Error())
+			http.Redirect(w, r, "/admin/issuer/create", http.StatusSeeOther)
+			return
+		}
+
+		newIssuer := &entity.Issuer{
+			ParentIssuerID: parentIssuerID,
+			PrivateKey:     signer,
+		}
+
+		err = bh.DBSvc.AddIssuer(newIssuer)
+		if err != nil {
+			templating.SetErrorMessage(w, "Could not create issuer: "+err.Error())
+			http.Redirect(w, r, "/admin/issuer/create", http.StatusSeeOther)
+			return
 		}
 
 	}

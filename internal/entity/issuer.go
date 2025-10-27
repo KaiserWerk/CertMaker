@@ -22,5 +22,5 @@ type Issuer struct {
 	FileSystemSource *IssuerFileSystemSource    `gorm:"-"`
 	DatabaseSource   *IssuerLocalDatabaseSource `gorm:"-"`
 	Certificate      *x509.Certificate          `gorm:"-"`
-	PrivateKey       *crypto.Signer             `gorm:"-"`
+	PrivateKey       crypto.Signer              `gorm:"-"`
 }

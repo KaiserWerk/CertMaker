@@ -3,6 +3,7 @@ package dbservice
 import (
 	"fmt"
 
+	"github.com/KaiserWerk/CertMaker/internal/certmaker"
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 )
 
@@ -47,9 +48,29 @@ func (ds *DBService) FindIssuer(cond string, args ...interface{}) (*entity.Issue
 		if err != nil {
 			return nil, err
 		}
-
+		issuer.Certificate, err = certmaker.LoadCertificateFromFile(source.CertificateFile)
+		if err != nil {
+			return nil, err
+		}
+		issuer.PrivateKey, err = certmaker.LoadPrivateKeyFromFile(source.KeyFile)
+		if err != nil {
+			return nil, err
+		}
 	} else if issuer.SourceType == "local_database" {
+		source, err := ds.FindIssuerLocalDatabaseSource("id = ?", issuer.SourceID)
+		if err != nil {
+			return nil, err
+		}
 
+		issuer.Certificate, err = certmaker.LoadCertificateFromPEM(source.CertificatePEM)
+		if err != nil {
+			return nil, err
+		}
+
+		issuer.PrivateKey, err = certmaker.LoadPrivateKeyFromPEM(source.KeyPEM)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &issuer, nil

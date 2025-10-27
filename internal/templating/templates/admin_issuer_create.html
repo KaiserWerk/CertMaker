@@ -40,7 +40,22 @@
                     <label for="key_length">Key Length</label>
                     <input type="number" class="form-control" id="key_length" name="key_length">
                 </div>
-               
+
+                <!-- storage location (local filesystem or database) -->
+                <div class="form-group mb-4">
+                    <label for="storage_location">Storage Location</label>
+                    <select class="form-control" id="storage_location" name="storage_location">
+                        <option value="local_filesystem">Local Filesystem</option>
+                        <option value="local_database">Local Database</option>
+                    </select>
+                </div>
+
+                <!-- validity in years -->
+                <div class="form-group mb-4">
+                    <label for="validity_years">Validity (years)</label>
+                    <input type="number" class="form-control" id="validity_years" name="validity_years" value="10" required>
+                </div>
+
                 <!-- subject data, divided into their separate fields -->
                 <div class="form-group mb-2">
                     <label for="subject_common_name">Common Name</label>
