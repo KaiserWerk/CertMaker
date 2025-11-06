@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/KaiserWerk/CertMaker/internal/certmaker"
 	"github.com/KaiserWerk/CertMaker/internal/configuration"
 	"github.com/KaiserWerk/CertMaker/internal/dbservice"
 	"github.com/KaiserWerk/CertMaker/internal/entity"
@@ -20,10 +19,9 @@ type Cron struct {
 }
 
 type Dependencies struct {
-	Config    *configuration.AppConfig
-	Logger    *logrus.Entry
-	DBSvc     *dbservice.DBService
-	CertMaker *certmaker.CertMaker
+	Config *configuration.AppConfig
+	Logger *logrus.Entry
+	DBSvc  *dbservice.DBService
 }
 
 func New(deps *Dependencies) *Cron {

@@ -13,7 +13,14 @@
     {{ end }}
 
     <form method="post" enctype="multipart/form-data">
-
+        <div class="form-group mb-2">
+            <label for="issuer_id">Issuer</label>
+            <select class="form-control" id="issuer_id" name="issuer_id">
+                {{ range .Issuers }}
+                    <option value="{{ .ID }}">{{ .Subject }}</option>
+                {{ end }}
+            </select>
+        </div>
         <div class="row">
             <div class="col-md-3 label-row"><label for="csr_file">CSR file*</label></div>
             <div class="col-md-9 label-row"><input type="file" class="form-control" id="csr_file" name="csr_file" accept=".csr" required></div>

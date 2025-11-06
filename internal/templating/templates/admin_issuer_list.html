@@ -25,7 +25,6 @@
                         <th>Context</th>
                         <th>Issuer &amp; Subject</th>
                         <th>Validity</th>
-                        <th>Source</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -36,7 +35,6 @@
                         <td>{{ .Context }}</td>
                         <td>Issuer:{{ .Issuer }}<br>Subject: {{ .Subject }}</td>
                         <td>Not before: {{ .NotBefore }}<br>Not after: {{ .NotAfter }}</td>
-                        <td>{{ if .FileSystemSource }}File System{{ else if .DatabaseSource }}Database{{ else }}Unknown{{ end }}</td>
                         <td>
                             <a href="/admin/issuer/{{ .ID }}/deactivate" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to deactivate this root issuer?');">Deactivate</a>
                         </td>
@@ -48,7 +46,6 @@
                                 <td>{{ .Context }}</td>
                                 <td>Issuer:{{ .Issuer }}<br>Subject: {{ .Subject }}</td>
                                 <td>Not before: {{ .NotBefore }}<br>Not after: {{ .NotAfter }}</td>
-                                <td>{{ if .FileSystemSource }}File System{{ else if .DatabaseSource }}Database{{ else }}Unknown{{ end }}</td>
                                 <td>
                                     <a href="/admin/issuer/{{ .ID }}/deactivate" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to deactivate this intermediate issuer?');">Deactivate</a>
                                 </td>

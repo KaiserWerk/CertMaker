@@ -1,6 +1,6 @@
 {{ template "header_default" . }}
 <div class="container">
-    <h3>Overview of all issuers</h3>
+    <h3>Create new issuer</h3>
 
     {{ if .Error }}
         {{ template "error_alert" .Error }}
@@ -16,7 +16,13 @@
         <div class="col-md-12">
             <!-- form to create new issuer. select key algo, subject data, and optionally parent issuer -->
             <form method="post" class="">
-                 <!-- select parent issuer -->
+                <!-- issuer name -->
+                <div class="form-group mb-4">
+                    <label for="issuer_name">Issuer Name</label>
+                    <input type="text" class="form-control" id="issuer_name" name="issuer_name" required>   
+                </div>
+                
+                <!-- select parent issuer -->
                 <div class="form-group mb-2">
                     <label for="parent_issuer">Parent Issuer (optional)</label>
                     <select class="form-control" id="parent_issuer" name="parent_issuer" onchange="checkMode();">
@@ -30,9 +36,9 @@
                 <div class="form-group mb-2">
                     <label for="key_algorithm">Key Algorithm</label>
                     <select class="form-control" id="key_algorithm" name="key_algorithm">
-                        <option value="RSA">RSA</option>
-                        <option value="ECDSA">ECDSA</option>
-                        <option value="ED25519">ED25519</option>
+                        <option value="rsa">RSA</option>
+                        <option value="ecdsa">ECDSA</option>
+                        <option value="ed25519">ED25519</option>
                     </select>
                 </div>  
                 <!-- bit length for key 256, 382, 521 for ecdsa, ignored for ed25519, >1024 for rsa -->
@@ -75,7 +81,7 @@
                 </div>
                 <div class="form-group mb-2">
                     <label for="subject_country">Country</label>
-                    <input type="text" class="form-control" id="subject_country" name="subject_country" required>
+                    <input type="text" class="form-control" id="subject_country" name="subject_country">
                 </div>
                 <div class="form-group mb-2">
                     <label for="subject_province">Province</label>

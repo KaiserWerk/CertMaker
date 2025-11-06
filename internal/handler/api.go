@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/KaiserWerk/CertMaker/internal/certmaker"
 	"github.com/KaiserWerk/CertMaker/internal/challenges"
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 	"github.com/KaiserWerk/CertMaker/internal/global"
@@ -149,7 +150,16 @@ func (bh *BaseHandler) APIRequestCertificateWithSimpleRequestHandler(w http.Resp
 		return
 	}
 
-	certData, keyData, sn, err := bh.CertMaker.GenerateLeafCertAndKey(certRequest)
+	// get the issuer from the context header
+	issuerContext := r.Header.Get("X-Issuer-Context")
+	issuer, err := bh.DBSvc.FindIssuer("context = ?", issuerContext)
+	if err != nil {
+		logger.Debug("could not find issuer by context: " + err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	certData, keyData, sn, err := certmaker.GenerateLeafCertAndKey(bh.Config.DataDir, bh.Config.ServerHost, issuer, certRequest)
 	if err != nil {
 		logger.Errorf("error generating key + certificate: %s\n", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -309,7 +319,17 @@ func (bh *BaseHandler) APIRequestCertificateWithCSRHandler(w http.ResponseWriter
 	}
 
 	// no challenge, issue certificate right away
-	certBytes, sn, err := bh.CertMaker.GenerateCertificateByCSR(csr)
+
+	// get the issuer from the context header
+	issuerContext := r.Header.Get("X-Issuer-Context")
+	issuer, err := bh.DBSvc.FindIssuer("context = ?", issuerContext)
+	if err != nil {
+		logger.Debug("could not find issuer by context: " + err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	certBytes, sn, err := certmaker.GenerateCertificateByCSR(bh.Config.DataDir, bh.Config.ServerHost, issuer, csr)
 	if err != nil {
 		logger.Errorf("error generating certificate: %s\n", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -433,7 +453,7 @@ func (bh *BaseHandler) APIOCSPRequestHandler(w http.ResponseWriter, r *http.Requ
 	// 	responseTemplate.ExtraExtensions = []pkix.Extension{nonceExt}
 	// }
 
-	rootCert, rootKey, sigAlgo, err := bh.CertMaker.GetRootKeyPair()
+	rootCert, rootKey, sigAlgo, err := certmaker.GetRootKeyPair(bh.Config.DataDir)
 	if err != nil {
 		logger.Errorf("could not retrieve root certificate: %s", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -606,13 +626,23 @@ func (bh *BaseHandler) APISolveHTTP01ChallengeHandler(w http.ResponseWriter, r *
 
 	// from here on, we know that the challenge was successful for all domains and IPs
 	// that means we can issue the certificate
+
+	// get the issuer from the context header
+	issuerContext := r.Header.Get("X-Issuer-Context")
+	issuer, err := bh.DBSvc.FindIssuer("context = ?", issuerContext)
+	if err != nil {
+		logger.Debug("could not find issuer by context: " + err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
 	var (
 		certData, keyData string
 		sn                int64
 	)
 	if fromCSR {
 		// issue certificate from CSR
-		certData, sn, err = bh.CertMaker.GenerateCertificateByCSR(csr)
+		certData, sn, err = certmaker.GenerateCertificateByCSR(bh.Config.DataDir, bh.Config.ServerHost, issuer, csr)
 		if err != nil {
 			logger.Errorf("error generating certificate from CSR: %s\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
@@ -620,7 +650,7 @@ func (bh *BaseHandler) APISolveHTTP01ChallengeHandler(w http.ResponseWriter, r *
 			return
 		}
 	} else {
-		certData, keyData, sn, err = bh.CertMaker.GenerateLeafCertAndKey(simpleRequest)
+		certData, keyData, sn, err = certmaker.GenerateLeafCertAndKey(bh.Config.DataDir, bh.Config.ServerHost, issuer, simpleRequest)
 		if err != nil {
 			logger.Errorf("error generating key + certificate: %s\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
@@ -762,20 +792,29 @@ func (bh *BaseHandler) APISolveDNS01ChallengeHandler(w http.ResponseWriter, r *h
 	// from here on, we know that the challenge was successful for all domains
 	// that means we can issue the certificate
 
+	// get the issuer from the context header
+	issuerContext := r.Header.Get("X-Issuer-Context")
+	issuer, err := bh.DBSvc.FindIssuer("context = ?", issuerContext)
+	if err != nil {
+		logger.Debug("could not find issuer by context: " + err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
 	var (
 		certData, keyData string
 		sn                int64
 	)
 	if fromCSR {
 		// issue certificate from CSR
-		certData, sn, err = bh.CertMaker.GenerateCertificateByCSR(csr)
+		certData, sn, err = certmaker.GenerateCertificateByCSR(bh.Config.DataDir, bh.Config.ServerHost, issuer, csr)
 		if err != nil {
 			logger.Errorf("error generating certificate from CSR: %s\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 	} else {
-		certData, keyData, sn, err = bh.CertMaker.GenerateLeafCertAndKey(simpleRequest)
+		certData, keyData, sn, err = certmaker.GenerateLeafCertAndKey(bh.Config.DataDir, bh.Config.ServerHost, issuer, simpleRequest)
 		if err != nil {
 			logger.Errorf("error generating key + certificate: %s\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
@@ -908,7 +947,7 @@ func (bh *BaseHandler) APIObtainCertificateHandler(w http.ResponseWriter, r *htt
 		return
 	}
 
-	certBytes, err := bh.CertMaker.FindLeafCertificate(certID)
+	certBytes, err := certmaker.FindLeafCertificate(bh.Config.DataDir, certID)
 	if err != nil {
 		logger.Debugf("No certificate found for ID %s", id)
 		w.WriteHeader(http.StatusNotFound)
@@ -939,7 +978,7 @@ func (bh *BaseHandler) APIObtainPrivateKeyHandler(w http.ResponseWriter, r *http
 		return
 	}
 
-	keyBytes, err := bh.CertMaker.FindLeafPrivateKey(keyID)
+	keyBytes, err := certmaker.FindLeafPrivateKey(bh.Config.DataDir, keyID)
 	if err != nil {
 		logger.Debugf("No private key found for ID %s", id)
 		w.WriteHeader(http.StatusNotFound)

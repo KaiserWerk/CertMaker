@@ -576,7 +576,7 @@ func (bh *BaseHandler) AdminIssuerListHandler(w http.ResponseWriter, r *http.Req
 		Success string
 		Info    string
 		User    *entity.User
-		Issuers []entity.Issuer
+		Issuers []*entity.Issuer
 	}{
 		Error:   templating.GetErrorMessage(w, r),
 		Success: templating.GetSuccessMessage(w, r),
@@ -617,7 +617,7 @@ func (bh *BaseHandler) AdminIssuerCreateHandler(w http.ResponseWriter, r *http.R
 		Success string
 		Info    string
 		User    *entity.User
-		Issuers []entity.Issuer
+		Issuers []*entity.Issuer
 	}{
 		Error:   templating.GetErrorMessage(w, r),
 		Success: templating.GetSuccessMessage(w, r),
@@ -643,19 +643,26 @@ func (bh *BaseHandler) AdminIssuerCreateHandler(w http.ResponseWriter, r *http.R
 	data.Issuers = issuers
 
 	if r.Method == http.MethodPost {
-		// Handle form submission
+		issuerName := r.FormValue("issuer_name")
+		if issuerName == "" {
+			templating.SetErrorMessage(w, "Issuer name is required.")
+			http.Redirect(w, r, "/admin/issuer/create", http.StatusSeeOther)
+			return
+		}
+
 		var (
-			parentIssuerID int
+			parentIssuerID uint
 			parentIssuer   *entity.Issuer
 		)
 		parentIssuerRaw := r.FormValue("parent_issuer")
 		if parentIssuerRaw != "" {
-			parentIssuerID, err = strconv.Atoi(parentIssuerRaw)
+			parentIssuerIDParsed, err := strconv.ParseUint(parentIssuerRaw, 10, 64)
 			if err != nil {
 				templating.SetErrorMessage(w, "Invalid parent issuer ID.")
 				http.Redirect(w, r, "/admin/issuer/create", http.StatusSeeOther)
 				return
 			}
+			parentIssuerID = uint(parentIssuerIDParsed)
 			parentIssuer, err = bh.DBSvc.FindIssuer("id = ?", parentIssuerID)
 			if err != nil {
 				templating.SetErrorMessage(w, "Parent issuer not found.")
@@ -681,6 +688,7 @@ func (bh *BaseHandler) AdminIssuerCreateHandler(w http.ResponseWriter, r *http.R
 		var (
 			newPrivateKeyBytes []byte
 			signer             crypto.Signer
+			signerPubKey       crypto.PublicKey
 			issuerCertificate  *x509.Certificate
 		)
 		switch keyAlgorithmRaw {
@@ -693,6 +701,7 @@ func (bh *BaseHandler) AdminIssuerCreateHandler(w http.ResponseWriter, r *http.R
 				return
 			}
 			signer = privKey
+			signerPubKey = privKey.Public()
 			newPrivateKeyBytes, err = x509.MarshalPKCS8PrivateKey(privKey)
 			if err != nil {
 				templating.SetErrorMessage(w, "Could not marshal RSA private key: "+err.Error())
@@ -722,6 +731,7 @@ func (bh *BaseHandler) AdminIssuerCreateHandler(w http.ResponseWriter, r *http.R
 				return
 			}
 			signer = privKey
+			signerPubKey = privKey.Public()
 			newPrivateKeyBytes, err = x509.MarshalPKCS8PrivateKey(privKey)
 			if err != nil {
 				templating.SetErrorMessage(w, "Could not marshal ECDSA private key: "+err.Error())
@@ -730,13 +740,14 @@ func (bh *BaseHandler) AdminIssuerCreateHandler(w http.ResponseWriter, r *http.R
 			}
 		case "ed25519":
 			// generate Ed25519 private key
-			_, privKey, err := ed25519.GenerateKey(rand.Reader)
+			publicKey, privKey, err := ed25519.GenerateKey(rand.Reader)
 			if err != nil {
 				templating.SetErrorMessage(w, "Could not generate Ed25519 private key: "+err.Error())
 				http.Redirect(w, r, "/admin/issuer/create", http.StatusSeeOther)
 				return
 			}
 			signer = privKey
+			signerPubKey = publicKey
 			newPrivateKeyBytes, err = x509.MarshalPKCS8PrivateKey(privKey)
 			if err != nil {
 				templating.SetErrorMessage(w, "Could not marshal Ed25519 private key: "+err.Error())
@@ -746,7 +757,7 @@ func (bh *BaseHandler) AdminIssuerCreateHandler(w http.ResponseWriter, r *http.R
 		}
 
 		if parentIssuerID != 0 { // intermediate issuer
-			signer = parentIssuer.PrivateKey.(crypto.Signer)
+			signer = parentIssuer.PrivateKey
 		}
 
 		subjectCommonNameRaw := r.FormValue("subject_common_name")
@@ -770,7 +781,7 @@ func (bh *BaseHandler) AdminIssuerCreateHandler(w http.ResponseWriter, r *http.R
 		}
 
 		// generate a self-signed certificate or a certificate signed by the parent issuer
-		sn, err := certmaker.GetNextLeafSerialNumber(bh.Config.DataDir)
+		newSerialNumber, err := certmaker.GetNextLeafSerialNumber(bh.Config.DataDir)
 		if err != nil {
 			templating.SetErrorMessage(w, "Could not get next serial number: "+err.Error())
 			http.Redirect(w, r, "/admin/issuer/create", http.StatusSeeOther)
@@ -786,7 +797,7 @@ func (bh *BaseHandler) AdminIssuerCreateHandler(w http.ResponseWriter, r *http.R
 		}
 
 		certTemplate := &x509.Certificate{
-			SerialNumber:          big.NewInt(sn),
+			SerialNumber:          big.NewInt(newSerialNumber),
 			Subject:               subject,
 			NotBefore:             time.Now().UTC().Add(-24 * time.Hour),
 			NotAfter:              time.Now().UTC().AddDate(years, 0, 0),
@@ -797,8 +808,10 @@ func (bh *BaseHandler) AdminIssuerCreateHandler(w http.ResponseWriter, r *http.R
 
 		if parentIssuerID != 0 {
 			issuerCertificate = parentIssuer.Certificate
+		} else {
+			issuerCertificate = certTemplate
 		}
-		newCert, err := x509.CreateCertificate(rand.Reader, certTemplate, issuerCertificate, signer.Public(), signer)
+		newCert, err := x509.CreateCertificate(rand.Reader, certTemplate, issuerCertificate, signerPubKey, signer)
 		if err != nil {
 			templating.SetErrorMessage(w, "Could not create certificate: "+err.Error())
 			http.Redirect(w, r, "/admin/issuer/create", http.StatusSeeOther)
@@ -807,7 +820,14 @@ func (bh *BaseHandler) AdminIssuerCreateHandler(w http.ResponseWriter, r *http.R
 
 		newIssuer := &entity.Issuer{
 			ParentIssuerID: parentIssuerID,
-			PrivateKey:     signer,
+			Name:           issuerName,
+			Issuer:         certTemplate.Issuer.String(),
+			Subject:        certTemplate.Subject.String(),
+			SerialNumber:   uint64(newSerialNumber),
+			NotBefore:      certTemplate.NotBefore,
+			NotAfter:       certTemplate.NotAfter,
+			CertificatePEM: newCert,
+			PrivateKeyPEM:  newPrivateKeyBytes,
 		}
 
 		err = bh.DBSvc.AddIssuer(newIssuer)

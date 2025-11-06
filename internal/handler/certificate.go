@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/KaiserWerk/CertMaker/internal/certmaker"
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 	"github.com/KaiserWerk/CertMaker/internal/global"
 	"github.com/KaiserWerk/CertMaker/internal/helper"
@@ -192,6 +193,7 @@ func (bh *BaseHandler) CertificateAddHandler(w http.ResponseWriter, r *http.Requ
 		Info        string
 		User        *entity.User
 		DefaultDays int
+		Issuers     []*entity.Issuer
 	}{
 		Error:       templating.GetErrorMessage(w, r),
 		Success:     templating.GetSuccessMessage(w, r),
@@ -205,6 +207,14 @@ func (bh *BaseHandler) CertificateAddHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	data.User = user
+
+	issuers, err := bh.DBSvc.GetAllIssuers()
+	if err != nil {
+		logger.Errorf("could not fetch issuers from DB: %s", err.Error())
+		http.Redirect(w, r, "/certificate/list", http.StatusSeeOther)
+		return
+	}
+	data.Issuers = issuers
 
 	if r.Method == http.MethodPost {
 		organization := r.FormValue("organization")
@@ -262,7 +272,16 @@ func (bh *BaseHandler) CertificateAddHandler(w http.ResponseWriter, r *http.Requ
 			Days: daysVal,
 		}
 
-		_, _, sn, err := bh.CertMaker.GenerateLeafCertAndKey(certRequest)
+		// get the issuer from the context header
+		issuerID := r.FormValue("issuer_id")
+		issuer, err := bh.DBSvc.FindIssuer("id = ?", issuerID)
+		if err != nil {
+			logger.Debug("could not find issuer by id: " + err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		_, _, sn, err := certmaker.GenerateLeafCertAndKey(bh.Config.DataDir, bh.Config.ServerHost, issuer, certRequest)
 		if err != nil {
 			logger.Error("could not generate leaf cert and key: " + err.Error())
 			http.Redirect(w, r, "/certificate/add", http.StatusSeeOther)
@@ -310,6 +329,7 @@ func (bh *BaseHandler) AddCertificateFromCSRHandler(w http.ResponseWriter, r *ht
 		Success string
 		Info    string
 		User    *entity.User
+		Issuers []*entity.Issuer
 	}{
 		Error:   templating.GetErrorMessage(w, r),
 		Success: templating.GetSuccessMessage(w, r),
@@ -323,7 +343,30 @@ func (bh *BaseHandler) AddCertificateFromCSRHandler(w http.ResponseWriter, r *ht
 	}
 	data.User = user
 
+	issuers, err := bh.DBSvc.GetAllIssuers()
+	if err != nil {
+		logger.Errorf("could not fetch issuers from DB: %s", err.Error())
+		http.Redirect(w, r, "/certificate/list", http.StatusSeeOther)
+		return
+	}
+	data.Issuers = issuers
+
 	if r.Method == http.MethodPost {
+		// issuer by ID
+		issuerID := r.FormValue("issuer_id")
+		issuer, err := bh.DBSvc.FindIssuer("id = ?", issuerID)
+		if err != nil {
+			templating.SetErrorMessage(w, "Issuer not found")
+			http.Redirect(w, r, "/certificate/list", http.StatusSeeOther)
+			return
+		}
+
+		err = r.ParseMultipartForm(10 << 18) // 256KB
+		if err != nil {
+			logger.Debug("could not parse multipart form: " + err.Error())
+			http.Redirect(w, r, "/certificate/list", http.StatusSeeOther)
+			return
+		}
 
 		csrFile, _, err := r.FormFile("csr_file")
 		if err != nil {
@@ -339,9 +382,9 @@ func (bh *BaseHandler) AddCertificateFromCSRHandler(w http.ResponseWriter, r *ht
 			return
 		}
 
-		p, _ := pem.Decode(csrBytes)
+		block, _ := pem.Decode(csrBytes)
 
-		csr, err := x509.ParseCertificateRequest(p.Bytes)
+		csr, err := x509.ParseCertificateRequest(block.Bytes)
 		if err != nil {
 			logger.Debug("could not parse uploaded CSR file: " + err.Error())
 			http.Redirect(w, r, "/certificate/list", http.StatusSeeOther)
@@ -354,7 +397,7 @@ func (bh *BaseHandler) AddCertificateFromCSRHandler(w http.ResponseWriter, r *ht
 			return
 		}
 
-		_, sn, err := bh.CertMaker.GenerateCertificateByCSR(csr)
+		_, sn, err := certmaker.GenerateCertificateByCSR(bh.Config.DataDir, bh.Config.ServerHost, issuer, csr)
 		if err != nil {
 			logger.Debug("could not generate certificate FROM CSR: " + err.Error())
 			http.Redirect(w, r, "/certificate/list", http.StatusSeeOther)

@@ -8,11 +8,11 @@ import (
 )
 
 // GetAllIssuers fetches all available issuers (root and intermediates)
-func (ds *DBService) GetAllIssuers() ([]entity.Issuer, error) {
-	issuers := make([]entity.Issuer, 0)
+func (ds *DBService) GetAllIssuers() ([]*entity.Issuer, error) {
+	issuers := make([]*entity.Issuer, 0)
 	result := ds.db.Find(&issuers)
 
-	roots := make([]entity.Issuer, 0)
+	roots := make([]*entity.Issuer, 0)
 	for _, issuer := range issuers {
 		if issuer.ParentIssuerID == 0 {
 			roots = append(roots, issuer)
@@ -42,38 +42,22 @@ func (ds *DBService) FindIssuer(cond string, args ...interface{}) (*entity.Issue
 		return nil, fmt.Errorf("no user found")
 	}
 
-	if issuer.SourceType == "filesystem" {
-		// load cert and priv key from filesystem
-		source, err := ds.FindIssuerFileSystemSource("id = ?", issuer.SourceID)
-		if err != nil {
-			return nil, err
-		}
-		issuer.Certificate, err = certmaker.LoadCertificateFromFile(source.CertificateFile)
-		if err != nil {
-			return nil, err
-		}
-		issuer.PrivateKey, err = certmaker.LoadPrivateKeyFromFile(source.KeyFile)
-		if err != nil {
-			return nil, err
-		}
-	} else if issuer.SourceType == "local_database" {
-		source, err := ds.FindIssuerLocalDatabaseSource("id = ?", issuer.SourceID)
-		if err != nil {
-			return nil, err
-		}
-
-		issuer.Certificate, err = certmaker.LoadCertificateFromPEM(source.CertificatePEM)
-		if err != nil {
-			return nil, err
-		}
-
-		issuer.PrivateKey, err = certmaker.LoadPrivateKeyFromPEM(source.KeyPEM)
-		if err != nil {
-			return nil, err
-		}
+	var err error
+	issuer.Certificate, err = certmaker.LoadCertificateFromPEM(issuer.CertificatePEM)
+	if err != nil {
+		return nil, err
 	}
 
-	return &issuer, nil
+	issuer.PrivateKey, err = certmaker.LoadPrivateKeyFromPEM(issuer.PrivateKeyPEM)
+	if err != nil {
+		return nil, err
+	}
+
+	// also read intermediates
+	issuer.Intermediates = make([]*entity.Issuer, 0)
+	result = ds.db.Where("parent_issuer_id = ?", issuer.ID).Find(&issuer.Intermediates)
+
+	return &issuer, result.Error
 }
 
 // AddIssuer creates a new issuer entry in the database

@@ -12,7 +12,6 @@ import (
 
 	"github.com/KaiserWerk/CertMaker/internal/assets"
 	"github.com/KaiserWerk/CertMaker/internal/backup"
-	"github.com/KaiserWerk/CertMaker/internal/certmaker"
 	"github.com/KaiserWerk/CertMaker/internal/configuration"
 	"github.com/KaiserWerk/CertMaker/internal/cron"
 	"github.com/KaiserWerk/CertMaker/internal/dbservice"
@@ -79,12 +78,7 @@ func main() {
 
 	// create new session manager
 	sessMgr := sessionstore.NewManager("CM_SESS")
-	// create new certmaker instance and set up CA if necessary
-	cm := certmaker.New(config)
-	if err := cm.SetupCA(); err != nil {
-		logger.WithField("error", err.Error()).Error("could not set up CA")
-		return
-	}
+
 	// create database service
 	ds, err := dbservice.New(config)
 	if err != nil {
@@ -101,15 +95,14 @@ func main() {
 
 	// set up the jobs
 	cronjob := cron.New(&cron.Dependencies{
-		Config:    config,
-		Logger:    logger,
-		DBSvc:     ds,
-		CertMaker: cm,
+		Config: config,
+		Logger: logger,
+		DBSvc:  ds,
 	})
 	cronjob.AddDaily(jobs.GenerateCTLsJob)
 
 	// set up the HTTP server
-	router := setupRoutes(config, logger, ds, sessMgr, cm, cronjob, *useUi)
+	router := setupRoutes(config, logger, ds, sessMgr, cronjob, *useUi)
 
 	host := fmt.Sprintf(":%s", *port)
 	srv := &http.Server{
@@ -143,16 +136,15 @@ func main() {
 }
 
 func setupRoutes(cfg *configuration.AppConfig, logger *logrus.Entry, dbSvc *dbservice.DBService,
-	sessMgr *sessionstore.SessionManager, cm *certmaker.CertMaker, cron *cron.Cron, ui bool) *mux.Router {
+	sessMgr *sessionstore.SessionManager, cron *cron.Cron, ui bool) *mux.Router {
 
 	bh := handler.BaseHandler{
-		Config:    cfg,
-		Logger:    logger,
-		DBSvc:     dbSvc,
-		SessMgr:   sessMgr,
-		CertMaker: cm,
-		CronSvc:   cron,
-		Client:    &http.Client{Timeout: 10 * time.Second},
+		Config:  cfg,
+		Logger:  logger,
+		DBSvc:   dbSvc,
+		SessMgr: sessMgr,
+		CronSvc: cron,
+		Client:  &http.Client{Timeout: 10 * time.Second},
 	}
 
 	mh := middleware.MWHandler{

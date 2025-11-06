@@ -209,16 +209,7 @@ func GenerateRootCertAndKey(dataDir, certFile, keyFile string, subject pkix.Name
 
 // GenerateLeafCertAndKey generates a certificate signed by
 // the root certificate and a private key.
-func GenerateLeafCertAndKey(dataDir, certFile, keyFile, serverHost string, sigAlgo x509.SignatureAlgorithm, request entity.SimpleRequest) (string, string, int64, error) {
-	caTls, err := tls.LoadX509KeyPair(filepath.Join(dataDir, global.RootCertificateFilename), filepath.Join(dataDir, global.RootPrivateKeyFilename))
-	if err != nil {
-		return "", "", 0, err
-	}
-	ca, err := x509.ParseCertificate(caTls.Certificate[0])
-	if err != nil {
-		return "", "", 0, err
-	}
-
+func GenerateLeafCertAndKey(dataDir, serverHost string, issuer *entity.Issuer, request entity.SimpleRequest) (string, string, int64, error) {
 	if request.Days > global.CertificateMaxDays {
 		request.Days = global.CertificateMaxDays
 	}
@@ -253,7 +244,7 @@ func GenerateLeafCertAndKey(dataDir, certFile, keyFile, serverHost string, sigAl
 		},
 		NotBefore:          time.Now(),
 		NotAfter:           time.Now().AddDate(0, 0, request.Days),
-		SignatureAlgorithm: sigAlgo,
+		SignatureAlgorithm: issuer.Certificate.SignatureAlgorithm,
 		SubjectKeyId:       []byte{1, 2, 3, 4, 6},
 		ExtKeyUsage:        []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:           x509.KeyUsageDigitalSignature,
@@ -273,7 +264,7 @@ func GenerateLeafCertAndKey(dataDir, certFile, keyFile, serverHost string, sigAl
 		pubKey  crypto.PublicKey
 	)
 
-	switch sigAlgo {
+	switch issuer.Certificate.SignatureAlgorithm {
 	case x509.SHA256WithRSA, x509.SHA384WithRSA, x509.SHA512WithRSA:
 		rsaPrivKey, err := rsa.GenerateKey(rand.Reader, 4096)
 		if err != nil {
@@ -299,7 +290,7 @@ func GenerateLeafCertAndKey(dataDir, certFile, keyFile, serverHost string, sigAl
 	}
 
 	// Sign the certificate
-	certBytes, err := x509.CreateCertificate(rand.Reader, cert, ca, pubKey, caTls.PrivateKey)
+	certBytes, err := x509.CreateCertificate(rand.Reader, cert, issuer.Certificate, pubKey, issuer.PrivateKey)
 	if err != nil {
 		return "", "", 0, err
 	}
@@ -339,7 +330,7 @@ func GenerateLeafCertAndKey(dataDir, certFile, keyFile, serverHost string, sigAl
 	return base64.StdEncoding.EncodeToString(certBytes), base64.StdEncoding.EncodeToString(privKeyBytes), nextSn, nil
 }
 
-func GenerateCertificateByCSR(dataDir, certFile, keyFile, serverHost string, csr *x509.CertificateRequest) (string, int64, error) {
+func GenerateCertificateByCSR(dataDir, serverHost string, issuer *entity.Issuer, csr *x509.CertificateRequest) (string, int64, error) {
 	caTls, err := tls.LoadX509KeyPair(filepath.Join(dataDir, global.RootCertificateFilename), filepath.Join(dataDir, global.RootPrivateKeyFilename))
 	if err != nil {
 		return "", 0, err
@@ -349,7 +340,7 @@ func GenerateCertificateByCSR(dataDir, certFile, keyFile, serverHost string, csr
 		return "", 0, err
 	}
 
-	nextSn, err := GetNextLeafSerialNumber()
+	nextSn, err := GetNextLeafSerialNumber(dataDir)
 	if err != nil {
 		return "", 0, err
 	}
@@ -557,4 +548,17 @@ func LoadPrivateKeyFromPEM(pemData []byte) (crypto.Signer, error) {
 		return nil, err
 	}
 	return privKey.(crypto.Signer), nil
+}
+
+func EncodeCertificateToPEM(cert *x509.Certificate) []byte {
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
+}
+
+func EncodePrivateKeyToPEM(privKey crypto.Signer) ([]byte, error) {
+	privKeyBytes, err := x509.MarshalPKCS8PrivateKey(privKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: privKeyBytes}), nil
 }

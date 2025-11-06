@@ -3,24 +3,23 @@ package entity
 import (
 	"crypto"
 	"crypto/x509"
+	"time"
 
 	"gorm.io/gorm"
 )
 
 type Issuer struct {
 	gorm.Model
-	ParentIssuerID   uint
-	SourceID         uint
-	SourceType       string
-	Context          string `gorm:"index:,unique"`
-	Issuer           string
-	Subject          string
-	SerialNumber     uint64
-	NotBefore        string
-	NotAfter         string
-	Intermediates    []Issuer                   `gorm:"-"`
-	FileSystemSource *IssuerFileSystemSource    `gorm:"-"`
-	DatabaseSource   *IssuerLocalDatabaseSource `gorm:"-"`
-	Certificate      *x509.Certificate          `gorm:"-"`
-	PrivateKey       crypto.Signer              `gorm:"-"`
+	ParentIssuerID uint
+	Name           string
+	Issuer         string
+	Subject        string
+	SerialNumber   uint64
+	NotBefore      time.Time
+	NotAfter       time.Time
+	CertificatePEM []byte
+	PrivateKeyPEM  []byte
+	Intermediates  []*Issuer         `gorm:"-"`
+	Certificate    *x509.Certificate `gorm:"-"`
+	PrivateKey     crypto.Signer     `gorm:"-"`
 }

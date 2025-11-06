@@ -3,7 +3,6 @@ package handler
 import (
 	"net/http"
 
-	"github.com/KaiserWerk/CertMaker/internal/certmaker"
 	"github.com/KaiserWerk/CertMaker/internal/configuration"
 	"github.com/KaiserWerk/CertMaker/internal/cron"
 	"github.com/KaiserWerk/CertMaker/internal/dbservice"
@@ -13,13 +12,12 @@ import (
 )
 
 type BaseHandler struct {
-	Config    *configuration.AppConfig
-	Logger    *logrus.Entry
-	DBSvc     *dbservice.DBService
-	SessMgr   *sessionstore.SessionManager
-	CertMaker *certmaker.CertMaker
-	CronSvc   *cron.Cron
-	Client    *http.Client
+	Config  *configuration.AppConfig
+	Logger  *logrus.Entry
+	DBSvc   *dbservice.DBService
+	SessMgr *sessionstore.SessionManager
+	CronSvc *cron.Cron
+	Client  *http.Client
 }
 
 func (bh *BaseHandler) ContextLogger(context string) *logrus.Entry {
