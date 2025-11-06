@@ -8,6 +8,7 @@ import (
 	"github.com/KaiserWerk/CertMaker/internal/global"
 	"github.com/KaiserWerk/CertMaker/internal/security"
 	"github.com/KaiserWerk/CertMaker/internal/templating"
+	"github.com/gorilla/mux"
 )
 
 // ProfileHandler displays the current user's profile
@@ -148,14 +149,24 @@ func (bh *BaseHandler) ProfileEditHandler(w http.ResponseWriter, r *http.Request
 	}
 }
 
-// ProfileRegenerateKeyHandler generates a new token for the current user and saves it to the DB
-func (bh *BaseHandler) ProfileRegenerateKeyHandler(w http.ResponseWriter, r *http.Request) {
+// RegenerateAPIKeyHandler regenerates an existing token for the current user and saves it to the DB
+func (bh *BaseHandler) RegenerateAPIKeyHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	logger := bh.ContextLogger("user")
+	vars := mux.Vars(r)
 
 	user, ok := r.Context().Value("user").(*entity.User)
 	if !ok || user == nil {
 		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
+		return
+	}
+
+	keyID := vars["id"]
+	userKey, err := bh.DBSvc.FindAPIKey("id = ? AND user_id = ?", keyID, user.ID)
+	if err != nil {
+		logger.Error("could not find user API key: " + err.Error())
+		templating.SetErrorMessage(w, "Could not find user API key.")
+		http.Redirect(w, r, "/user/profile", http.StatusSeeOther)
 		return
 	}
 

@@ -173,7 +173,11 @@ func setupRoutes(cfg *configuration.AppConfig, logger *logrus.Entry, dbSvc *dbse
 		userRouter.Use(mh.RequireSession)
 		userRouter.HandleFunc("/profile", bh.ProfileHandler)
 		userRouter.HandleFunc("/profile/edit", bh.ProfileEditHandler)
-		userRouter.HandleFunc("/regenerate-key", bh.ProfileRegenerateKeyHandler)
+		userRouter.HandleFunc("/apikey/list", nil)
+		userRouter.HandleFunc("/apikey/add", nil)
+		userRouter.HandleFunc("/apikey/{id}/edit", nil)
+		userRouter.HandleFunc("/apikey/{id}/remove", nil)
+		userRouter.HandleFunc("/apikey/{id}/regenerate", nil)
 
 		authRouter := router.PathPrefix("/auth").Subrouter()
 		authRouter.HandleFunc("/login", bh.LoginHandler).Methods(http.MethodGet, http.MethodPost)
