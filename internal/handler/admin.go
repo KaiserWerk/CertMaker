@@ -320,8 +320,6 @@ func (bh *BaseHandler) AdminUserAddHandler(w http.ResponseWriter, r *http.Reques
 			admin = true
 		}
 
-		apikey := security.GenerateToken(global.APITokenLength)
-
 		hash, err := security.HashString(password)
 		if err != nil {
 			logger.Error("could not hash password: " + err.Error())
@@ -334,7 +332,6 @@ func (bh *BaseHandler) AdminUserAddHandler(w http.ResponseWriter, r *http.Reques
 			Username: username,
 			Email:    email,
 			Password: hash,
-			ApiKey:   apikey,
 			NoLogin:  nologin,
 			Locked:   locked,
 			Admin:    admin,
@@ -344,6 +341,20 @@ func (bh *BaseHandler) AdminUserAddHandler(w http.ResponseWriter, r *http.Reques
 		if err != nil {
 			logger.Error("could not create user: " + err.Error())
 			templating.SetErrorMessage(w, "Could not create user.")
+			http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
+			return
+		}
+
+		newApiKey := &entity.APIKey{
+			UserID:         u.ID,
+			Key:            security.GenerateToken(global.APITokenLength, u.ID),
+			Name:           "Initial API Key",
+			AllowedIssuers: "*",
+		}
+		err = bh.DBSvc.AddAPIKey(newApiKey)
+		if err != nil {
+			logger.Error("could not create API key: " + err.Error())
+			templating.SetErrorMessage(w, "Could not create API key.")
 			http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
 			return
 		}

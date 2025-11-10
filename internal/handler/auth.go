@@ -187,13 +187,10 @@ func (bh *BaseHandler) RegistrationHandler(w http.ResponseWriter, r *http.Reques
 			return
 		}
 
-		key := security.GenerateToken(global.APITokenLength)
-
 		u := entity.User{
 			Username: username,
 			Email:    email,
 			Password: hash,
-			ApiKey:   key,
 			NoLogin:  false,
 			Locked:   false,
 			Admin:    false,
@@ -204,6 +201,20 @@ func (bh *BaseHandler) RegistrationHandler(w http.ResponseWriter, r *http.Reques
 			logger.Error("could not insert user: " + err.Error())
 			templating.SetErrorMessage(w, "Could not add user to database.")
 			http.Redirect(w, r, "/auth/register", http.StatusSeeOther)
+			return
+		}
+
+		newApiKey := &entity.APIKey{
+			UserID:         u.ID,
+			Key:            security.GenerateToken(global.APITokenLength, u.ID),
+			Name:           "Initial API Key",
+			AllowedIssuers: "*",
+		}
+		err = bh.DBSvc.AddAPIKey(newApiKey)
+		if err != nil {
+			logger.Error("could not create API key: " + err.Error())
+			templating.SetErrorMessage(w, "Could not create API key.")
+			http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
 			return
 		}
 

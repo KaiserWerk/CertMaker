@@ -22,7 +22,7 @@
                 <thead>
                     <tr>
                         <th>Serial Number</th>
-                        <th>Context</th>
+                        <th>Name</th>
                         <th>Issuer &amp; Subject</th>
                         <th>Validity</th>
                         <th>Actions</th>
@@ -32,10 +32,11 @@
                     {{ range .Issuers }}
                     <tr>
                         <td>{{ .SerialNumber }}</td>
-                        <td>{{ .Context }}</td>
+                        <td>{{ .Name }}</td>
                         <td>Issuer:{{ .Issuer }}<br>Subject: {{ .Subject }}</td>
                         <td>Not before: {{ .NotBefore }}<br>Not after: {{ .NotAfter }}</td>
                         <td>
+                            <a href="/admin/issuer/{{ .ID }}/edit" class="btn btn-warning btn-sm">Edit</a><br>
                             <a href="/admin/issuer/{{ .ID }}/deactivate" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to deactivate this root issuer?');">Deactivate</a>
                         </td>
                     </tr>
@@ -43,10 +44,11 @@
                             {{ range .Intermediates }}
                             <tr>
                                 <td>{{ .SerialNumber }}</td>
-                                <td>{{ .Context }}</td>
+                                <td>{{ .Name }}</td>
                                 <td>Issuer:{{ .Issuer }}<br>Subject: {{ .Subject }}</td>
                                 <td>Not before: {{ .NotBefore }}<br>Not after: {{ .NotAfter }}</td>
                                 <td>
+                                    <a href="/admin/issuer/{{ .ID }}/edit" class="btn btn-warning btn-sm">Edit</a><br>
                                     <a href="/admin/issuer/{{ .ID }}/deactivate" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to deactivate this intermediate issuer?');">Deactivate</a>
                                 </td>
                             </tr>

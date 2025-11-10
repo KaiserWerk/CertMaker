@@ -51,15 +51,12 @@ func New(config *configuration.AppConfig) (*DBService, error) {
 // is up-to-date.
 func (ds *DBService) AutoMigrate() error {
 	return ds.db.AutoMigrate(
+		&entity.APIKey{},
 		&entity.CertInfo{},
 		&entity.Challenge{},
 		&entity.RequestInfo{},
 		&entity.SystemSetting{},
 		&entity.User{},
-
 		&entity.Issuer{},
-		&entity.IssuerSource{},
-		&entity.IssuerFileSystemSource{},
-		&entity.IssuerLocalDatabaseSource{},
 	)
 }

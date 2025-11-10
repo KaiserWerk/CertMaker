@@ -5,10 +5,8 @@ import (
 	"net/http"
 
 	"github.com/KaiserWerk/CertMaker/internal/entity"
-	"github.com/KaiserWerk/CertMaker/internal/global"
 	"github.com/KaiserWerk/CertMaker/internal/security"
 	"github.com/KaiserWerk/CertMaker/internal/templating"
-	"github.com/gorilla/mux"
 )
 
 // ProfileHandler displays the current user's profile
@@ -147,40 +145,4 @@ func (bh *BaseHandler) ProfileEditHandler(w http.ResponseWriter, r *http.Request
 	if err := templating.ExecuteTemplate(w, template, data); err != nil {
 		logger.Errorf("could not execute template %s: %s", template, err.Error())
 	}
-}
-
-// RegenerateAPIKeyHandler regenerates an existing token for the current user and saves it to the DB
-func (bh *BaseHandler) RegenerateAPIKeyHandler(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-	logger := bh.ContextLogger("user")
-	vars := mux.Vars(r)
-
-	user, ok := r.Context().Value("user").(*entity.User)
-	if !ok || user == nil {
-		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
-		return
-	}
-
-	keyID := vars["id"]
-	userKey, err := bh.DBSvc.FindAPIKey("id = ? AND user_id = ?", keyID, user.ID)
-	if err != nil {
-		logger.Error("could not find user API key: " + err.Error())
-		templating.SetErrorMessage(w, "Could not find user API key.")
-		http.Redirect(w, r, "/user/profile", http.StatusSeeOther)
-		return
-	}
-
-	token := security.GenerateToken(global.APITokenLength)
-	user.ApiKey = token
-
-	err := bh.DBSvc.UpdateUser(user)
-	if err != nil {
-		logger.Error("could not update user: " + err.Error())
-		templating.SetErrorMessage(w, "Could not update user.")
-		http.Redirect(w, r, "/user/profile", http.StatusSeeOther)
-		return
-	}
-
-	templating.SetSuccessMessage(w, "New API token generated successfully.")
-	http.Redirect(w, r, "/user/profile", http.StatusSeeOther)
 }

@@ -60,6 +60,11 @@ func (ds *DBService) FindIssuer(cond string, args ...interface{}) (*entity.Issue
 	return &issuer, result.Error
 }
 
+func (ds *DBService) IssuerExists(id any) bool {
+	result := ds.db.Exec("SELECT exists (SELECT id FROM issuer WHERE id = ?)", id)
+	return result.Error == nil
+}
+
 // AddIssuer creates a new issuer entry in the database
 func (ds *DBService) AddIssuer(issuer *entity.Issuer) error {
 	res := ds.db.Create(issuer)

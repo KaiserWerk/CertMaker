@@ -95,10 +95,10 @@ func (bh *BaseHandler) APIRequestCertificateWithSimpleRequestHandler(w http.Resp
 			ch := &entity.Challenge{
 				CreatedFor:    user.ID,
 				RequestInfoID: ri.ID,
-				ChallengeID:   fmt.Sprintf("%d-%s", user.ID, security.GenerateToken(20)),
+				ChallengeID:   fmt.Sprintf("%d-%s", user.ID, security.GenerateToken(20, "chid")),
 				ChallengeType: "http-01",
 				ValidUntil:    time.Now().Add(global.DefaultChallengeValidity),
-				Token:         security.GenerateToken(80),
+				Token:         security.GenerateToken(80, "ch"),
 			}
 			if err = bh.DBSvc.AddChallenge(ch); err != nil {
 				logger.Infof("error inserting challenge: %s\n", err.Error())
@@ -119,10 +119,10 @@ func (bh *BaseHandler) APIRequestCertificateWithSimpleRequestHandler(w http.Resp
 			ch := &entity.Challenge{
 				CreatedFor:    user.ID,
 				RequestInfoID: ri.ID,
-				ChallengeID:   fmt.Sprintf("%d-%s", user.ID, security.GenerateToken(20)),
+				ChallengeID:   fmt.Sprintf("%d-%s", user.ID, security.GenerateToken(20, "chid")),
 				ChallengeType: "dns-01",
 				ValidUntil:    time.Now().Add(global.DefaultChallengeValidity),
-				Token:         security.GenerateToken(80),
+				Token:         security.GenerateToken(80, "ch"),
 			}
 			if err = bh.DBSvc.AddChallenge(ch); err != nil {
 				logger.Infof("error inserting challenge: %s\n", err.Error())
@@ -258,8 +258,8 @@ func (bh *BaseHandler) APIRequestCertificateWithCSRHandler(w http.ResponseWriter
 
 	var hasChallenge bool
 	if len(domainsToCheck) > 0 {
-		challengeID := fmt.Sprintf("%d-%s", user.ID, security.GenerateToken(20))
-		expectedToken := security.GenerateToken(80)
+		challengeID := fmt.Sprintf("%d-%s", user.ID, security.GenerateToken(20, "chid"))
+		expectedToken := security.GenerateToken(80, "ch")
 		if httpChallengeEnabled := bh.DBSvc.GetSetting(global.SettingEnableHTTP01Challenge); httpChallengeEnabled == "true" {
 			hasChallenge = true
 			ch := &entity.Challenge{

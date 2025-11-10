@@ -1,0 +1,45 @@
+{{ template "header_default" . }}
+<div class="container align-middle">
+    <h3>API keys</h3>
+
+    {{ if .Error }}
+        {{ template "error_alert" .Error }}
+    {{ end }}
+    {{ if .Success }}
+        {{ template "success_alert" .Success }}
+    {{ end }}
+    {{ if .Info }}
+        {{ template "info_alert" .Info }}
+    {{ end }}
+
+    <table class="table table-striped table-bordered">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Allowed Issuers</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{ range .APIKeys }}
+                <tr>
+                    <td>{{ .ID }}</td>
+                    <td>{{ .Name }}</td>
+                    <td>{{ .AllowedIssuers }}</td>
+                    <td>
+                        <a href="/user/apikey/edit/{{ .ID }}">Edit</a>
+                        <a href="/user/apikey/remove/{{ .ID }}" onclick="return confirm('Are you sure you want to delete this API key?');">Delete</a>
+                    </td>
+                </tr>
+            {{ else }}
+                <tr>
+                    <td colspan="4">No API keys found.</td>
+                </tr>
+            {{ end }}
+        </tbody>
+    </table>
+    <a href="/user/apikey/add">Add new API key</a>
+
+</div>
+{{ template "footer_default" . }}

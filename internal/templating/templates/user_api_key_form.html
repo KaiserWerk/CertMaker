@@ -1,0 +1,35 @@
+{{ template "header_default" . }}
+<div class="container align-middle">
+    <h3>Add new API key</h3>
+
+    {{ if .Error }}
+        {{ template "error_alert" .Error }}
+    {{ end }}
+    {{ if .Success }}
+        {{ template "success_alert" .Success }}
+    {{ end }}
+    {{ if .Info }}
+        {{ template "info_alert" .Info }}
+    {{ end }}
+
+    <form method="post">
+        <div class="form-group mb-4">
+            <label for="key_name">Key Name:</label>
+            <input type="text" id="key_name" name="key_name" required>
+        </div>
+       
+        <div class="form-group mb-4">
+            <label for="issuers">Allowed Issuers:</label>
+            <select class="form-control" id="issuers" name="issuers" size="1" multiple>
+                {{ range .Issuers }}
+                    <option value="{{ .ID }}">{{ .Name }} (Subject: {{ .Subject }})</option>
+                {{ end }}
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary">{{ if .Edit }}Update{{ else }}Create{{ end }}</button>
+    </form>
+    <a href="/user/apikey/list">Back to API key list</a>
+
+</div>
+{{ template "footer_default" . }}

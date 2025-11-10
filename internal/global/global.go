@@ -16,7 +16,7 @@ const (
 	CertificateMaxDays     = 182
 	CertificateDefaultDays = 7
 	CSRUploadMaxBytes      = 5 << 10 // 5 KiB
-	APITokenLength         = 40
+	APITokenLength         = 25
 	ChallengeTokenLength   = 80
 
 	TokenHeader = "X-Api-Token"
