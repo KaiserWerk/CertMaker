@@ -14,5 +14,5 @@ func GenerateToken(length uint8, prefix any) string {
 	if prefix == nil {
 		return hex.EncodeToString(buf)
 	}
-	return fmt.Sprintf("%s_%s", prefix, hex.EncodeToString(buf))
+	return fmt.Sprintf("%v_%s", prefix, hex.EncodeToString(buf))
 }

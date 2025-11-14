@@ -28,8 +28,8 @@
                     <td>{{ .Name }}</td>
                     <td>{{ .AllowedIssuers }}</td>
                     <td>
-                        <a href="/user/apikey/edit/{{ .ID }}">Edit</a>
-                        <a href="/user/apikey/remove/{{ .ID }}" onclick="return confirm('Are you sure you want to delete this API key?');">Delete</a>
+                        <a href="/user/apikey/{{ .ID }}/edit">Edit</a>
+                        <a href="/user/apikey/{{ .ID }}/remove" onclick="return confirm('Are you sure you want to delete this API key?');">Delete</a>
                     </td>
                 </tr>
             {{ else }}

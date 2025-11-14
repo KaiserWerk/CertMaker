@@ -673,8 +673,8 @@ func (bh *BaseHandler) AdminIssuerCreateHandler(w http.ResponseWriter, r *http.R
 				http.Redirect(w, r, "/admin/issuer/create", http.StatusSeeOther)
 				return
 			}
-			parentIssuerID = uint(parentIssuerIDParsed)
-			parentIssuer, err = bh.DBSvc.FindIssuer("id = ?", parentIssuerID)
+
+			parentIssuer, err = bh.DBSvc.FindIssuer("id = ?", parentIssuerIDParsed)
 			if err != nil {
 				templating.SetErrorMessage(w, "Parent issuer not found.")
 				http.Redirect(w, r, "/admin/issuer/create", http.StatusSeeOther)
@@ -697,10 +697,10 @@ func (bh *BaseHandler) AdminIssuerCreateHandler(w http.ResponseWriter, r *http.R
 		}
 
 		var (
-			newPrivateKeyBytes []byte
-			signer             crypto.Signer
-			signerPubKey       crypto.PublicKey
-			issuerCertificate  *x509.Certificate
+			newPrivateKeyPEM  []byte
+			signer            crypto.Signer
+			signerPubKey      crypto.PublicKey
+			issuerCertificate *x509.Certificate
 		)
 		switch keyAlgorithmRaw {
 		case "rsa":
@@ -713,12 +713,7 @@ func (bh *BaseHandler) AdminIssuerCreateHandler(w http.ResponseWriter, r *http.R
 			}
 			signer = privKey
 			signerPubKey = privKey.Public()
-			newPrivateKeyBytes, err = x509.MarshalPKCS8PrivateKey(privKey)
-			if err != nil {
-				templating.SetErrorMessage(w, "Could not marshal RSA private key: "+err.Error())
-				http.Redirect(w, r, "/admin/issuer/create", http.StatusSeeOther)
-				return
-			}
+			newPrivateKeyPEM, err = certmaker.EncodePrivateKeyToPEM(signer)
 		case "ecdsa":
 			// generate ECDSA private key
 			var curve elliptic.Curve
@@ -838,7 +833,7 @@ func (bh *BaseHandler) AdminIssuerCreateHandler(w http.ResponseWriter, r *http.R
 			NotBefore:      certTemplate.NotBefore,
 			NotAfter:       certTemplate.NotAfter,
 			CertificatePEM: newCert,
-			PrivateKeyPEM:  newPrivateKeyBytes,
+			PrivateKeyPEM:  newPrivateKeyPEM,
 		}
 
 		err = bh.DBSvc.AddIssuer(newIssuer)
@@ -848,6 +843,9 @@ func (bh *BaseHandler) AdminIssuerCreateHandler(w http.ResponseWriter, r *http.R
 			return
 		}
 
+		templating.SetSuccessMessage(w, "Issuer created successfully!")
+		http.Redirect(w, r, "/admin/issuers", http.StatusSeeOther)
+		return
 	}
 
 	if err := templating.ExecuteTemplate(w, template, data); err != nil {

@@ -39,7 +39,7 @@ func (ds *DBService) FindIssuer(cond string, args ...interface{}) (*entity.Issue
 	}
 
 	if result.RowsAffected == 0 {
-		return nil, fmt.Errorf("no user found")
+		return nil, fmt.Errorf("no issuer found")
 	}
 
 	var err error
