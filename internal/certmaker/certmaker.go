@@ -95,7 +95,7 @@ func GetNextLeafSerialNumber(dataDir string) (int64, error) {
 	}
 	sn++
 
-	err = os.WriteFile(file, []byte(strconv.FormatInt(sn, 10)), 0744)
+	err = os.WriteFile(file, []byte(strconv.FormatInt(sn, 10)), 0644)
 	return sn, err
 }
 
@@ -115,7 +115,7 @@ func GetNextCRLSerialNumber(dataDir string) (int64, error) {
 	}
 	sn++
 
-	err = os.WriteFile(file, []byte(strconv.FormatInt(sn, 10)), 0744)
+	err = os.WriteFile(file, []byte(strconv.FormatInt(sn, 10)), 0644)
 	return sn, err
 }
 
@@ -310,7 +310,7 @@ func GenerateLeafCertAndKey(dataDir, serverHost string, issuer *entity.Issuer, r
 	}
 
 	// Private key
-	keyOut, err := os.OpenFile(outKeyFilename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0744)
+	keyOut, err := os.OpenFile(outKeyFilename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return "", "", 0, err
 	}
