@@ -518,7 +518,7 @@ func LoadPrivateKeyFromFile(keyFile string) (crypto.Signer, error) {
 	}
 
 	block, _ := pem.Decode(cont)
-	if block == nil || block.Type != "PRIVATE KEY" || block.Type != "EC PRIVATE KEY" || block.Type != "RSA PRIVATE KEY" {
+	if block == nil || (block.Type != "PRIVATE KEY" && block.Type != "EC PRIVATE KEY" && block.Type != "RSA PRIVATE KEY") {
 		return nil, fmt.Errorf("failed to decode PEM block")
 	}
 
@@ -540,7 +540,7 @@ func LoadCertificateFromPEM(pemData []byte) (*x509.Certificate, error) {
 
 func LoadPrivateKeyFromPEM(pemData []byte) (crypto.Signer, error) {
 	block, _ := pem.Decode(pemData)
-	if block == nil || block.Type != "PRIVATE KEY" || block.Type != "EC PRIVATE KEY" || block.Type != "RSA PRIVATE KEY" {
+	if block == nil || (block.Type != "PRIVATE KEY" && block.Type != "EC PRIVATE KEY" && block.Type != "RSA PRIVATE KEY") {
 		return nil, fmt.Errorf("failed to decode PEM block")
 	}
 	privKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
