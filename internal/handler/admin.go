@@ -714,6 +714,11 @@ func (bh *BaseHandler) AdminIssuerCreateHandler(w http.ResponseWriter, r *http.R
 			signer = privKey
 			signerPubKey = privKey.Public()
 			newPrivateKeyPEM, err = certmaker.EncodePrivateKeyToPEM(signer)
+			if err != nil {
+				templating.SetErrorMessage(w, "Could not encode RSA private key to PEM: "+err.Error())
+				http.Redirect(w, r, "/admin/issuer/create", http.StatusSeeOther)
+				return
+			}
 		case "ecdsa":
 			// generate ECDSA private key
 			var curve elliptic.Curve
@@ -738,9 +743,9 @@ func (bh *BaseHandler) AdminIssuerCreateHandler(w http.ResponseWriter, r *http.R
 			}
 			signer = privKey
 			signerPubKey = privKey.Public()
-			newPrivateKeyBytes, err = x509.MarshalPKCS8PrivateKey(privKey)
+			newPrivateKeyPEM, err = certmaker.EncodePrivateKeyToPEM(signer)
 			if err != nil {
-				templating.SetErrorMessage(w, "Could not marshal ECDSA private key: "+err.Error())
+				templating.SetErrorMessage(w, "Could not encode ECDSA private key to PEM: "+err.Error())
 				http.Redirect(w, r, "/admin/issuer/create", http.StatusSeeOther)
 				return
 			}
@@ -754,9 +759,9 @@ func (bh *BaseHandler) AdminIssuerCreateHandler(w http.ResponseWriter, r *http.R
 			}
 			signer = privKey
 			signerPubKey = publicKey
-			newPrivateKeyBytes, err = x509.MarshalPKCS8PrivateKey(privKey)
+			newPrivateKeyPEM, err = certmaker.EncodePrivateKeyToPEM(signer)
 			if err != nil {
-				templating.SetErrorMessage(w, "Could not marshal Ed25519 private key: "+err.Error())
+				templating.SetErrorMessage(w, "Could not encode Ed25519 private key to PEM: "+err.Error())
 				http.Redirect(w, r, "/admin/issuer/create", http.StatusSeeOther)
 				return
 			}
