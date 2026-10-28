@@ -42,6 +42,16 @@ Default value is **false**.
 
 Those command line parameters can be combined as necessary.
 
+#### Environment variables
+
+By default, when `config.yaml` is missing, CertMaker creates it and exits.
+
+Set `CERTMAKER_EXIT_AFTER_CONFIG_CREATE=false` to continue startup after creating
+the file (useful for containerized setups with mounted config directories).
+
+Database configuration can also be overridden via environment variables. Refer to
+the [Configuration](configuration.md) documentation for details.
+
 ### Setup as a linux service
 
 With a little initial handiwork, you can easily run *CertMaker* as a linux service.

@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/KaiserWerk/CertMaker/internal/assets"
@@ -48,8 +50,11 @@ func main() {
 		return
 	}
 	if created {
-		fmt.Fprintln(os.Stderr, "The configuration file was not found so it was created.\nExiting...")
-		return
+		if shouldExitAfterConfigCreate() {
+			fmt.Fprintln(os.Stderr, "The configuration file was not found so it was created.\nExiting...")
+			return
+		}
+		fmt.Fprintln(os.Stderr, "The configuration file was not found so it was created.\nContinuing startup because CERTMAKER_EXIT_AFTER_CONFIG_CREATE is false.")
 	}
 
 	logger, cleanup, err := logging.New(logrus.DebugLevel, config.App.LogDir, "main", logging.ModeFile|logging.ModeConsole)
@@ -130,6 +135,21 @@ func main() {
 		return
 	}
 	logger.Debug("Server shutdown complete.")
+}
+
+func shouldExitAfterConfigCreate() bool {
+	rawValue, exists := os.LookupEnv("CERTMAKER_EXIT_AFTER_CONFIG_CREATE")
+	if !exists {
+		return true
+	}
+
+	parsed, err := strconv.ParseBool(strings.TrimSpace(rawValue))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Invalid CERTMAKER_EXIT_AFTER_CONFIG_CREATE value %q. Falling back to true.\n", rawValue)
+		return true
+	}
+
+	return parsed
 }
 
 func setupRoutes(cfg *configuration.AppConfig, logger *logrus.Entry, dbSvc *dbservice.DBService,

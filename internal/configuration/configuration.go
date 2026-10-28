@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/KaiserWerk/CertMaker/internal/assets"
 	"github.com/KaiserWerk/CertMaker/internal/helper"
@@ -85,6 +86,9 @@ func Setup(file string) (*AppConfig, bool, error) {
 	if err != nil {
 		return nil, created, err
 	}
+	if err := applyEnvOverrides(&cfg); err != nil {
+		return nil, created, err
+	}
 
 	_ = os.MkdirAll(cfg.App.DataDir, os.ModePerm)
 	snFile := filepath.Join(cfg.App.DataDir, "sn.txt")
@@ -106,4 +110,80 @@ func Setup(file string) (*AppConfig, bool, error) {
 	}
 
 	return &cfg, created, nil
+}
+
+func applyEnvOverrides(cfg *AppConfig) error {
+	if driver, ok := lookupNonEmptyEnv("DB_DRIVER"); ok {
+		cfg.Database.Driver = driver
+	}
+
+	if dsn, ok := lookupNonEmptyEnv("DB_DSN"); ok {
+		cfg.Database.DSN = dsn
+		return nil
+	}
+
+	mysqlEnvVars := []string{"DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME"}
+	mysqlEnvGiven := false
+	for _, envVar := range mysqlEnvVars {
+		if _, ok := lookupNonEmptyEnv(envVar); ok {
+			mysqlEnvGiven = true
+			break
+		}
+	}
+	if !mysqlEnvGiven {
+		return nil
+	}
+
+	host, hostGiven := lookupNonEmptyEnv("DB_HOST")
+	user, userGiven := lookupNonEmptyEnv("DB_USER")
+	password, passwordGiven := lookupNonEmptyEnv("DB_PASSWORD")
+	dbName, dbNameGiven := lookupNonEmptyEnv("DB_NAME")
+
+	missing := make([]string, 0, 4)
+	if !hostGiven {
+		missing = append(missing, "DB_HOST")
+	}
+	if !userGiven {
+		missing = append(missing, "DB_USER")
+	}
+	if !passwordGiven {
+		missing = append(missing, "DB_PASSWORD")
+	}
+	if !dbNameGiven {
+		missing = append(missing, "DB_NAME")
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("incomplete mysql environment override, missing: %s", strings.Join(missing, ", "))
+	}
+
+	port := "3306"
+	if envPort, ok := lookupNonEmptyEnv("DB_PORT"); ok {
+		port = envPort
+	}
+
+	params := "parseTime=true&charset=utf8"
+	if envParams, ok := lookupNonEmptyEnv("DB_PARAMS"); ok {
+		params = envParams
+	}
+
+	if cfg.Database.Driver == "" {
+		cfg.Database.Driver = "mysql"
+	}
+
+	cfg.Database.DSN = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?%s", user, password, host, port, dbName, params)
+	return nil
+}
+
+func lookupNonEmptyEnv(key string) (string, bool) {
+	value, found := os.LookupEnv(key)
+	if !found {
+		return "", false
+	}
+
+	trimmedValue := strings.TrimSpace(value)
+	if trimmedValue == "" {
+		return "", false
+	}
+
+	return trimmedValue, true
 }
