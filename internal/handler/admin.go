@@ -792,7 +792,7 @@ func (bh *BaseHandler) AdminIssuerCreateHandler(w http.ResponseWriter, r *http.R
 		}
 
 		// generate a self-signed certificate or a certificate signed by the parent issuer
-		newSerialNumber, err := certmaker.GetNextLeafSerialNumber(bh.Config.DataDir)
+		newSerialNumber, err := certmaker.GetNextLeafSerialNumber(bh.Config.App.DataDir)
 		if err != nil {
 			templating.SetErrorMessage(w, "Could not get next serial number: "+err.Error())
 			http.Redirect(w, r, "/admin/issuer/create", http.StatusSeeOther)

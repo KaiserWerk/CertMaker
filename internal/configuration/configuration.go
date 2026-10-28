@@ -7,19 +7,23 @@ import (
 
 	"github.com/KaiserWerk/CertMaker/internal/assets"
 	"github.com/KaiserWerk/CertMaker/internal/helper"
-
 	"gopkg.in/yaml.v2"
 )
 
 type (
 	// AppConfig represents the Go type of a configuration file
 	AppConfig struct {
-		ServerHost      string           `yaml:"server_host"`
-		DataDir         string           `yaml:"data_dir"`
+		App             App              `yaml:"app"`
 		Database        DB               `yaml:"database"`
 		RootKeyAlgo     string           `yaml:"root_key_algo"`
 		RootCertSubject CertSubject      `yaml:"root_cert_subject"`
 		StorageBox      StorageBoxConfig `yaml:"storagebox"`
+	}
+	App struct {
+		BindAddress string `yaml:"bind_address"`
+		ServerHost  string `yaml:"server_host"`
+		DataDir     string `yaml:"data_dir"`
+		LogDir      string `yaml:"log_dir"`
 	}
 	DB struct {
 		Driver string `yaml:"driver"`
@@ -82,8 +86,8 @@ func Setup(file string) (*AppConfig, bool, error) {
 		return nil, created, err
 	}
 
-	_ = os.MkdirAll(cfg.DataDir, os.ModePerm)
-	snFile := filepath.Join(cfg.DataDir, "sn.txt")
+	_ = os.MkdirAll(cfg.App.DataDir, os.ModePerm)
+	snFile := filepath.Join(cfg.App.DataDir, "sn.txt")
 	if !helper.DoesFileExist(snFile) {
 		snCont, err := assets.ReadConfigFile(snDistFile)
 		if err != nil {

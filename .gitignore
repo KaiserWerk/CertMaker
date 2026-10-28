@@ -1,10 +1,7 @@
 .idea/
 build/
-data/
-.VSCodeCounter/
-
-config.yaml
-
-*.exe
-*.log
+**/data/
+**/config.yaml
+**/*.exe*
+**/*.log
 

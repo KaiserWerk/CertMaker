@@ -5,14 +5,16 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch with UI in debug mode ",
+            "name": "Debug",
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${workspaceFolder}/cmd/certmaker/main.go",
+            "program": "${workspaceFolder}/cmd/certmaker",
+            "cwd": "${workspaceFolder}",
             "args": [
-               
-            ],
+                "--config",
+                "config.yaml"
+            ]
         }
     ]
 }

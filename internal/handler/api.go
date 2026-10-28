@@ -159,7 +159,7 @@ func (bh *BaseHandler) APIRequestCertificateWithSimpleRequestHandler(w http.Resp
 		return
 	}
 
-	certData, keyData, sn, err := certmaker.GenerateLeafCertAndKey(bh.Config.DataDir, bh.Config.ServerHost, issuer, certRequest)
+	certData, keyData, sn, err := certmaker.GenerateLeafCertAndKey(bh.Config.App.DataDir, bh.Config.App.ServerHost, issuer, certRequest)
 	if err != nil {
 		logger.Errorf("error generating key + certificate: %s\n", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -329,7 +329,7 @@ func (bh *BaseHandler) APIRequestCertificateWithCSRHandler(w http.ResponseWriter
 		return
 	}
 
-	certBytes, sn, err := certmaker.GenerateCertificateByCSR(bh.Config.DataDir, bh.Config.ServerHost, issuer, csr)
+	certBytes, sn, err := certmaker.GenerateCertificateByCSR(bh.Config.App.DataDir, bh.Config.App.ServerHost, issuer, csr)
 	if err != nil {
 		logger.Errorf("error generating certificate: %s\n", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -453,7 +453,7 @@ func (bh *BaseHandler) APIOCSPRequestHandler(w http.ResponseWriter, r *http.Requ
 	// 	responseTemplate.ExtraExtensions = []pkix.Extension{nonceExt}
 	// }
 
-	rootCert, rootKey, sigAlgo, err := certmaker.GetRootKeyPair(bh.Config.DataDir)
+	rootCert, rootKey, sigAlgo, err := certmaker.GetRootKeyPair(bh.Config.App.DataDir)
 	if err != nil {
 		logger.Errorf("could not retrieve root certificate: %s", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -642,7 +642,7 @@ func (bh *BaseHandler) APISolveHTTP01ChallengeHandler(w http.ResponseWriter, r *
 	)
 	if fromCSR {
 		// issue certificate from CSR
-		certData, sn, err = certmaker.GenerateCertificateByCSR(bh.Config.DataDir, bh.Config.ServerHost, issuer, csr)
+		certData, sn, err = certmaker.GenerateCertificateByCSR(bh.Config.App.DataDir, bh.Config.App.ServerHost, issuer, csr)
 		if err != nil {
 			logger.Errorf("error generating certificate from CSR: %s\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
@@ -650,7 +650,7 @@ func (bh *BaseHandler) APISolveHTTP01ChallengeHandler(w http.ResponseWriter, r *
 			return
 		}
 	} else {
-		certData, keyData, sn, err = certmaker.GenerateLeafCertAndKey(bh.Config.DataDir, bh.Config.ServerHost, issuer, simpleRequest)
+		certData, keyData, sn, err = certmaker.GenerateLeafCertAndKey(bh.Config.App.DataDir, bh.Config.App.ServerHost, issuer, simpleRequest)
 		if err != nil {
 			logger.Errorf("error generating key + certificate: %s\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
@@ -807,14 +807,14 @@ func (bh *BaseHandler) APISolveDNS01ChallengeHandler(w http.ResponseWriter, r *h
 	)
 	if fromCSR {
 		// issue certificate from CSR
-		certData, sn, err = certmaker.GenerateCertificateByCSR(bh.Config.DataDir, bh.Config.ServerHost, issuer, csr)
+		certData, sn, err = certmaker.GenerateCertificateByCSR(bh.Config.App.DataDir, bh.Config.App.ServerHost, issuer, csr)
 		if err != nil {
 			logger.Errorf("error generating certificate from CSR: %s\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 	} else {
-		certData, keyData, sn, err = certmaker.GenerateLeafCertAndKey(bh.Config.DataDir, bh.Config.ServerHost, issuer, simpleRequest)
+		certData, keyData, sn, err = certmaker.GenerateLeafCertAndKey(bh.Config.App.DataDir, bh.Config.App.ServerHost, issuer, simpleRequest)
 		if err != nil {
 			logger.Errorf("error generating key + certificate: %s\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
@@ -867,7 +867,7 @@ func (bh *BaseHandler) APIRootCertificateDownloadHandler(w http.ResponseWriter, 
 	defer r.Body.Close()
 	logger := bh.ContextLogger("api")
 
-	certFile := filepath.Join(bh.Config.DataDir, global.RootCertificateFilename)
+	certFile := filepath.Join(bh.Config.App.DataDir, global.RootCertificateFilename)
 	fh, err := os.Open(certFile)
 	if err != nil {
 		logger.WithField("error", err.Error()).Error("could not open root cert file for reading")
@@ -947,7 +947,7 @@ func (bh *BaseHandler) APIObtainCertificateHandler(w http.ResponseWriter, r *htt
 		return
 	}
 
-	certBytes, err := certmaker.FindLeafCertificate(bh.Config.DataDir, certID)
+	certBytes, err := certmaker.FindLeafCertificate(bh.Config.App.DataDir, certID)
 	if err != nil {
 		logger.Debugf("No certificate found for ID %s", id)
 		w.WriteHeader(http.StatusNotFound)
@@ -978,7 +978,7 @@ func (bh *BaseHandler) APIObtainPrivateKeyHandler(w http.ResponseWriter, r *http
 		return
 	}
 
-	keyBytes, err := certmaker.FindLeafPrivateKey(bh.Config.DataDir, keyID)
+	keyBytes, err := certmaker.FindLeafPrivateKey(bh.Config.App.DataDir, keyID)
 	if err != nil {
 		logger.Debugf("No private key found for ID %s", id)
 		w.WriteHeader(http.StatusNotFound)

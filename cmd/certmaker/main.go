@@ -30,42 +30,40 @@ var (
 	Version     = "0.0.0"
 	VersionDate = "0000-00-00 00:00:00"
 
-	configFile = flag.String("config", "config.yaml", "The configuration file to use")
-	logPath    = flag.String("logpath", ".", "The path to place log files at")
-	port       = flag.String("port", "8880", "The port to run at")
-	useUi      = flag.Bool("ui", true, "Adds a simple UI for certificate and instance management")
+	configFile string
 )
 
 func main() {
+	flag.StringVar(&configFile, "config", "config.yaml", "The configuration file to use")
 	flag.Parse()
 
 	fmt.Println("CertMaker")
 	fmt.Printf("  Version %s\n", Version)
 	fmt.Printf("  Version Date %s\n\n", VersionDate)
 
-	logger, cleanup, err := logging.New(logrus.DebugLevel, *logPath, "main", logging.ModeFile|logging.ModeConsole)
+	// setup configuration and serial number file, if necessary
+	config, created, err := configuration.Setup(configFile)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "could not set up configuration")
+		return
+	}
+	if created {
+		fmt.Fprintln(os.Stderr, "The configuration file was not found so it was created.\nExiting...")
+		return
+	}
+
+	logger, cleanup, err := logging.New(logrus.DebugLevel, config.App.LogDir, "main", logging.ModeFile|logging.ModeConsole)
 	defer func() {
 		if err := cleanup(); err != nil {
-			fmt.Println("could not execute cleanup func:", err.Error())
+			fmt.Fprintln(os.Stderr, "could not execute cleanup func:", err.Error())
 		}
 	}()
 	if err != nil {
-		fmt.Println("could not set up logging:", err.Error())
+		fmt.Fprintln(os.Stderr, "could not set up logging:", err.Error())
 		return
 	}
 
 	logger.WithFields(logrus.Fields{"application": "certmaker", "version": Version, "versionDate": VersionDate}).Info("app info")
-
-	// setup configuration and serial number file, if necessary
-	config, created, err := configuration.Setup(*configFile)
-	if err != nil {
-		logger.WithField("error", err.Error()).Error("could not set up configuration")
-		return
-	}
-	if created {
-		logger.Debugf("The configuration file was not found so it was created.\nExiting...")
-		return
-	}
 
 	if err = templating.Start(); err != nil {
 		logger.WithField("error", err.Error()).Error("could not initialize templates")
@@ -102,11 +100,10 @@ func main() {
 	cronjob.AddDaily(jobs.GenerateCTLsJob)
 
 	// set up the HTTP server
-	router := setupRoutes(config, logger, ds, sessMgr, cronjob, *useUi)
+	router := setupRoutes(config, logger, ds, sessMgr, cronjob, true)
 
-	host := fmt.Sprintf(":%s", *port)
 	srv := &http.Server{
-		Addr:              host,
+		Addr:              config.App.BindAddress,
 		Handler:           router,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      30 * time.Second,
@@ -127,7 +124,7 @@ func main() {
 		}
 	}()
 
-	logger.WithField("host", host).Debugf("Server started listening...")
+	logger.WithField("host", config.App.BindAddress).Debugf("Server started listening...")
 	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		logger.WithField("error", err.Error()).Error("server error")
 		return

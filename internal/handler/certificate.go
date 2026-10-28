@@ -78,7 +78,7 @@ func (bh *BaseHandler) RootCertificateDownloadHandler(w http.ResponseWriter, r *
 	defer r.Body.Close()
 	logger := bh.ContextLogger("certificate")
 
-	certFile := filepath.Join(bh.Config.DataDir, global.RootCertificateFilename)
+	certFile := filepath.Join(bh.Config.App.DataDir, global.RootCertificateFilename)
 	fh, err := os.Open(certFile)
 	if err != nil {
 		logger.Errorf("could not open root cert file for reading: %s", err.Error())
@@ -125,7 +125,7 @@ func (bh *BaseHandler) CertificateDownloadHandler(w http.ResponseWriter, r *http
 	}
 
 	filename := fmt.Sprintf("%d-cert.pem", ci.SerialNumber)
-	certContent, err := os.ReadFile(filepath.Join(bh.Config.DataDir, "leafcerts", filename))
+	certContent, err := os.ReadFile(filepath.Join(bh.Config.App.DataDir, "leafcerts", filename))
 	if err != nil {
 		logger.Debug("could not read certificate file: " + err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -163,7 +163,7 @@ func (bh *BaseHandler) PrivateKeyDownloadHandler(w http.ResponseWriter, r *http.
 	}
 
 	filename := fmt.Sprintf("%d-key.pem", ci.SerialNumber)
-	certContent, err := os.ReadFile(filepath.Join(bh.Config.DataDir, "leafcerts", filename))
+	certContent, err := os.ReadFile(filepath.Join(bh.Config.App.DataDir, "leafcerts", filename))
 	if err != nil {
 		logger.Debug("could not read key file: " + err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -281,7 +281,7 @@ func (bh *BaseHandler) CertificateAddHandler(w http.ResponseWriter, r *http.Requ
 			return
 		}
 
-		_, _, sn, err := certmaker.GenerateLeafCertAndKey(bh.Config.DataDir, bh.Config.ServerHost, issuer, certRequest)
+		_, _, sn, err := certmaker.GenerateLeafCertAndKey(bh.Config.App.DataDir, bh.Config.App.ServerHost, issuer, certRequest)
 		if err != nil {
 			logger.Error("could not generate leaf cert and key: " + err.Error())
 			http.Redirect(w, r, "/certificate/add", http.StatusSeeOther)
@@ -397,7 +397,7 @@ func (bh *BaseHandler) AddCertificateFromCSRHandler(w http.ResponseWriter, r *ht
 			return
 		}
 
-		_, sn, err := certmaker.GenerateCertificateByCSR(bh.Config.DataDir, bh.Config.ServerHost, issuer, csr)
+		_, sn, err := certmaker.GenerateCertificateByCSR(bh.Config.App.DataDir, bh.Config.App.ServerHost, issuer, csr)
 		if err != nil {
 			logger.Debug("could not generate certificate FROM CSR: " + err.Error())
 			http.Redirect(w, r, "/certificate/list", http.StatusSeeOther)
