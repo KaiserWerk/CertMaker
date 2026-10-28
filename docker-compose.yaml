@@ -7,6 +7,8 @@ services:
       - 8880:8880
     environment:
       - CERTMAKER_EXIT_AFTER_CONFIG_CREATE=false
+      - CERTMAKER_BOOTSTRAP_ADMIN_USER=admin
+      - CERTMAKER_BOOTSTRAP_ADMIN_PASSWORD=admin
       - DB_DRIVER=mysql
       - DB_HOST=mysql
       - DB_PORT=3306

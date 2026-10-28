@@ -52,6 +52,10 @@ the file (useful for containerized setups with mounted config directories).
 Database configuration can also be overridden via environment variables. Refer to
 the [Configuration](configuration.md) documentation for details.
 
+You can also override the first-run bootstrap admin credentials with
+`CERTMAKER_BOOTSTRAP_ADMIN_USER` and `CERTMAKER_BOOTSTRAP_ADMIN_PASSWORD`.
+Both values must be set together.
+
 ### Setup as a linux service
 
 With a little initial handiwork, you can easily run *CertMaker* as a linux service.

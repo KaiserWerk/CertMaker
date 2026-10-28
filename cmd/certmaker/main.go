@@ -101,13 +101,19 @@ func main() {
 		return
 	}
 
-	adminCreated, err := ds.EnsureDefaultAdminUser("admin", "admin")
+	adminUser, adminPass, err := bootstrapAdminCredentials()
+	if err != nil {
+		logger.WithField("error", err.Error()).Error("invalid bootstrap admin configuration")
+		return
+	}
+
+	adminCreated, err := ds.EnsureDefaultAdminUser(adminUser, adminPass)
 	if err != nil {
 		logger.WithField("error", err.Error()).Error("could not seed default admin user")
 		return
 	}
 	if adminCreated {
-		logger.Warn("created default admin user 'admin'; please change the password immediately")
+		logger.WithField("username", adminUser).Warn("created default admin user; please change the password immediately")
 	}
 
 	// set up the jobs
@@ -164,6 +170,34 @@ func shouldExitAfterConfigCreate() bool {
 	}
 
 	return parsed
+}
+
+func bootstrapAdminCredentials() (string, string, error) {
+	const (
+		defaultUser = "admin"
+		defaultPass = "admin"
+		envUser     = "CERTMAKER_BOOTSTRAP_ADMIN_USER"
+		envPass     = "CERTMAKER_BOOTSTRAP_ADMIN_PASSWORD"
+	)
+
+	rawUser, userSet := os.LookupEnv(envUser)
+	rawPass, passSet := os.LookupEnv(envPass)
+
+	if !userSet && !passSet {
+		return defaultUser, defaultPass, nil
+	}
+	if userSet != passSet {
+		return "", "", fmt.Errorf("%s and %s must either both be set or both be unset", envUser, envPass)
+	}
+
+	user := strings.TrimSpace(rawUser)
+	pass := strings.TrimSpace(rawPass)
+
+	if user == "" || pass == "" {
+		return "", "", fmt.Errorf("%s and %s must not be empty", envUser, envPass)
+	}
+
+	return user, pass, nil
 }
 
 func setupRoutes(cfg *configuration.AppConfig, logger *logrus.Entry, dbSvc *dbservice.DBService,

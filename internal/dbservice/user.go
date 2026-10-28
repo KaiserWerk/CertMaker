@@ -63,7 +63,7 @@ func (ds *DBService) EnsureDefaultAdminUser(username, password string) (bool, er
 
 	user = entity.User{
 		Username: username,
-		Email:    "",
+		Email:    "no@mail",
 		Password: hash,
 		NoLogin:  false,
 		Locked:   false,

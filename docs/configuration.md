@@ -25,3 +25,16 @@ If one of those required values is missing, startup fails with a clear error.
 
 `DB_PORT` defaults to `3306` when omitted and `DB_PARAMS` defaults to
 `parseTime=true&charset=utf8`.
+
+## Bootstrap admin user
+
+CertMaker creates a bootstrap admin user when no user with the configured
+bootstrap username exists.
+
+You can override bootstrap credentials via:
+
+- `CERTMAKER_BOOTSTRAP_ADMIN_USER`
+- `CERTMAKER_BOOTSTRAP_ADMIN_PASSWORD`
+
+Both variables must be set together (or both left unset). If both are unset,
+CertMaker falls back to `admin` / `admin`.
