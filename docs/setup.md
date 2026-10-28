@@ -8,7 +8,7 @@ yourself (in that case, refer to ``build.ps1``).
    configuration values according to your needs. At next startup, all the necessary database 
    tables will be created automatically.
 1. Open your favourite browser and navigate to ``http://localhost:8880`` to access the web UI.
-1. Create a new user with admin flag set. 
+1. On first startup, CertMaker creates a default admin account (`admin` / `admin`) if it does not already exist. Log in and change the password immediately.
 
 That's about it for initial setup. Make sure all files and folders can be written and read by 
 the user running the binary.

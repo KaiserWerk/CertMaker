@@ -1,9 +1,12 @@
 package dbservice
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/KaiserWerk/CertMaker/internal/entity"
+	"github.com/KaiserWerk/CertMaker/internal/security"
+	"gorm.io/gorm"
 )
 
 // GetAllUsers just fetches all users
@@ -40,6 +43,38 @@ func (ds *DBService) AddUser(u *entity.User) error {
 	}
 
 	return nil
+}
+
+// EnsureDefaultAdminUser creates a default admin user if it does not exist yet.
+func (ds *DBService) EnsureDefaultAdminUser(username, password string) (bool, error) {
+	var user entity.User
+	result := ds.db.Where("username = ?", username).First(&user)
+	if result.Error == nil {
+		return false, nil
+	}
+	if !errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return false, result.Error
+	}
+
+	hash, err := security.HashString(password)
+	if err != nil {
+		return false, err
+	}
+
+	user = entity.User{
+		Username: username,
+		Email:    "",
+		Password: hash,
+		NoLogin:  false,
+		Locked:   false,
+		Admin:    true,
+	}
+
+	if err := ds.db.Create(&user).Error; err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
 
 // UpdateUser updates a user with the ID from the struct with the values

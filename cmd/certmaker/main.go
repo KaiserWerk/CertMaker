@@ -101,6 +101,15 @@ func main() {
 		return
 	}
 
+	adminCreated, err := ds.EnsureDefaultAdminUser("admin", "admin")
+	if err != nil {
+		logger.WithField("error", err.Error()).Error("could not seed default admin user")
+		return
+	}
+	if adminCreated {
+		logger.Warn("created default admin user 'admin'; please change the password immediately")
+	}
+
 	// set up the jobs
 	cronjob := cron.New(&cron.Dependencies{
 		Config: config,
