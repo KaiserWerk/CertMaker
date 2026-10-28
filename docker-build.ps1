@@ -8,7 +8,7 @@ if (-not $version) {
     throw "Git hat einen leeren Tag zurückgegeben."
 }
 
-docker build --build-arg "VERSION=$version" -t "meinprogramm:$version" .
+docker build --build-arg "VERSION=$version" --build-arg "BUILD_DATE=$(Get-Date -Format s)Z" -t "kaiserwerk/certmaker:$version" .
 if ($LASTEXITCODE -ne 0) {
     throw "Docker-Build fehlgeschlagen."
 }

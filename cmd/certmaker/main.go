@@ -30,7 +30,7 @@ import (
 
 var (
 	Version     = "0.0.0"
-	VersionDate = "0000-00-00 00:00:00"
+	VersionDate = "0000-00-00T00:00:00Z"
 
 	configFile string
 )
@@ -57,16 +57,21 @@ func main() {
 		fmt.Fprintln(os.Stderr, "The configuration file was not found so it was created.\nContinuing startup because CERTMAKER_EXIT_AFTER_CONFIG_CREATE is false.")
 	}
 
-	logger, cleanup, err := logging.New(logrus.DebugLevel, config.App.LogDir, "main", logging.ModeFile|logging.ModeConsole)
+	logMode := logging.ModeConsole
+	if strings.TrimSpace(config.App.LogDir) != "" {
+		logMode = logging.ModeFile | logging.ModeConsole
+	}
+
+	logger, cleanup, err := logging.New(logrus.DebugLevel, config.App.LogDir, "main", logMode)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "could not set up logging:", err.Error())
+		return
+	}
 	defer func() {
 		if err := cleanup(); err != nil {
 			fmt.Fprintln(os.Stderr, "could not execute cleanup func:", err.Error())
 		}
 	}()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "could not set up logging:", err.Error())
-		return
-	}
 
 	logger.WithFields(logrus.Fields{"application": "certmaker", "version": Version, "versionDate": VersionDate}).Info("app info")
 
