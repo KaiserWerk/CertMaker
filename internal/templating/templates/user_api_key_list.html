@@ -17,7 +17,7 @@
             <tr>
                 <th>ID</th>
                 <th>Name</th>
-                <th>Allowed Issuers</th>
+                <th>Issuer</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -26,7 +26,7 @@
                 <tr>
                     <td>{{ .ID }}</td>
                     <td>{{ .Name }}</td>
-                    <td>{{ .AllowedIssuers }}</td>
+                    <td>{{ .IssuerID }}</td>
                     <td>
                         <a href="/user/apikey/{{ .ID }}/edit">Edit</a>
                         <a href="/user/apikey/{{ .ID }}/remove" onclick="return confirm('Are you sure you want to delete this API key?');">Delete</a>

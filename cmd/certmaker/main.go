@@ -266,6 +266,7 @@ func setupRoutes(cfg *configuration.AppConfig, logger *logrus.Entry, dbSvc *dbse
 		adminRouter.HandleFunc("/jobs", bh.AdminJobListHandler).Methods(http.MethodGet)
 		adminRouter.HandleFunc("/issuer/list", bh.AdminIssuerListHandler).Methods(http.MethodGet)
 		adminRouter.HandleFunc("/issuer/create", bh.AdminIssuerCreateHandler).Methods(http.MethodGet, http.MethodPost)
+		adminRouter.HandleFunc("/issuer/{id}/download-root-certificate", bh.AdminIssuerDownloadRootCertificateHandler).Methods(http.MethodGet)
 	}
 
 	apiRouter := router.PathPrefix("/api/v1").Subrouter()
