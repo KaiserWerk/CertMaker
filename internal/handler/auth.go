@@ -204,20 +204,6 @@ func (bh *BaseHandler) RegistrationHandler(w http.ResponseWriter, r *http.Reques
 			return
 		}
 
-		newApiKey := &entity.APIKey{
-			UserID:         u.ID,
-			Key:            security.GenerateToken(global.APITokenLength, u.ID),
-			Name:           "Initial API Key",
-			AllowedIssuers: "*",
-		}
-		err = bh.DBSvc.AddAPIKey(newApiKey)
-		if err != nil {
-			logger.Error("could not create API key: " + err.Error())
-			templating.SetErrorMessage(w, "Could not create API key.")
-			http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
-			return
-		}
-
 		templating.SetSuccessMessage(w, "Account created. You can now log in.")
 
 		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)

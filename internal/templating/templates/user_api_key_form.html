@@ -19,8 +19,9 @@
         </div>
        
         <div class="form-group mb-4">
-            <label for="issuers">Allowed Issuers:</label>
-            <select class="form-control" id="issuers" name="issuers" size="1" multiple>
+            <label for="issuer_id">Issuer:</label>
+            <select class="form-control" id="issuer_id" name="issuer_id" size="1">
+                <option value="0" disabled selected>Select an issuer</option>
                 {{ range .Issuers }}
                     <option value="{{ .ID }}">{{ .Name }} (Subject: {{ .Subject }})</option>
                 {{ end }}

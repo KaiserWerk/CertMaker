@@ -345,20 +345,6 @@ func (bh *BaseHandler) AdminUserAddHandler(w http.ResponseWriter, r *http.Reques
 			return
 		}
 
-		newApiKey := &entity.APIKey{
-			UserID:         u.ID,
-			Key:            security.GenerateToken(global.APITokenLength, u.ID),
-			Name:           "Initial API Key",
-			AllowedIssuers: "*",
-		}
-		err = bh.DBSvc.AddAPIKey(newApiKey)
-		if err != nil {
-			logger.Error("could not create API key: " + err.Error())
-			templating.SetErrorMessage(w, "Could not create API key.")
-			http.Redirect(w, r, "/admin/user/add", http.StatusSeeOther)
-			return
-		}
-
 		templating.SetSuccessMessage(w, "User created successfully!")
 	}
 
@@ -849,7 +835,7 @@ func (bh *BaseHandler) AdminIssuerCreateHandler(w http.ResponseWriter, r *http.R
 		}
 
 		templating.SetSuccessMessage(w, "Issuer created successfully!")
-		http.Redirect(w, r, "/admin/issuers", http.StatusSeeOther)
+		http.Redirect(w, r, "/admin/issuer/list", http.StatusSeeOther)
 		return
 	}
 

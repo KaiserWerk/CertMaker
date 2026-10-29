@@ -17,7 +17,15 @@ func (mh *MWHandler) RequireToken(next http.Handler) http.Handler {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		u, err := mh.DBSvc.FindUser("api_key = ?", token)
+
+		key, err := mh.DBSvc.FindAPIKey("key_content = ?", token)
+		if err != nil {
+			logger.Print("could not find associated API key")
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		u, err := mh.DBSvc.FindUser("id = ?", key.UserID)
 		if err != nil {
 			logger.Print("could not find associated user")
 			w.WriteHeader(http.StatusUnauthorized)
@@ -25,6 +33,7 @@ func (mh *MWHandler) RequireToken(next http.Handler) http.Handler {
 		}
 
 		ctx := context.WithValue(r.Context(), "user", u)
+		ctx = context.WithValue(ctx, "apiKey", key)
 		cr := r.WithContext(ctx)
 
 		next.ServeHTTP(w, cr)

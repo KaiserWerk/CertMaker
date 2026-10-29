@@ -150,9 +150,14 @@ func (bh *BaseHandler) APIRequestCertificateWithSimpleRequestHandler(w http.Resp
 		return
 	}
 
+	apiKey := r.Context().Value("apiKey").(*entity.APIKey)
+	if apiKey == nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	// get the issuer from the context header
-	issuerContext := r.Header.Get("X-Issuer-Context")
-	issuer, err := bh.DBSvc.FindIssuer("context = ?", issuerContext)
+	issuer, err := bh.DBSvc.FindIssuer("id = ?", apiKey.IssuerID)
 	if err != nil {
 		logger.Debug("could not find issuer by context: " + err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -319,10 +324,13 @@ func (bh *BaseHandler) APIRequestCertificateWithCSRHandler(w http.ResponseWriter
 	}
 
 	// no challenge, issue certificate right away
+	apiKey := r.Context().Value("apiKey").(*entity.APIKey)
+	if apiKey == nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
 
-	// get the issuer from the context header
-	issuerContext := r.Header.Get("X-Issuer-Context")
-	issuer, err := bh.DBSvc.FindIssuer("context = ?", issuerContext)
+	issuer, err := bh.DBSvc.FindIssuer("id = ?", apiKey.IssuerID)
 	if err != nil {
 		logger.Debug("could not find issuer by context: " + err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -627,9 +635,12 @@ func (bh *BaseHandler) APISolveHTTP01ChallengeHandler(w http.ResponseWriter, r *
 	// from here on, we know that the challenge was successful for all domains and IPs
 	// that means we can issue the certificate
 
-	// get the issuer from the context header
-	issuerContext := r.Header.Get("X-Issuer-Context")
-	issuer, err := bh.DBSvc.FindIssuer("context = ?", issuerContext)
+	apiKey := r.Context().Value("apiKey").(*entity.APIKey)
+	if apiKey == nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	issuer, err := bh.DBSvc.FindIssuer("id = ?", apiKey.IssuerID)
 	if err != nil {
 		logger.Debug("could not find issuer by context: " + err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -792,9 +803,12 @@ func (bh *BaseHandler) APISolveDNS01ChallengeHandler(w http.ResponseWriter, r *h
 	// from here on, we know that the challenge was successful for all domains
 	// that means we can issue the certificate
 
-	// get the issuer from the context header
-	issuerContext := r.Header.Get("X-Issuer-Context")
-	issuer, err := bh.DBSvc.FindIssuer("context = ?", issuerContext)
+	apiKey := r.Context().Value("apiKey").(*entity.APIKey)
+	if apiKey == nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	issuer, err := bh.DBSvc.FindIssuer("id = ?", apiKey.IssuerID)
 	if err != nil {
 		logger.Debug("could not find issuer by context: " + err.Error())
 		w.WriteHeader(http.StatusBadRequest)

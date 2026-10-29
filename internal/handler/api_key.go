@@ -3,7 +3,6 @@ package handler
 import (
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 	"github.com/KaiserWerk/CertMaker/internal/global"
@@ -98,35 +97,32 @@ func (bh *BaseHandler) AddAPIKeyHandler(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		allowedIssuers := r.Form["issuers"]
-		if len(allowedIssuers) == 0 {
+		issuerIDRaw := r.FormValue("issuer_id")
+		issuerID, err := strconv.ParseUint(issuerIDRaw, 10, 64)
+		if err != nil {
+			logger.Debug("could not parse issuer ID: " + err.Error())
+			templating.SetErrorMessage(w, "Invalid issuer ID.")
+			http.Redirect(w, r, "/user/apikey/add", http.StatusSeeOther)
+			return
+		}
+		if issuerID == 0 {
 			templating.SetErrorMessage(w, "At least one issuer must be selected.")
 			http.Redirect(w, r, "/user/apikey/add", http.StatusSeeOther)
 			return
 		}
 
-		for _, issuerIDRaw := range allowedIssuers {
-			issuerID, err := strconv.ParseUint(issuerIDRaw, 10, 64)
-			if err != nil {
-				logger.Debug("could not parse issuer ID: " + err.Error())
-				templating.SetErrorMessage(w, "Invalid issuer ID.")
-				http.Redirect(w, r, "/user/apikey/add", http.StatusSeeOther)
-				return
-			}
-
-			if !bh.DBSvc.IssuerExists(issuerID) {
-				logger.Debug("issuer does not exist: " + issuerIDRaw)
-				templating.SetErrorMessage(w, "One of the selected issuers does not exist.")
-				http.Redirect(w, r, "/user/apikey/add", http.StatusSeeOther)
-				return
-			}
+		if !bh.DBSvc.IssuerExists(issuerID) {
+			logger.Debug("issuer does not exist: " + issuerIDRaw)
+			templating.SetErrorMessage(w, "One of the selected issuers does not exist.")
+			http.Redirect(w, r, "/user/apikey/add", http.StatusSeeOther)
+			return
 		}
 
 		newKey := &entity.APIKey{
-			UserID:         user.ID,
-			Key:            security.GenerateToken(global.APITokenLength, user.ID),
-			Name:           r.FormValue("key_name"),
-			AllowedIssuers: strings.Join(allowedIssuers, ","),
+			UserID:     user.ID,
+			KeyContent: security.GenerateToken(global.APITokenLength, user.ID),
+			Name:       r.FormValue("key_name"),
+			IssuerID:   uint(issuerID),
 		}
 
 		if err = bh.DBSvc.AddAPIKey(newKey); err != nil {
@@ -136,7 +132,7 @@ func (bh *BaseHandler) AddAPIKeyHandler(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		templating.SetSuccessMessage(w, "API key created successfully! Make sure to copy the key now, as it will not be shown again: "+newKey.Key)
+		templating.SetSuccessMessage(w, "API key created successfully! Make sure to copy the key now, as it will not be shown again: "+newKey.KeyContent)
 		http.Redirect(w, r, "/user/apikey/list", http.StatusSeeOther)
 	}
 
