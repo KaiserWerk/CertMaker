@@ -9,6 +9,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/pem"
 	"math/big"
 	"net/http"
 	"strconv"
@@ -273,6 +274,11 @@ func (bh *BaseHandler) AdminIssuerCreateHandler(w http.ResponseWriter, r *http.R
 			return
 		}
 
+		newCert = pem.EncodeToMemory(&pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: newCert,
+		})
+
 		newIssuer := &entity.Issuer{
 			ParentIssuerID: parentIssuerID,
 			Name:           issuerName,
@@ -323,4 +329,73 @@ func (bh *BaseHandler) AdminIssuerDownloadRootCertificateHandler(w http.Response
 	w.Header().Set("Content-Disposition", "attachment; filename="+filename)
 	w.Header().Set("Content-Type", "application/x-pem-file")
 	w.Write(issuer.CertificatePEM)
+}
+
+func (bh *BaseHandler) AdminIssuerDeleteHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idRaw := vars["id"]
+	id, err := strconv.ParseUint(idRaw, 10, 64)
+	if err != nil {
+		bh.Logger.Errorf("invalid issuer ID: %s", err.Error())
+		http.Redirect(w, r, "/admin/issuer/list", http.StatusSeeOther)
+		return
+	}
+
+	issuer, err := bh.DBSvc.FindIssuer("id = ?", id)
+	if err != nil || issuer == nil {
+		bh.Logger.Errorf("issuer not found: %s", err.Error())
+		http.Redirect(w, r, "/admin/issuer/list", http.StatusSeeOther)
+		return
+	}
+
+	err = bh.DBSvc.DeleteIssuer(issuer)
+	if err != nil {
+		bh.Logger.Errorf("could not delete issuer: %s", err.Error())
+		http.Redirect(w, r, "/admin/issuer/list", http.StatusSeeOther)
+		return
+	}
+
+	templating.SetSuccessMessage(w, "Issuer deleted successfully!")
+	http.Redirect(w, r, "/admin/issuer/list", http.StatusSeeOther)
+}
+
+func (bh *BaseHandler) AdminIssuerImportHandler(w http.ResponseWriter, r *http.Request) {
+	var (
+		template = "admin_issuer_import.html"
+		logger   = bh.ContextLogger("admin")
+	)
+
+	data := struct {
+		Error   string
+		Success string
+		Info    string
+		User    *entity.User
+		Issuers []*entity.Issuer
+	}{
+		Error:   templating.GetErrorMessage(w, r),
+		Success: templating.GetSuccessMessage(w, r),
+		Info:    templating.GetInfoMessage(w, r),
+	}
+
+	user, ok := r.Context().Value("user").(*entity.User)
+	if !ok || user == nil {
+		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
+		return
+	}
+	data.User = user
+
+	if r.Method == http.MethodPost {
+		if r.FormValue("pfx_import") != "" {
+			// Handle PFX import
+		} else if r.FormValue("pem_import") != "" {
+			// Handle PEM import
+		}
+
+		http.Redirect(w, r, "/admin/issuer/list", http.StatusSeeOther)
+		return
+	}
+
+	if err := templating.ExecuteTemplate(w, template, data); err != nil {
+		logger.Errorf("could not execute template '%s': %s", template, err.Error())
+	}
 }

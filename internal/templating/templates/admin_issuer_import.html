@@ -1,0 +1,66 @@
+{{ template "header_default" . }}
+<div class="container">
+    <h3>Import issuer</h3>
+
+    {{ if .Error }}
+        {{ template "error_alert" .Error }}
+    {{ end }}
+    {{ if .Success }}
+        {{ template "success_alert" .Success }}
+    {{ end }}
+    {{ if .Info }}
+        {{ template "info_alert" .Info }}
+    {{ end }}
+
+    <div class="row">
+        <div class="col-md-6">
+            
+            <form method="post" name="pfx_import" enctype="multipart/form-data">
+
+                <div class="form-group mb-4">
+                    <label for="issuer_name">Issuer Name</label>
+                    <input type="text" class="form-control" id="issuer_name" name="issuer_name" required>   
+                </div>
+                
+                <!-- import from PFX -->
+                <div class="form-group mb-2">
+                    <label for="pfx_file">PFX File</label>
+                    <input type="file" accept=".pfx" class="form-control" id="pfx_file" name="pfx_file" required>
+
+                    <label for="pfx_password">PFX Password</label>
+                    <input type="password" class="form-control" id="pfx_password" name="pfx_password" placeholder="PFX Password (optional)">
+                </div>
+
+                <button type="submit" class="btn btn-primary">Import PFX</button>
+
+            </form>
+
+        </div>
+        <div class="col-md-6">
+
+            <form method="post" name="pem_import" enctype="multipart/form-data">
+
+                <div class="form-group mb-4">
+                    <label for="issuer_name">Issuer Name</label>
+                    <input type="text" class="form-control" id="issuer_name" name="issuer_name" required>   
+                </div>
+                
+                <!-- import from PEM -->
+                <div class="form-group mb-2">
+                    <label for="pem_file">PEM Certificate File</label>
+                    <input type="file" accept=".pem" class="form-control" id="pem_file" name="pem_file" required>
+
+                    <label for="pem_key_file">PEM Key File</label>
+                    <input type="file" accept=".pem" class="form-control" id="pem_key_file" name="pem_key_file" required>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Import PEM</button>
+
+            </form>
+
+        </div>  
+    </div>
+
+</div>
+
+{{ template "footer_default" . }}

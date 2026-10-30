@@ -265,7 +265,9 @@ func setupRoutes(cfg *configuration.AppConfig, logger *logrus.Entry, dbSvc *dbse
 		adminRouter.HandleFunc("/user/{id}/remove", bh.AdminUserRemoveHandler).Methods(http.MethodGet, http.MethodPost)
 		adminRouter.HandleFunc("/jobs", bh.AdminJobListHandler).Methods(http.MethodGet)
 		adminRouter.HandleFunc("/issuer/list", bh.AdminIssuerListHandler).Methods(http.MethodGet)
+		adminRouter.HandleFunc("/issuer/import", bh.AdminIssuerImportHandler).Methods(http.MethodGet, http.MethodPost)
 		adminRouter.HandleFunc("/issuer/create", bh.AdminIssuerCreateHandler).Methods(http.MethodGet, http.MethodPost)
+		adminRouter.HandleFunc("/issuer/{id}/delete", bh.AdminIssuerDeleteHandler).Methods(http.MethodGet)
 		adminRouter.HandleFunc("/issuer/{id}/download-root-certificate", bh.AdminIssuerDownloadRootCertificateHandler).Methods(http.MethodGet)
 	}
 

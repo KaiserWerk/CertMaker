@@ -37,9 +37,7 @@
                         <td>Not before: {{ .NotBefore }}<br>Not after: {{ .NotAfter }}</td>
                         <td>
                             <div class="btn-group btn-group-sm" role="group">
-                                <a href="/admin/issuer/{{ .ID }}/edit" class="btn btn-warning btn-sm">Edit</a><br>
-                                <a href="/admin/issuer/{{ .ID }}/download-root-certificate" class="btn btn-info btn-sm">Download Root Certificate</a>
-                                <a href="/admin/issuer/{{ .ID }}/deactivate" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to deactivate this root issuer?');">Deactivate</a>
+                                <a href="/admin/issuer/{{ .ID }}/download-root-certificate" class="btn btn-info btn-sm">Download Certificate</a>
                                 <a href="/admin/issuer/{{ .ID }}/delete" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this root issuer?');">Delete</a>
                             </div>
                         </td>
@@ -52,8 +50,7 @@
                                 <td>Issuer:{{ .Issuer }}<br>Subject: {{ .Subject }}</td>
                                 <td>Not before: {{ .NotBefore }}<br>Not after: {{ .NotAfter }}</td>
                                 <td>
-                                    <a href="/admin/issuer/{{ .ID }}/edit" class="btn btn-warning btn-sm">Edit</a><br>
-                                    <a href="/admin/issuer/{{ .ID }}/deactivate" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to deactivate this intermediate issuer?');">Deactivate</a>
+                                    <a href="/admin/issuer/{{ .ID }}/delete" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this intermediate issuer?');">Delete</a>
                                 </td>
                             </tr>
                             {{ end }}
