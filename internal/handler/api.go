@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"net/http"
@@ -59,11 +60,11 @@ func (bh *BaseHandler) APIRequestCertificateWithSimpleRequestHandler(w http.Resp
 		return
 	}
 
-	if certRequest.Days > global.CertificateMaxDays {
-		certRequest.Days = global.CertificateMaxDays
+	if certRequest.Validity > global.CertificateMaxValidity {
+		certRequest.Validity = global.CertificateMaxValidity
 	}
-	if certRequest.Days < global.CertificateMinDays {
-		certRequest.Days = global.CertificateMinDays
+	if certRequest.Validity < global.CertificateMinValidity {
+		certRequest.Validity = global.CertificateMinValidity
 	}
 
 	ri := entity.RequestInfo{
@@ -164,7 +165,7 @@ func (bh *BaseHandler) APIRequestCertificateWithSimpleRequestHandler(w http.Resp
 		return
 	}
 
-	certData, keyData, sn, err := certmaker.GenerateLeafCertAndKey(bh.Config.App.DataDir, bh.Config.App.ServerHost, issuer, certRequest)
+	certData, keyData, sn, err := bh.Certmaker.CertificateAndPrivateKeyFromSimpleRequest(issuer, certRequest)
 	if err != nil {
 		logger.Errorf("error generating key + certificate: %s\n", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -228,7 +229,16 @@ func (bh *BaseHandler) APIRequestCertificateWithCSRHandler(w http.ResponseWriter
 		return
 	}
 
-	csr, err := x509.ParseCertificateRequest(csrBytes)
+	pemBlock, _ := pem.Decode(csrBytes)
+	if pemBlock == nil || pemBlock.Type != "CERTIFICATE REQUEST" {
+		logger.Debug("could not decode PEM block containing CSR")
+		w.WriteHeader(http.StatusBadRequest)
+		response.Error = "could not decode PEM block containing CSR"
+		_ = json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	csr, err := x509.ParseCertificateRequest(pemBlock.Bytes)
 	if err != nil {
 		logger.Debugf("could not parse certificate signing request: %s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -241,7 +251,7 @@ func (bh *BaseHandler) APIRequestCertificateWithCSRHandler(w http.ResponseWriter
 
 	ri := entity.RequestInfo{
 		CreatedFor: u.ID,
-		CsrBytes:   csrBytes,
+		CsrBytes:   pemBlock.Bytes,
 		Status:     global.RequestInfoStatusAccepted,
 	}
 
@@ -337,7 +347,15 @@ func (bh *BaseHandler) APIRequestCertificateWithCSRHandler(w http.ResponseWriter
 		return
 	}
 
-	certBytes, sn, err := certmaker.GenerateCertificateByCSR(bh.Config.App.DataDir, bh.Config.App.ServerHost, issuer, csr)
+	validityRaw := r.Header.Get("X-Validity")
+	validity, err := time.ParseDuration(validityRaw)
+	if err != nil {
+		logger.Debugf("invalid X-Validity header: %s", err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	certBytes, sn, err := bh.Certmaker.CertificateFromCSR(issuer, csr, validity)
 	if err != nil {
 		logger.Errorf("error generating certificate: %s\n", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -361,7 +379,7 @@ func (bh *BaseHandler) APIRequestCertificateWithCSRHandler(w http.ResponseWriter
 		return
 	}
 
-	response.CertificatePEM = string(certBytes)
+	response.CertificatePEM = certBytes
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -647,13 +665,21 @@ func (bh *BaseHandler) APISolveHTTP01ChallengeHandler(w http.ResponseWriter, r *
 		return
 	}
 
+	validityRaw := r.Header.Get("X-Validity")
+	validity, err := time.ParseDuration(validityRaw)
+	if err != nil {
+		logger.Debugf("invalid X-Validity header: %s", err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
 	var (
-		certData, keyData string
+		certData, keyData []byte
 		sn                int64
 	)
 	if fromCSR {
 		// issue certificate from CSR
-		certData, sn, err = certmaker.GenerateCertificateByCSR(bh.Config.App.DataDir, bh.Config.App.ServerHost, issuer, csr)
+		certData, sn, err = bh.Certmaker.CertificateFromCSR(issuer, csr, validity)
 		if err != nil {
 			logger.Errorf("error generating certificate from CSR: %s\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
@@ -661,7 +687,7 @@ func (bh *BaseHandler) APISolveHTTP01ChallengeHandler(w http.ResponseWriter, r *
 			return
 		}
 	} else {
-		certData, keyData, sn, err = certmaker.GenerateLeafCertAndKey(bh.Config.App.DataDir, bh.Config.App.ServerHost, issuer, simpleRequest)
+		certData, keyData, sn, err = bh.Certmaker.CertificateAndPrivateKeyFromSimpleRequest(issuer, simpleRequest)
 		if err != nil {
 			logger.Errorf("error generating key + certificate: %s\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
@@ -815,20 +841,28 @@ func (bh *BaseHandler) APISolveDNS01ChallengeHandler(w http.ResponseWriter, r *h
 		return
 	}
 
+	validityRaw := r.Header.Get("X-Validity")
+	validity, err := time.ParseDuration(validityRaw)
+	if err != nil {
+		logger.Debugf("invalid X-Validity header: %s", err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
 	var (
-		certData, keyData string
+		certData, keyData []byte
 		sn                int64
 	)
 	if fromCSR {
 		// issue certificate from CSR
-		certData, sn, err = certmaker.GenerateCertificateByCSR(bh.Config.App.DataDir, bh.Config.App.ServerHost, issuer, csr)
+		certData, sn, err = bh.Certmaker.CertificateFromCSR(issuer, csr, validity)
 		if err != nil {
 			logger.Errorf("error generating certificate from CSR: %s\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 	} else {
-		certData, keyData, sn, err = certmaker.GenerateLeafCertAndKey(bh.Config.App.DataDir, bh.Config.App.ServerHost, issuer, simpleRequest)
+		certData, keyData, sn, err = bh.Certmaker.CertificateAndPrivateKeyFromSimpleRequest(issuer, simpleRequest)
 		if err != nil {
 			logger.Errorf("error generating key + certificate: %s\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)

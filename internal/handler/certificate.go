@@ -188,17 +188,17 @@ func (bh *BaseHandler) CertificateAddHandler(w http.ResponseWriter, r *http.Requ
 	}
 
 	data := struct {
-		Error       string
-		Success     string
-		Info        string
-		User        *entity.User
-		DefaultDays int
-		Issuers     []*entity.Issuer
+		Error           string
+		Success         string
+		Info            string
+		User            *entity.User
+		DefaultValidity time.Duration
+		Issuers         []*entity.Issuer
 	}{
-		Error:       templating.GetErrorMessage(w, r),
-		Success:     templating.GetSuccessMessage(w, r),
-		Info:        templating.GetInfoMessage(w, r),
-		DefaultDays: global.CertificateDefaultDays,
+		Error:           templating.GetErrorMessage(w, r),
+		Success:         templating.GetSuccessMessage(w, r),
+		Info:            templating.GetInfoMessage(w, r),
+		DefaultValidity: global.CertificateDefaultValidity,
 	}
 
 	user, ok := r.Context().Value("user").(*entity.User)
@@ -224,19 +224,15 @@ func (bh *BaseHandler) CertificateAddHandler(w http.ResponseWriter, r *http.Requ
 		streetAddress := r.FormValue("street_address")
 		postalCode := r.FormValue("postal_code")
 		commonName := r.FormValue("common_name")
-		days := r.FormValue("days")
-		if days == "" {
+		daysRaw := r.FormValue("days")
+		days, err := strconv.Atoi(daysRaw)
+		if err != nil {
 			logger.Debug("please fill in all required fields, marked with *")
 			http.Redirect(w, r, "/certificate/add", http.StatusSeeOther)
 			return
 		}
 
-		daysVal, err := strconv.Atoi(days)
-		if err != nil {
-			logger.Debug("no valid numeric value for field 'days' supplied!")
-			http.Redirect(w, r, "/certificate/add", http.StatusSeeOther)
-			return
-		}
+		validity := time.Duration(days*24) * time.Hour
 
 		domainList := make([]string, 0)
 		domains := r.FormValue("domains")
@@ -269,7 +265,7 @@ func (bh *BaseHandler) CertificateAddHandler(w http.ResponseWriter, r *http.Requ
 				StreetAddress: streetAddress,
 				PostalCode:    postalCode,
 			},
-			Days: daysVal,
+			Validity: validity,
 		}
 
 		// get the issuer from the context header
@@ -281,7 +277,7 @@ func (bh *BaseHandler) CertificateAddHandler(w http.ResponseWriter, r *http.Requ
 			return
 		}
 
-		_, _, sn, err := certmaker.GenerateLeafCertAndKey(bh.Config.App.DataDir, bh.Config.App.ServerHost, issuer, certRequest)
+		_, _, sn, err := bh.Certmaker.CertificateAndPrivateKeyFromSimpleRequest(issuer, certRequest)
 		if err != nil {
 			logger.Error("could not generate leaf cert and key: " + err.Error())
 			http.Redirect(w, r, "/certificate/add", http.StatusSeeOther)

@@ -12,12 +12,12 @@ const (
 )
 
 const (
-	CertificateMinDays     = 1
-	CertificateMaxDays     = 182
-	CertificateDefaultDays = 7
-	CSRUploadMaxBytes      = 5 << 10 // 5 KiB
-	APITokenLength         = 25
-	ChallengeTokenLength   = 80
+	CertificateMinValidity     = 1 * time.Minute
+	CertificateMaxValidity     = 182 * 24 * time.Hour // half a year
+	CertificateDefaultValidity = 7 * 24 * time.Hour   // 7 days
+	CSRUploadMaxBytes          = 5 << 10              // 5 KiB
+	APITokenLength             = 25
+	ChallengeTokenLength       = 80
 
 	TokenHeader = "X-Api-Token"
 

@@ -1,8 +1,8 @@
 package entity
 
 type CertificateResponse struct {
-	CertificatePEM string              `json:"certificate_pem,omitempty"`
-	PrivateKeyPEM  string              `json:"private_key_pem,omitempty"`
+	CertificatePEM []byte              `json:"certificate_pem,omitempty"`
+	PrivateKeyPEM  []byte              `json:"private_key_pem,omitempty"`
 	Challenges     []ChallengeResponse `json:"challenges,omitempty"`
 	Error          string              `json:"error,omitempty"`
 }

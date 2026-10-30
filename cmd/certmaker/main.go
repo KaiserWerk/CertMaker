@@ -14,6 +14,7 @@ import (
 
 	"github.com/KaiserWerk/CertMaker/internal/assets"
 	"github.com/KaiserWerk/CertMaker/internal/backup"
+	"github.com/KaiserWerk/CertMaker/internal/certmaker"
 	"github.com/KaiserWerk/CertMaker/internal/configuration"
 	"github.com/KaiserWerk/CertMaker/internal/cron"
 	"github.com/KaiserWerk/CertMaker/internal/dbservice"
@@ -204,12 +205,13 @@ func setupRoutes(cfg *configuration.AppConfig, logger *logrus.Entry, dbSvc *dbse
 	sessMgr *sessionstore.SessionManager, cron *cron.Cron, ui bool) *mux.Router {
 
 	bh := handler.BaseHandler{
-		Config:  cfg,
-		Logger:  logger,
-		DBSvc:   dbSvc,
-		SessMgr: sessMgr,
-		CronSvc: cron,
-		Client:  &http.Client{Timeout: 10 * time.Second},
+		Config:    cfg,
+		Logger:    logger,
+		DBSvc:     dbSvc,
+		SessMgr:   sessMgr,
+		CronSvc:   cron,
+		Client:    &http.Client{Timeout: 10 * time.Second},
+		Certmaker: certmaker.NewCertMaker(cfg, dbSvc),
 	}
 
 	mh := middleware.MWHandler{

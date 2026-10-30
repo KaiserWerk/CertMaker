@@ -55,6 +55,7 @@ func (ds *DBService) AutoMigrate() error {
 		&entity.CertInfo{},
 		&entity.Challenge{},
 		&entity.RequestInfo{},
+		&entity.SerialNumber{},
 		&entity.SystemSetting{},
 		&entity.User{},
 		&entity.Issuer{},

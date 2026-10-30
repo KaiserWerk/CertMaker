@@ -1,0 +1,7 @@
+# OCSP
+
+## Example check against OCSP responder
+
+```powershell
+openssl ocsp -issuer root-cert.pem -cert 101-cert.pem -text -url http://localhost:8880/api/v1/ocsp -no_nonce
+```

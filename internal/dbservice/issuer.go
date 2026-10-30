@@ -1,9 +1,11 @@
 package dbservice
 
 import (
+	"crypto"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 
-	"github.com/KaiserWerk/CertMaker/internal/certmaker"
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 )
 
@@ -43,12 +45,12 @@ func (ds *DBService) FindIssuer(cond string, args ...interface{}) (*entity.Issue
 	}
 
 	var err error
-	issuer.Certificate, err = certmaker.LoadCertificateFromPEM(issuer.CertificatePEM)
+	issuer.Certificate, err = loadCertificateFromPEM(issuer.CertificatePEM)
 	if err != nil {
 		return nil, err
 	}
 
-	issuer.PrivateKey, err = certmaker.LoadPrivateKeyFromPEM(issuer.PrivateKeyPEM)
+	issuer.PrivateKey, err = loadPrivateKeyFromPEM(issuer.PrivateKeyPEM)
 	if err != nil {
 		return nil, err
 	}
@@ -82,4 +84,24 @@ func (ds *DBService) UpdateIssuer(issuer *entity.Issuer) error {
 func (ds *DBService) DeleteIssuer(issuer *entity.Issuer) error {
 	res := ds.db.Unscoped().Delete(issuer)
 	return res.Error
+}
+
+func loadCertificateFromPEM(pemData []byte) (*x509.Certificate, error) {
+	block, _ := pem.Decode(pemData)
+	if block == nil || block.Type != "CERTIFICATE" {
+		return nil, fmt.Errorf("failed to decode PEM block")
+	}
+	return x509.ParseCertificate(block.Bytes)
+}
+
+func loadPrivateKeyFromPEM(pemData []byte) (crypto.Signer, error) {
+	block, _ := pem.Decode(pemData)
+	if block == nil || (block.Type != "PRIVATE KEY" && block.Type != "EC PRIVATE KEY" && block.Type != "RSA PRIVATE KEY") {
+		return nil, fmt.Errorf("failed to decode PEM block")
+	}
+	privKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	return privKey.(crypto.Signer), nil
 }

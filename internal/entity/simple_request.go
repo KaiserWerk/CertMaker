@@ -1,13 +1,15 @@
 package entity
 
+import "time"
+
 // SimpleRequest (not CSR) describes the content of a certificate request
 // against the API
 type SimpleRequest struct {
-	Domains        []string `json:"domains"`
-	IPs            []string `json:"ips"`
-	EmailAddresses []string `json:"email_addresses"`
-	Subject        Subject  `json:"subject,omitempty"`
-	Days           int      `json:"days"`
+	Domains        []string      `json:"domains"`
+	IPs            []string      `json:"ips"`
+	EmailAddresses []string      `json:"email_addresses"`
+	Subject        Subject       `json:"subject,omitempty"`
+	Validity       time.Duration `json:"validity"`
 }
 
 type Subject struct {
