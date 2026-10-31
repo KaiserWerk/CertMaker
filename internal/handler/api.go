@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"database/sql"
+	"encoding/asn1"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
@@ -13,7 +15,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	"github.com/KaiserWerk/CertMaker/internal/certmaker"
@@ -21,6 +22,7 @@ import (
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 	"github.com/KaiserWerk/CertMaker/internal/global"
 	"github.com/KaiserWerk/CertMaker/internal/helper"
+	"github.com/KaiserWerk/CertMaker/internal/ocsputil"
 	"github.com/KaiserWerk/CertMaker/internal/security"
 
 	"github.com/gorilla/mux"
@@ -431,64 +433,95 @@ func (bh *BaseHandler) APIOCSPRequestHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	status := ocsp.Good
-	ci, err := bh.DBSvc.FindCertInfo("serial_number = ?", ocspReq.SerialNumber.Int64())
+	issuers, err := bh.DBSvc.GetAllIssuers()
 	if err != nil {
-		logger.Debug("could not find cert info: " + err.Error())
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	if ci.Revoked {
-		status = ocsp.Revoked
-	}
-
-	revokedAt := time.Now()
-	if ci.Revoked && ci.RevokedAt.Valid {
-		revokedAt = ci.RevokedAt.Time
-	}
-	responseTemplate := ocsp.Response{
-		Status:       status,
-		SerialNumber: ocspReq.SerialNumber,
-		ThisUpdate:   time.Now().AddDate(0, 0, -1).UTC(),
-		//adding 1 day after the current date. This ocsp library sets the default date to epoch which makes ocsp clients freak out.
-		NextUpdate:       time.Now().AddDate(0, 0, 1).UTC(),
-		RevokedAt:        revokedAt,
-		RevocationReason: ocsp.Unspecified,
-		IssuerHash:       crypto.SHA512,
-	}
-
-	// maybe add nonce extension back in the future
-
-	// nonce, err := ocsputil.ExtractNonceFromRequestDER(requestData)
-	// if err != nil {
-	// 	logger.Errorf("could not extract nonce from OCSP request: %s", err.Error())
-	// 	w.WriteHeader(http.StatusBadRequest)
-	// 	return
-	// }
-
-	// if nonce != nil {
-	// 	nonceExt := pkix.Extension{
-	// 		Id: ocsputil.OidOCSPNonce,
-	// 		Value: ocsputil.MustASN1Marshal(asn1.RawValue{
-	// 			Tag:   asn1.TagOctetString,
-	// 			Class: asn1.ClassUniversal,
-	// 			Bytes: nonce,
-	// 		}),
-	// 	}
-	// 	responseTemplate.ExtraExtensions = []pkix.Extension{nonceExt}
-	// }
-
-	rootCert, rootKey, sigAlgo, err := certmaker.GetRootKeyPair(bh.Config.App.DataDir)
-	if err != nil {
-		logger.Errorf("could not retrieve root certificate: %s", err.Error())
+		logger.Debug("could not find issuers: " + err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	responseTemplate.SignatureAlgorithm = sigAlgo
+	var correctIssuer *entity.Issuer
+	for _, issuer := range issuers {
+		ok, err := certmaker.MatchesIssuer(ocspReq, issuer.Certificate)
+		if err != nil {
+			logger.Debug("error matching issuer: " + err.Error())
+			continue
+		}
+		if ok {
+			correctIssuer = issuer
+			break
+		}
+	}
+	if correctIssuer == nil {
+		logger.Debug("could not find issuer for certificate")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
-	resp, err := ocsp.CreateResponse(rootCert, rootCert, responseTemplate, rootKey)
+	status := ocsp.Good
+	ci, err := bh.DBSvc.FindCertInfo("serial_number = ?", ocspReq.SerialNumber.Int64())
+	if err != nil {
+		responseTemplate := ocsp.Response{
+			Status:           status,
+			SerialNumber:     ocspReq.SerialNumber,
+			ThisUpdate:       time.Now().Add(1 * time.Hour).UTC(),
+			NextUpdate:       time.Now().Add(1 * time.Hour).UTC(),
+			RevocationReason: ocsp.Unspecified,
+			IssuerHash:       crypto.SHA512,
+		}
+		resp, err := ocsp.CreateResponse(correctIssuer.Certificate, correctIssuer.Certificate, responseTemplate, correctIssuer.PrivateKey)
+		if err != nil {
+			logger.Errorf("could not create and sign OCSP response: %s", err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		logger.Debug("could not find cert info: " + err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(resp)
+		return
+	}
+
+	responseTemplate := ocsp.Response{
+		Status:           status,
+		SerialNumber:     ocspReq.SerialNumber,
+		ThisUpdate:       time.Now().Add(1 * time.Hour).UTC(),
+		NextUpdate:       time.Now().Add(1 * time.Hour).UTC(), // adding 1 hour after the current date. This ocsp library sets the default date to epoch which makes ocsp clients freak out.
+		RevocationReason: ocsp.Unspecified,
+		IssuerHash:       crypto.SHA512,
+	}
+
+	if ci.Revoked {
+		status = ocsp.Revoked
+		revokedAt := time.Now()
+		if ci.RevokedAt.Valid {
+			revokedAt = ci.RevokedAt.Time
+		}
+		responseTemplate.RevokedAt = revokedAt
+	}
+
+	// maybe add nonce extension back in the future
+
+	nonce, err := ocsputil.ExtractNonceFromRequestDER(requestData)
+	if err != nil {
+		logger.Errorf("could not extract nonce from OCSP request: %s", err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if nonce != nil {
+		nonceExt := pkix.Extension{
+			Id: ocsputil.OidOCSPNonce,
+			Value: ocsputil.MustASN1Marshal(asn1.RawValue{
+				Tag:   asn1.TagOctetString,
+				Class: asn1.ClassUniversal,
+				Bytes: nonce,
+			}),
+		}
+		responseTemplate.ExtraExtensions = []pkix.Extension{nonceExt}
+	}
+
+	//
+	resp, err := ocsp.CreateResponse(correctIssuer.Certificate, correctIssuer.Certificate, responseTemplate, correctIssuer.PrivateKey)
 	if err != nil {
 		logger.Errorf("could not create and sign OCSP response: %s", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -981,62 +1014,62 @@ func (bh *BaseHandler) APIRevokeCertificateHandler(w http.ResponseWriter, r *htt
 }
 
 // APIObtainCertificateHandler allows to actually download a certificate
-func (bh *BaseHandler) APIObtainCertificateHandler(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-	var (
-		logger = bh.ContextLogger("api")
-		id     = mux.Vars(r)["id"]
-	)
+// func (bh *BaseHandler) APIObtainCertificateHandler(w http.ResponseWriter, r *http.Request) {
+// 	defer r.Body.Close()
+// 	var (
+// 		logger = bh.ContextLogger("api")
+// 		id     = mux.Vars(r)["id"]
+// 	)
 
-	certID, err := strconv.ParseInt(id, 10, 64)
-	if err != nil {
-		logger.Debugf("ID is not numeric: %s", id)
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
+// 	certID, err := strconv.ParseInt(id, 10, 64)
+// 	if err != nil {
+// 		logger.Debugf("ID is not numeric: %s", id)
+// 		w.WriteHeader(http.StatusBadRequest)
+// 		return
+// 	}
 
-	certBytes, err := certmaker.FindLeafCertificate(bh.Config.App.DataDir, certID)
-	if err != nil {
-		logger.Debugf("No certificate found for ID %s", id)
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
+// 	certBytes, err := certmaker.FindLeafCertificate(bh.Config.App.DataDir, certID)
+// 	if err != nil {
+// 		logger.Debugf("No certificate found for ID %s", id)
+// 		w.WriteHeader(http.StatusNotFound)
+// 		return
+// 	}
 
-	//w.Header().Set("Content-Disposition", "attachment; filename=\""+id+"-cert.pem\"")
-	w.Header().Set("Content-Type", global.PEMContentType)
-	_, err = w.Write(certBytes)
-	if err != nil {
-		logger.Error("could not write cert bytes: " + err.Error())
-	}
-}
+// 	//w.Header().Set("Content-Disposition", "attachment; filename=\""+id+"-cert.pem\"")
+// 	w.Header().Set("Content-Type", global.PEMContentType)
+// 	_, err = w.Write(certBytes)
+// 	if err != nil {
+// 		logger.Error("could not write cert bytes: " + err.Error())
+// 	}
+// }
 
 // APIObtainPrivateKeyHandler allows to actually download a private key
-func (bh *BaseHandler) APIObtainPrivateKeyHandler(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-	var (
-		logger = bh.ContextLogger("api")
-		vars   = mux.Vars(r)
-		id     = vars["id"]
-	)
+// func (bh *BaseHandler) APIObtainPrivateKeyHandler(w http.ResponseWriter, r *http.Request) {
+// 	defer r.Body.Close()
+// 	var (
+// 		logger = bh.ContextLogger("api")
+// 		vars   = mux.Vars(r)
+// 		id     = vars["id"]
+// 	)
 
-	keyID, err := strconv.ParseInt(id, 10, 64)
-	if err != nil {
-		logger.Debugf("ID is not numeric: %s", id)
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
+// 	keyID, err := strconv.ParseInt(id, 10, 64)
+// 	if err != nil {
+// 		logger.Debugf("ID is not numeric: %s", id)
+// 		w.WriteHeader(http.StatusBadRequest)
+// 		return
+// 	}
 
-	keyBytes, err := certmaker.FindLeafPrivateKey(bh.Config.App.DataDir, keyID)
-	if err != nil {
-		logger.Debugf("No private key found for ID %s", id)
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
+// 	keyBytes, err := certmaker.FindLeafPrivateKey(bh.Config.App.DataDir, keyID)
+// 	if err != nil {
+// 		logger.Debugf("No private key found for ID %s", id)
+// 		w.WriteHeader(http.StatusNotFound)
+// 		return
+// 	}
 
-	//w.Header().Set("Content-Disposition", "attachment; filename=\""+id+"-key.pem\"")
-	w.Header().Set("Content-Type", global.PEMContentType)
-	_, err = w.Write(keyBytes)
-	if err != nil {
-		logger.Error("could not write private key bytes: " + err.Error())
-	}
-}
+// 	//w.Header().Set("Content-Disposition", "attachment; filename=\""+id+"-key.pem\"")
+// 	w.Header().Set("Content-Type", global.PEMContentType)
+// 	_, err = w.Write(keyBytes)
+// 	if err != nil {
+// 		logger.Error("could not write private key bytes: " + err.Error())
+// 	}
+// }

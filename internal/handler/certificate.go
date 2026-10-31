@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/KaiserWerk/CertMaker/internal/certmaker"
 	"github.com/KaiserWerk/CertMaker/internal/entity"
 	"github.com/KaiserWerk/CertMaker/internal/global"
 	"github.com/KaiserWerk/CertMaker/internal/helper"
@@ -393,7 +392,15 @@ func (bh *BaseHandler) AddCertificateFromCSRHandler(w http.ResponseWriter, r *ht
 			return
 		}
 
-		_, sn, err := certmaker.GenerateCertificateByCSR(bh.Config.App.DataDir, bh.Config.App.ServerHost, issuer, csr)
+		validityRaw := r.FormValue("validity")
+		validity, err := time.ParseDuration(validityRaw)
+		if err != nil {
+			logger.Debug("could not parse validity duration: " + err.Error())
+			http.Redirect(w, r, "/certificate/list", http.StatusSeeOther)
+			return
+		}
+
+		_, sn, err := bh.Certmaker.CertificateFromCSR(issuer, csr, validity)
 		if err != nil {
 			logger.Debug("could not generate certificate FROM CSR: " + err.Error())
 			http.Redirect(w, r, "/certificate/list", http.StatusSeeOther)

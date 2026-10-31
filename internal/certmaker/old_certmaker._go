@@ -330,17 +330,6 @@ func LoadPrivateKeyFromFile(keyFile string) (crypto.Signer, error) {
 	return privKey.(crypto.Signer), nil
 }
 
-func EncodeCertificateToPEM(cert *x509.Certificate) []byte {
-	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
-}
 
-func EncodePrivateKeyToPEM(privKey crypto.Signer) ([]byte, error) {
-	privKeyBytes, err := x509.MarshalPKCS8PrivateKey(privKey)
-	if err != nil {
-		return nil, err
-	}
-
-	return pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: privKeyBytes}), nil
-}
 
 
